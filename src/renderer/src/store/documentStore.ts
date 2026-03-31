@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type { Document, Slide, SlideId } from '../../../shared/model/types'
+import type { AuthContext } from '../../../shared/auth/types'
+import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
@@ -27,8 +29,8 @@ interface DocumentState {
   isDirty: boolean // unsaved changes
 
   // Actions
-  loadDocument(repo: DocumentRepository, id: string): Promise<void>
-  saveDocument(repo: DocumentRepository): Promise<void>
+  loadDocument(repo: DocumentRepository, id: string, auth?: AuthContext): Promise<void>
+  saveDocument(repo: DocumentRepository, auth?: AuthContext): Promise<void>
   setDocument(doc: Document): void
   selectSlide(id: SlideId | null): void
   selectElements(ids: string[]): void
@@ -68,8 +70,8 @@ export const useDocumentStore = create<DocumentState>()(
     historyIndex: -1,
     isDirty: false,
 
-    async loadDocument(repo, id) {
-      const doc = await repo.load(id)
+    async loadDocument(repo, id, auth = nullAuthContext) {
+      const doc = await repo.load(id, auth)
       set((state) => {
         state.document = doc
         state.history = [snapshot(doc)]
@@ -79,11 +81,11 @@ export const useDocumentStore = create<DocumentState>()(
       })
     },
 
-    async saveDocument(repo) {
+    async saveDocument(repo, auth = nullAuthContext) {
       const { document } = get()
       if (!document) return
       const saved = { ...document, updatedAt: new Date().toISOString() }
-      await repo.save(saved)
+      await repo.save(saved, auth)
       set((state) => {
         state.isDirty = false
         if (state.document) state.document.updatedAt = saved.updatedAt

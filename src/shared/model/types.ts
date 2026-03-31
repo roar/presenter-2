@@ -5,11 +5,14 @@
 export type ElementId = string
 export type SlideId = string
 export type DocumentId = string
+export type UserId = string // Clerk user ID (e.g. "user_2abc...")
 
 export interface Document {
   id: DocumentId
   title: string
   slides: Slide[]
+  ownerId: UserId | null // null when running locally without auth
+  isPublished: boolean
   createdAt: string // ISO 8601
   updatedAt: string // ISO 8601
 }

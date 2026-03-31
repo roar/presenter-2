@@ -7,6 +7,8 @@ function makeDocument(overrides?: Partial<Document>): Document {
     id: 'doc-1',
     title: 'Test presentation',
     slides: [],
+    ownerId: null,
+    isPublished: false,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides

@@ -16,6 +16,26 @@ An Electron application built with React and TypeScript. There are three deploym
 - Zustand + immer for state management
 - JSON files for document persistence
 
+## Authentication
+
+**Provider:** [Clerk](https://clerk.com) — not yet integrated, planned.
+
+### Seams already in place
+
+- `src/shared/auth/types.ts` — `AuthContext` interface with `userId` and `getToken()`
+- `nullAuthContext` — a no-op implementation used everywhere until Clerk is wired up
+- All `DocumentRepository` methods accept `AuthContext` — implementations attach the token when calling a backend API
+- `Document.ownerId` — stores the Clerk user ID (`"user_2abc..."`), `null` when running locally without auth
+- `Document.isPublished` — controls whether a shared link is accessible
+
+### When integrating Clerk
+
+1. Install `@clerk/clerk-react` in the renderer and `@clerk/clerk-sdk-node` in the main process if needed
+2. Wrap the renderer app in `<ClerkProvider>`
+3. Replace `nullAuthContext` with a real implementation that calls `useAuth().getToken()`
+4. The `ApiRepository` (future) will pass the token as `Authorization: Bearer <token>` on all requests
+5. The viewer must handle unauthenticated access gracefully — public presentations load without a token, private ones redirect to login
+
 ## Testing
 
 **Tooling:** Vitest + React Testing Library.

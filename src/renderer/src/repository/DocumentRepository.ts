@@ -1,16 +1,20 @@
 import type { Document, DocumentId } from '../../../shared/model/types'
+import type { AuthContext } from '../../../shared/auth/types'
 
 export interface DocumentMeta {
   id: DocumentId
   title: string
   updatedAt: string
+  isPublished: boolean
 }
 
 // Repository interface — implemented separately for Electron (JSON files)
-// and web (IndexedDB). The store only ever calls this interface.
+// and eventually a backend API. The store only ever calls this interface.
+// AuthContext is accepted by all methods so implementations can attach
+// tokens when needed — current local implementation ignores it.
 export interface DocumentRepository {
-  load(id: DocumentId): Promise<Document>
-  save(doc: Document): Promise<void>
-  list(): Promise<DocumentMeta[]>
-  delete(id: DocumentId): Promise<void>
+  load(id: DocumentId, auth: AuthContext): Promise<Document>
+  save(doc: Document, auth: AuthContext): Promise<void>
+  list(auth: AuthContext): Promise<DocumentMeta[]>
+  delete(id: DocumentId, auth: AuthContext): Promise<void>
 }
