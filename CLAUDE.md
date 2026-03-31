@@ -140,12 +140,18 @@ Tests live next to the code they test: `Foo.ts` → `Foo.test.ts`.
 
 ### TDD approach
 
-Follow red-green-refactor for all logic in `store/`, `model/`, and `repository/`:
-1. Write a failing test that describes the behaviour
-2. Write the minimum code to make it pass
-3. Refactor — the test suite keeps you safe
+**Always write the test first, then the implementation.**
 
-For React components, write the test before (or alongside) the component. Test what the user sees and does — not implementation details.
+For every piece of logic in `store/`, `model/`, `repository/`, and non-trivial components:
+
+1. Write a failing test that describes the expected behaviour (`npm run test:watch`)
+2. Verify it fails for the right reason
+3. Write the minimum implementation to make it pass
+4. Refactor — the passing tests keep you safe
+
+For React components: write the test before the component. Test what the user sees and does, not implementation details.
+
+Do not write implementation code without a corresponding test unless the code has no logic (e.g. a pure layout component with no branching or state).
 
 ### What to test
 
