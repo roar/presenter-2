@@ -25,6 +25,7 @@ function makeState(overrides: Partial<RenderedElement> = {}): RenderedElement {
     opacity: 1,
     transform: 'translate(0px, 0px)',
     textShadow: null,
+    strokeDashoffset: null,
     ...overrides
   }
 }

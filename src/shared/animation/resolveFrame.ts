@@ -45,6 +45,22 @@ function hasEnterAnimation(elementId: string, slide: Slide): boolean {
   return false
 }
 
+function hasLineDraw(elementId: string, slide: Slide): boolean {
+  for (const cue of slide.cues) {
+    if (cue.kind !== 'animation') continue
+    for (const anim of cue.animations) {
+      const { effect } = anim
+      if (
+        anim.targetId === elementId &&
+        (effect.kind === 'enter' || effect.kind === 'exit' || effect.kind === 'property') &&
+        effect.animation.type === 'line-draw'
+      )
+        return true
+    }
+  }
+  return false
+}
+
 function resolveElementState(
   element: LeafElement,
   slide: Slide,
@@ -66,6 +82,7 @@ function resolveElementState(
   let opacity = visible ? 1 : 0
   let translateX = 0
   let translateY = 0
+  let strokeDashoffset: number | null = hasLineDraw(element.id, slide) ? 1 : null
 
   for (const { animation, cueStartTime } of animations) {
     const localTime = time - cueStartTime - animation.offset
@@ -90,6 +107,9 @@ function resolveElementState(
           translateX = 0
           translateY = 0
         }
+      } else if (effect.animation.type === 'line-draw') {
+        strokeDashoffset = lerp(1, 0, progress)
+        if (completed) strokeDashoffset = 0
       } else {
         throw new Error('not implemented')
       }
@@ -113,7 +133,8 @@ function resolveElementState(
     visible,
     opacity,
     transform: `translate(${translateX}px, ${translateY}px)`,
-    textShadow: null
+    textShadow: null,
+    strokeDashoffset
   }
 }
 

@@ -31,6 +31,9 @@ export function ShapeElementRenderer({
         stroke={element.stroke.color}
         strokeWidth={element.stroke.width}
         strokeOpacity={element.stroke.opacity}
+        pathLength={state.strokeDashoffset !== null ? 1 : undefined}
+        strokeDasharray={state.strokeDashoffset !== null ? '1' : undefined}
+        strokeDashoffset={state.strokeDashoffset ?? undefined}
       />
     </svg>
   )

@@ -39,6 +39,18 @@ export const bibelhistorienDocument: Document = {
           textShadow: SHADOW
         },
         {
+          kind: 'shape',
+          id: 'underline-b1',
+          x: 480,
+          y: 700,
+          width: 960,
+          height: 4,
+          rotation: 0,
+          pathData: 'M 0 0 L 960 0',
+          fill: { color: 'none', opacity: 0 },
+          stroke: { color: '#f0ebe0', width: 3, opacity: 0.7 }
+        },
+        {
           kind: 'text',
           id: 'subtitle-b1',
           x: 160,
@@ -103,6 +115,23 @@ export const bibelhistorienDocument: Document = {
                 kind: 'enter',
                 animation: { type: 'move', from: { x: 160, y: 448 }, to: { x: 160, y: 548 } }
               }
+            }
+          ]
+        },
+        // Line draws in after the fade completes
+        {
+          id: 'cue-b2',
+          kind: 'animation',
+          trigger: 'after-previous',
+          loop: { kind: 'none' },
+          animations: [
+            {
+              id: 'anim-b5',
+              targetId: 'underline-b1',
+              offset: 0,
+              duration: 0.8,
+              easing: 'ease-out',
+              effect: { kind: 'enter', animation: { type: 'line-draw' } }
             }
           ]
         }

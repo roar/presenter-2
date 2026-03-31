@@ -27,6 +27,7 @@ function makeState(overrides: Partial<RenderedElement> = {}): RenderedElement {
     opacity: 1,
     transform: 'translate(0px, 0px)',
     textShadow: null,
+    strokeDashoffset: null,
     ...overrides
   }
 }
@@ -65,5 +66,23 @@ describe('ShapeElementRenderer', () => {
     )
     const svg = container.querySelector('svg') as SVGElement
     expect((svg as HTMLElement).style.opacity).toBe('0.6')
+  })
+
+  it('applies strokeDashoffset and pathLength when state.strokeDashoffset is set', () => {
+    const { container } = render(
+      <ShapeElementRenderer element={makeElement()} state={makeState({ strokeDashoffset: 0.4 })} />
+    )
+    const path = container.querySelector('path')!
+    expect(path.getAttribute('stroke-dasharray')).toBe('1')
+    expect(path.getAttribute('stroke-dashoffset')).toBe('0.4')
+    expect(path.getAttribute('pathLength')).toBe('1')
+  })
+
+  it('does not set strokeDasharray when strokeDashoffset is null', () => {
+    const { container } = render(
+      <ShapeElementRenderer element={makeElement()} state={makeState({ strokeDashoffset: null })} />
+    )
+    const path = container.querySelector('path')!
+    expect(path.getAttribute('stroke-dasharray')).toBeNull()
   })
 })

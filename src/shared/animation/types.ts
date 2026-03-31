@@ -33,6 +33,7 @@ export interface RenderedElement {
   opacity: number // 0–1
   transform: string // CSS transform string (translate, scale, etc.)
   textShadow: TextShadow | null
+  strokeDashoffset: number | null // null = no dash; 0 = fully drawn; 1 = hidden (normalised to pathLength=1)
 }
 
 export interface ActiveTransition {

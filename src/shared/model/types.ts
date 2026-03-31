@@ -137,6 +137,7 @@ export type VisualEffect =
   | { type: 'move'; from: Position; to: Position }
   | { type: 'scale'; from: number; to: number }
   | { type: 'text-shadow'; from: TextShadow; to: TextShadow }
+  | { type: 'line-draw' } // draws an SVG stroke from 0% to 100% using stroke-dashoffset
 
 // Named presets map directly to CSS equivalents.
 // cubic-bezier matches CSS cubic-bezier(x1, y1, x2, y2).

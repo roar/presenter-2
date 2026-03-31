@@ -231,6 +231,60 @@ describe('resolveFrame', () => {
     })
   })
 
+  describe('line-draw animation', () => {
+    function lineDrawCue(
+      id: string,
+      trigger: AnimationCue['trigger'],
+      targetId: string,
+      duration = 1
+    ): AnimationCue {
+      return {
+        id,
+        kind: 'animation',
+        trigger,
+        loop: { kind: 'none' },
+        animations: [
+          {
+            id: `anim-${id}`,
+            targetId,
+            offset: 0,
+            duration,
+            easing: 'linear',
+            effect: { kind: 'enter', animation: { type: 'line-draw' } }
+          }
+        ]
+      }
+    }
+
+    it('strokeDashoffset is null for elements without a line-draw animation', () => {
+      const s = slide('s1', [textEl('el')])
+      const timeline = timelineFromSlides([s])
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].strokeDashoffset).toBeNull()
+    })
+
+    it('strokeDashoffset is 1 (hidden) before the cue fires', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line')])
+      const timeline = timelineFromSlides([s]) // c1 never triggered
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].strokeDashoffset).toBe(1)
+    })
+
+    it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 0.5)
+      expect(frame.front.elements[0].strokeDashoffset).toBeCloseTo(0.5)
+    })
+
+    it('strokeDashoffset is 0 (fully drawn) after animation completes', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 2)
+      expect(frame.front.elements[0].strokeDashoffset).toBe(0)
+    })
+  })
+
   describe('MSO elements', () => {
     it('places MSO elements in msoElements, not in slide elements', () => {
       const mso = shapeEl('logo', { masterId: 'mso-logo' })
