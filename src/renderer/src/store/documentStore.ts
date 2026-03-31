@@ -23,8 +23,8 @@ interface DocumentState {
   document: Document | null
   ui: UiState
   history: HistoryEntry[]
-  historyIndex: number        // points to current position in history
-  isDirty: boolean            // unsaved changes
+  historyIndex: number // points to current position in history
+  isDirty: boolean // unsaved changes
 
   // Actions
   loadDocument(repo: DocumentRepository, id: string): Promise<void>

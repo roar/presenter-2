@@ -282,6 +282,24 @@ Publishing a presentation requires a backend:
 
 The backend is not part of this repository. The viewer fetches from a configurable `VITE_API_BASE_URL`.
 
+## Commit message format
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add slide reorder by drag
+fix: correct undo stack after removeSlide
+chore: update dependencies
+docs: expand DESIGN.md motion section
+refactor: extract SlideRenderer to shared/
+test: add repository interface contract tests
+```
+
+Types: `feat` `fix` `chore` `docs` `refactor` `test` `style` `perf` `ci` `revert`
+Rules: lowercase subject, max 100 chars, no period at end.
+
+commitlint enforces this on every commit via Husky.
+
 ## Development commands
 
 ```
@@ -291,6 +309,11 @@ npm run build       # build Electron app for distribution
 npm run build:web   # build website-only bundle → out/web/
 npm run preview:web # preview the web build locally
 npm run typecheck   # type-check without emitting
+npm run lint        # ESLint
+npm run lint:fix    # ESLint with auto-fix
+npm run format      # Prettier write
+npm run format:check # Prettier check (used in CI)
+npm run ci          # full local CI: typecheck + lint + format + test
 ```
 
 ## Project structure
