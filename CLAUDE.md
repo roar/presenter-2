@@ -16,7 +16,107 @@ An Electron application built with React and TypeScript. There are three deploym
 - Zustand + immer for state management
 - JSON files for document persistence
 
-## Design system
+## Code quality principles
+
+These are non-negotiable. Apply them to every component, hook, and module written in this project.
+
+### Single responsibility
+
+Every module, component, and function does exactly one thing. If you need "and" to describe what it does, split it.
+
+- A component either fetches/manages data **or** renders UI — not both
+- A hook either encapsulates state logic **or** side effects — not both
+- A utility function transforms one thing
+
+```tsx
+// Wrong — manages state AND renders
+function SlidePanel() {
+  const [slides, setSlides] = useState([])
+  useEffect(() => { fetch('/slides').then(setSlides) }, [])
+  return <ul>{slides.map(s => <li>{s.title}</li>)}</ul>
+}
+
+// Right — split by responsibility
+function useSlidesData() { ... }          // data only
+function SlidePanel({ slides }) { ... }   // render only
+```
+
+### Code against interfaces, not implementations
+
+Depend on the shape of a thing, not the specific class or module. This applies at every level:
+
+- Components receive data and callbacks as props — they do not reach into the store directly unless they are explicitly a "container" component
+- The store calls `DocumentRepository` (the interface) — never `JsonFileRepository` directly
+- Functions accept typed interfaces, not concrete classes
+
+```ts
+// Wrong
+function save(repo: JsonFileRepository) { ... }
+
+// Right
+function save(repo: DocumentRepository) { ... }
+```
+
+### Explicit, narrow props interfaces
+
+Every component has an explicit TypeScript `Props` interface. Props are as narrow as possible — pass only what the component needs.
+
+```tsx
+// Wrong — passes the whole document when only the title is needed
+function SlideTitle({ document }: { document: Document }) {
+  return <h1>{document.title}</h1>
+}
+
+// Right
+interface SlideTitleProps {
+  title: string
+}
+function SlideTitle({ title }: SlideTitleProps) {
+  return <h1>{title}</h1>
+}
+```
+
+### Open for extension, closed for modification
+
+Extend behaviour by adding new types/variants, not by adding conditionals to existing code.
+
+- Use union types and discriminated unions for element kinds (`TextElement | ImageElement`)
+- Add a new element type by creating a new type and renderer — do not add `if (kind === 'text')` branches scattered across the codebase
+- Prefer a `registry` or `map` pattern for dispatching on type
+
+```ts
+// Wrong — grows forever with conditionals
+function renderElement(el: Element) {
+  if (el.kind === 'text') return <TextRenderer ... />
+  if (el.kind === 'image') return <ImageRenderer ... />
+}
+
+// Right — add new kinds by adding to the map
+const renderers: Record<Element['kind'], React.FC<any>> = {
+  text: TextRenderer,
+  image: ImageRenderer,
+}
+function renderElement(el: Element) {
+  const Renderer = renderers[el.kind]
+  return <Renderer {...el} />
+}
+```
+
+### Dependency inversion
+
+High-level modules do not depend on low-level modules. Both depend on abstractions.
+
+- The store depends on `DocumentRepository` (abstraction), not on file I/O
+- Components depend on props and hooks (abstractions), not on global singletons
+- Pass dependencies in (via props, hook arguments, or context) rather than importing them directly inside a module when the dependency is likely to vary
+
+### One level of abstraction per function
+
+Functions should operate at one level of abstraction. Don't mix high-level orchestration with low-level detail in the same function body. Extract the detail into a named helper.
+
+### No prop drilling beyond two levels
+
+If a prop needs to pass through more than two components to reach its destination, use a Zustand slice or React context instead.
 
 See [DESIGN.md](./DESIGN.md) for colors, typography, spacing, and component rules. Always follow it when writing UI code.
 
