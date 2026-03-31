@@ -1,6 +1,6 @@
 // "Bibelhistorien i åtte deler" — single-slide sample presentation.
-// Starts with background only. On click, the title and subtitle fade in
-// while moving downward to their target positions over 3 seconds.
+// Starts with background only. On click, title + subtitle fade in while
+// moving downward, and a line draws under "åtte" simultaneously.
 
 import type { Document } from '../types'
 
@@ -8,6 +8,14 @@ const BG = 'radial-gradient(ellipse at 50% 40%, #d2c4ae 0%, #b0a08a 50%, #8a7a65
 const TEXT_COLOR = '#f0ebe0'
 const FONT = 'Georgia, "Times New Roman", serif'
 const SHADOW = { offsetX: 2, offsetY: 4, blur: 14, color: 'rgba(0, 0, 0, 0.5)' }
+
+// Estimated position of "åtte" inside the centered subtitle:
+// Georgia bold 100px, "i åtte deler" ≈ 590px wide, centered in 1600px at x=160
+// text starts at slide x≈665; "i " ≈ 53px → "åtte" starts at ≈718, width ≈246
+// Baseline at subtitle.y(548) + ~82px = 630; underline 8px below = 638
+const UNDERLINE_X = 714
+const UNDERLINE_Y = 640
+const UNDERLINE_W = 250
 
 export const bibelhistorienDocument: Document = {
   id: 'doc-bibel-001',
@@ -39,18 +47,6 @@ export const bibelhistorienDocument: Document = {
           textShadow: SHADOW
         },
         {
-          kind: 'shape',
-          id: 'underline-b1',
-          x: 480,
-          y: 700,
-          width: 960,
-          height: 4,
-          rotation: 0,
-          pathData: 'M 0 0 L 960 0',
-          fill: { color: 'none', opacity: 0 },
-          stroke: { color: '#f0ebe0', width: 3, opacity: 0.7 }
-        },
-        {
           kind: 'text',
           id: 'subtitle-b1',
           x: 160,
@@ -65,6 +61,18 @@ export const bibelhistorienDocument: Document = {
           color: TEXT_COLOR,
           align: 'center',
           textShadow: SHADOW
+        },
+        {
+          kind: 'shape',
+          id: 'underline-b1',
+          x: UNDERLINE_X,
+          y: UNDERLINE_Y,
+          width: UNDERLINE_W,
+          height: 4,
+          rotation: 0,
+          pathData: `M 0 0 L ${UNDERLINE_W} 0`,
+          fill: { color: 'none', opacity: 0 },
+          stroke: { color: TEXT_COLOR, width: 3, opacity: 0.85 }
         }
       ],
       cues: [
@@ -74,7 +82,7 @@ export const bibelhistorienDocument: Document = {
           trigger: 'on-click',
           loop: { kind: 'none' },
           animations: [
-            // Title: fade in
+            // Title: fade in + move down
             {
               id: 'anim-b1',
               targetId: 'title-b1',
@@ -83,7 +91,6 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: { kind: 'enter', animation: { type: 'fade', from: 0, to: 1 } }
             },
-            // Title: move down from 100px above target
             {
               id: 'anim-b2',
               targetId: 'title-b1',
@@ -95,7 +102,7 @@ export const bibelhistorienDocument: Document = {
                 animation: { type: 'move', from: { x: 160, y: 240 }, to: { x: 160, y: 340 } }
               }
             },
-            // Subtitle: fade in
+            // Subtitle: fade in + move down
             {
               id: 'anim-b3',
               targetId: 'subtitle-b1',
@@ -104,7 +111,6 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: { kind: 'enter', animation: { type: 'fade', from: 0, to: 1 } }
             },
-            // Subtitle: move down from 100px above target
             {
               id: 'anim-b4',
               targetId: 'subtitle-b1',
@@ -115,23 +121,30 @@ export const bibelhistorienDocument: Document = {
                 kind: 'enter',
                 animation: { type: 'move', from: { x: 160, y: 448 }, to: { x: 160, y: 548 } }
               }
-            }
-          ]
-        },
-        // Line draws in after the fade completes
-        {
-          id: 'cue-b2',
-          kind: 'animation',
-          trigger: 'after-previous',
-          loop: { kind: 'none' },
-          animations: [
+            },
+            // Underline: draw in + move down with subtitle (simultaneously)
             {
               id: 'anim-b5',
               targetId: 'underline-b1',
               offset: 0,
-              duration: 0.8,
+              duration: 3,
               easing: 'ease-out',
               effect: { kind: 'enter', animation: { type: 'line-draw' } }
+            },
+            {
+              id: 'anim-b6',
+              targetId: 'underline-b1',
+              offset: 0,
+              duration: 3,
+              easing: 'ease-out',
+              effect: {
+                kind: 'enter',
+                animation: {
+                  type: 'move',
+                  from: { x: UNDERLINE_X, y: UNDERLINE_Y - 100 },
+                  to: { x: UNDERLINE_X, y: UNDERLINE_Y }
+                }
+              }
             }
           ]
         }
