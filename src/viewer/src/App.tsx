@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import type { Document } from '../../shared/model/types'
 import { exampleDocument } from '../../shared/model/fixtures/example-document'
 import { buildTimeline } from '../../shared/animation/buildTimeline'
@@ -12,6 +12,12 @@ import { SlideRenderer } from './components/SlideRenderer/SlideRenderer'
 function App(): React.JSX.Element {
   const [document, setDocument] = useState<Document | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Playback state
+  const [currentTime, setCurrentTime] = useState(0)
+  const [triggerTimes, setTriggerTimes] = useState<Map<string, number>>(new Map())
+  const startTimeRef = useRef<number | null>(null)
+  const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
     const id = getPresentationIdFromUrl()
@@ -32,15 +38,41 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
+  // rAF clock — runs continuously so animations play in real time
+  useEffect(() => {
+    const tick = (now: number): void => {
+      if (startTimeRef.current === null) startTimeRef.current = now
+      setCurrentTime((now - startTimeRef.current) / 1000)
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    }
+  }, [])
+
+  const doc = document ?? exampleDocument
+
+  // Collect all on-click cue IDs in slide order
+  const onClickCueIds = doc.slides
+    .flatMap((s) => s.cues)
+    .filter((c) => c.trigger === 'on-click')
+    .map((c) => c.id)
+
+  const handleClick = useCallback(() => {
+    const nextId = onClickCueIds.find((id) => !triggerTimes.has(id))
+    if (nextId) {
+      setTriggerTimes((prev) => new Map([...prev, [nextId, currentTime]]))
+    }
+  }, [onClickCueIds, triggerTimes, currentTime])
+
+  const timeline = buildTimeline(doc.slides, triggerTimes)
+  const frame = resolveFrame(timeline, currentTime)
+
   if (error) return <div style={{ padding: 24, color: '#ff453a' }}>Error: {error}</div>
 
-  // Use example document as fallback when no document is loaded from the network
-  const doc = document ?? exampleDocument
-  const timeline = buildTimeline(doc.slides, new Map())
-  const frame = resolveFrame(timeline, 0)
-
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div style={{ width: '100vw', height: '100vh', cursor: 'pointer' }} onClick={handleClick}>
       <SlideRenderer frame={frame} />
     </div>
   )
