@@ -79,12 +79,11 @@ interface Presentation {
   msoDefinitions: MSODefinition[]   // master objects, shared across slides
 }
 
-// MSODefinition holds the base properties of the object.
-// It is never mutated by animations — animations accumulate on instances only.
-interface MSODefinition {
-  id: string
-  base: TextElement | ImageElement | ShapeElement   // master visual state
-}
+// MSO (Multi-Slide Object) — an element or group that persists across slides.
+// Indicated by masterId on BaseElement or NodeGroup.
+// Groups are either entirely MSO or entirely non-MSO — mixing is disallowed.
+// Children of an MSO group must also carry their own masterId to support per-child animation chains.
+// MSO sync across instances is an editor concern, not a model concern.
 
 // --- Slide ---
 
