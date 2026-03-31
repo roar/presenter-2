@@ -202,6 +202,39 @@ No decorative shadows on panels or buttons.
 
 ---
 
+## Rendering technology
+
+**Decision: DOM + CSS.** Evaluated against Canvas and WebGL; DOM wins for this use case.
+
+### Why not Canvas
+
+Canvas has no retained scene graph — every interaction (hit testing, selection, cursor changes) must be tracked manually. Text layout, wrapping, and accessibility must be reimplemented from scratch. The editor overlay (selection handles, drag targets) cannot share components with the renderer. A full migration from DOM to Canvas is a rewrite of the entire render layer.
+
+### Why not WebGL
+
+Only justified for GPU-accelerated 3D or very high frame-rate effects. Text rendering requires SDF fonts or texture atlases. Adds massive infrastructure overhead for a slide app.
+
+### DOM capabilities that cover our needs
+
+| Need | DOM/CSS approach |
+|---|---|
+| Smooth transforms (position, scale, rotation) | `transform` + `transition` — GPU composited |
+| Opacity animation | `opacity` + `transition` — GPU composited |
+| Text shadows | `text-shadow` with `transition`; animate from zero-spread to avoid `none` interpolation issue |
+| Slide transitions | CSS `@keyframes` or Web Animations API |
+| Thumbnails | CSS `scale` transform on the renderer component — same code, no second render path |
+| PDF/print export | `window.print()` or Puppeteer against the same DOM |
+
+### Performance rules
+
+Only animate GPU-composited properties at high frequency: `transform` and `opacity`. For `text-shadow` on heavily animated elements, fake it with a `::after` pseudo-element using `filter: blur()` and animate `opacity` on that instead — avoids repaint.
+
+### Escape hatch
+
+If a specific slide element requires pixel-level control (e.g. a particle effect, generative background), that element alone can use a `<canvas>` tag. The slide renderer remains DOM-based; Canvas is opt-in per element, not a wholesale replacement.
+
+---
+
 ## Motion
 
 - **Micro-interactions** (hover, press): 100ms ease-out
