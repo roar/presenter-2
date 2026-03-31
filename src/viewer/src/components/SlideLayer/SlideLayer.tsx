@@ -25,6 +25,7 @@ export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX
         width: SLIDE_WIDTH,
         height: SLIDE_HEIGHT,
         overflow: 'hidden',
+        background: renderedSlide.slide.background,
         ...style
       }}
     >

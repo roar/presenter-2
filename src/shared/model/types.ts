@@ -26,6 +26,7 @@ export interface Slide {
   id: SlideId
   children: SlideNode[] // top-level nodes; groups nest their own children
   cues: Cue[] // ordered — defines the click sequence for this slide
+  background?: string // CSS background value (color or gradient)
 }
 
 // --- Slide nodes ---
@@ -56,8 +57,10 @@ export interface TextElement extends BaseElement {
   content: string // plain text for now; rich text later
   fontSize: number
   fontWeight: number
+  fontFamily?: string // CSS font-family; defaults to inherited/system sans-serif
   color: string // CSS color string
   align: 'left' | 'center' | 'right'
+  textShadow?: TextShadow // static shadow; fades naturally with element opacity
 }
 
 export interface ImageElement extends BaseElement {

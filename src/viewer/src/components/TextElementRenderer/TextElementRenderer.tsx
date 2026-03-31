@@ -10,6 +10,7 @@ export function TextElementRenderer({
   element,
   state
 }: TextElementRendererProps): React.JSX.Element {
+  const shadow = state.textShadow ?? element.textShadow ?? null
   return (
     <div
       style={{
@@ -23,10 +24,11 @@ export function TextElementRenderer({
         visibility: state.visible ? 'visible' : 'hidden',
         fontSize: element.fontSize,
         fontWeight: element.fontWeight,
+        fontFamily: element.fontFamily,
         color: element.color,
         textAlign: element.align,
-        textShadow: state.textShadow
-          ? `${state.textShadow.offsetX}px ${state.textShadow.offsetY}px ${state.textShadow.blur}px ${state.textShadow.color}`
+        textShadow: shadow
+          ? `${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blur}px ${shadow.color}`
           : undefined
       }}
     >

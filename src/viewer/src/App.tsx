@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import type { Document } from '../../shared/model/types'
-import { exampleDocument } from '../../shared/model/fixtures/example-document'
+import { bibelhistorienDocument } from '../../shared/model/fixtures/bibelhistorien-document'
 import { buildTimeline } from '../../shared/animation/buildTimeline'
 import { resolveFrame } from '../../shared/animation/resolveFrame'
 import { SlideRenderer } from './components/SlideRenderer/SlideRenderer'
@@ -51,7 +51,7 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  const doc = document ?? exampleDocument
+  const doc = document ?? bibelhistorienDocument
 
   // Collect all on-click cue IDs in slide order
   const onClickCueIds = doc.slides
