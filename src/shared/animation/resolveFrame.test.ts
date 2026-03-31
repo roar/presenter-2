@@ -270,6 +270,13 @@ describe('resolveFrame', () => {
       expect(frame.front.elements[0].strokeDashoffset).toBe(1)
     })
 
+    it('opacity is 1 once the animation fires (not stuck at 0)', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 0.5)
+      expect(frame.front.elements[0].opacity).toBe(1)
+    })
+
     it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
       const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
       const timeline = timelineFromSlides([s], { c1: 0 })

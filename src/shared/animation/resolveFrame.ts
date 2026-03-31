@@ -108,6 +108,7 @@ function resolveElementState(
           translateY = 0
         }
       } else if (effect.animation.type === 'line-draw') {
+        opacity = 1 // visibility is controlled by strokeDashoffset, not opacity
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
       } else {
