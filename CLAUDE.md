@@ -37,6 +37,78 @@ src/renderer/src/components/Button/
 - Avoid Electron-specific APIs in shared/renderer code without a browser fallback
 - Platform-specific code should be isolated and conditionally loaded
 
+## Application architecture
+
+### Layers
+
+```
+┌─────────────────────────────────────────────┐
+│              UI / Components                │  React components, CSS Modules
+│    Editor         │      Renderer           │
+│  (edit mode)      │   (edit + live mode)    │
+├─────────────────────────────────────────────┤
+│                  Store                      │  Runtime state (Zustand or similar)
+│  model state + UI state (selection, zoom)   │  Undo/redo lives here
+├─────────────────────────────────────────────┤
+│              Persistence layer              │  Repository interface
+│   FileRepository  │  IndexedDBRepository   │  Electron vs Web
+├─────────────────────────────────────────────┤
+│                  Model                      │  Plain TypeScript types
+│        (the serialisable document)          │  No framework dependencies
+└─────────────────────────────────────────────┘
+```
+
+### Model vs Store
+
+- **Model** — the serialisable document (slides, elements, theme). This is what gets written to disk. Plain TypeScript types only — no framework dependencies, no UI state.
+- **Store** — the runtime state. Wraps the model and adds UI-only state: current selection, zoom level, which panel is open, playback position, etc.
+- **Never persist UI state.** Never put model mutations directly in components.
+
+### Renderer is a pure function
+
+The slide renderer (the component that draws a slide) must be a pure function of the model:
+- Takes model data as props
+- Returns JSX
+- No store access, no side effects, no IPC calls
+
+This ensures the same renderer works in edit mode, live/presentation mode, slide thumbnails, and eventual export (PDF/image). The edit mode wraps the renderer and adds selection handles, drag targets, etc. on top — it does not modify the renderer itself.
+
+### Persistence abstraction
+
+Define a repository interface that both environments implement:
+
+```ts
+interface DocumentRepository {
+  load(id: string): Promise<Document>
+  save(doc: Document): Promise<void>
+  list(): Promise<DocumentMeta[]>
+}
+```
+
+- **Electron:** `FileRepository` — reads/writes JSON files (or SQLite) via IPC to the main process
+- **Web:** `IndexedDBRepository` — uses the browser's IndexedDB
+- The store and components only ever call the interface — they never know which implementation is active
+
+### Undo / redo
+
+Components never mutate model state directly. All model changes go through commands (actions) dispatched to the store. The store maintains a history stack. This enables:
+- Undo/redo (Cmd+Z / Cmd+Shift+Z)
+- Eventual collaboration / operational transform
+- Deterministic testing (replay a sequence of commands)
+
+### Multi-window (Electron only)
+
+A presentation app needs two windows simultaneously:
+- **Editor window** — on the presenter's display; shows the editor UI
+- **Live window** — on the projector/external display; shows the slide full-screen, no chrome
+
+Both windows are separate `BrowserWindow` instances. They share state via Electron IPC:
+- The main process is the source of truth for the current slide index during presentation
+- The editor sends "go to slide N" via IPC; the main process broadcasts to the live window
+- The live window is a stripped-down build of the renderer — no editor UI loaded
+
+This must be designed in from the start. Do not assume a single-window model.
+
 ## Development commands
 
 ```
