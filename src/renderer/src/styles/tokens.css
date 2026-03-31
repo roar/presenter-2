@@ -1,0 +1,98 @@
+/* Design tokens — single source of truth for the entire app.
+   All component styles reference these variables.
+   To restyle the app, change values here. */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Colors: Dark mode (default) ── */
+  --bg:             #1e1e1e;
+  --bg-panel:       #2a2a2a;
+  --bg-elevated:    #333333;
+  --border:         #3a3a3a;
+  --border-strong:  #505050;
+  --text:           #f0f0f0;
+  --text-dim:       #888888;
+  --text-disabled:  #555555;
+  --accent:         #0a84ff;
+  --accent-dim:     #0a84ff26;
+  --danger:         #ff453a;
+  --canvas:         #141414;
+
+  /* ── Typography ── */
+  --font:      -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "Menlo", monospace;
+
+  --text-xs:     11px;
+  --text-sm:     12px;
+  --text-body:   13px;
+  --text-md:     14px;
+  --text-lg:     16px;
+  --text-xl:     20px;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+
+  --leading-tight:  1.2;
+  --leading-normal: 1.4;
+
+  /* ── Spacing ── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  24px;
+  --space-2xl: 32px;
+
+  /* ── Border radius ── */
+  --radius-sm:   4px;
+  --radius:      6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-pill: 9999px;
+
+  /* ── Elevation / shadows ── */
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-modal:   0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-slide:   0 2px 12px rgba(0, 0, 0, 0.5);
+
+  /* ── Layout ── */
+  --toolbar-height:    44px;
+  --statusbar-height:  24px;
+  --panel-left-width:  200px;
+  --panel-right-width: 260px;
+
+  /* ── Motion ── */
+  --duration-fast:   100ms;
+  --duration-normal: 180ms;
+  --duration-slow:   250ms;
+  --ease:            ease-in-out;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    --bg:             #f0f0f0;
+    --bg-panel:       #ffffff;
+    --bg-elevated:    #ffffff;
+    --border:         #d0d0d0;
+    --border-strong:  #a0a0a0;
+    --text:           #1a1a1a;
+    --text-dim:       #888888;
+    --text-disabled:  #bbbbbb;
+    --accent:         #007aff;
+    --accent-dim:     #007aff1a;
+    --danger:         #ff3b30;
+    --canvas:         #e0e0e0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast:   0ms;
+    --duration-normal: 0ms;
+    --duration-slow:   0ms;
+  }
+}

@@ -11,10 +11,25 @@ An Electron application built with React and TypeScript. Deployed in two modes:
 - Electron
 - React
 - TypeScript
+- ESModules (`"type": "module"` — use `import`/`export` everywhere, never `require()`)
 
 ## Design system
 
 See [DESIGN.md](./DESIGN.md) for colors, typography, spacing, and component rules. Always follow it when writing UI code.
+
+### Styling architecture
+
+- **Global tokens:** `src/renderer/src/styles/tokens.css` — all CSS custom properties. This is the single place to change the visual style of the entire app. Never hardcode color, spacing, radius, shadow, or duration values in component styles.
+- **Component styles:** CSS Modules (`.module.css`) co-located with the component file. Import as `import styles from './Foo.module.css'`.
+- **No inline styles** except for dynamic values that cannot be expressed as a token (e.g. computed widths from user interaction).
+- **No CSS-in-JS.**
+
+Example component structure:
+```
+src/renderer/src/components/Button/
+  Button.tsx
+  Button.module.css
+```
 
 ## Key architectural constraints
 
@@ -37,13 +52,20 @@ npm run typecheck   # type-check without emitting
 
 ```
 src/
-  main/         # Electron main process (Node.js)
-  preload/      # Preload scripts (bridge between main and renderer)
-  renderer/     # React app (runs in both Electron and browser)
+  main/               # Electron main process (Node.js)
+  preload/            # Preload scripts (bridge between main and renderer)
+  renderer/           # React app (runs in both Electron and browser)
     index.html
     src/
-      main.tsx  # React entry point
+      main.tsx        # React entry point — imports global.css
       App.tsx
+      styles/
+        tokens.css    # CSS custom properties — single source of truth
+        global.css    # Reset + base styles, imports tokens.css
+      components/
+        ComponentName/
+          ComponentName.tsx
+          ComponentName.module.css
 
 electron.vite.config.ts   # Electron + Vite config (dev + Electron build)
 vite.web.config.ts        # Standalone web build config
