@@ -27,6 +27,7 @@ export interface Slide {
   children: SlideNode[] // top-level nodes; groups nest their own children
   cues: Cue[] // ordered — defines the click sequence for this slide
   background?: string // CSS background value (color or gradient)
+  grain?: boolean // overlay a subtle noise texture over the background
 }
 
 // --- Slide nodes ---

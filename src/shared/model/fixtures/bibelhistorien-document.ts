@@ -20,6 +20,7 @@ export const bibelhistorienDocument: Document = {
     {
       id: 'slide-b1',
       background: BG,
+      grain: true,
       children: [
         {
           kind: 'text',
