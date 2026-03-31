@@ -2,9 +2,10 @@
 
 ## Project overview
 
-An Electron application built with React and TypeScript. Deployed in two modes:
-- **Standalone app** — packaged Electron desktop application
-- **Website** — same codebase running in a browser context
+An Electron application built with React and TypeScript. There are three deployment contexts:
+- **Electron editor** — full desktop app with editor UI
+- **Electron live window** — second window showing the presentation full-screen on projector (future)
+- **Shared link viewer** — browser-only, minimal bundle, renders a published presentation fetched from a backend
 
 ## Tech stack
 
@@ -12,6 +13,8 @@ An Electron application built with React and TypeScript. Deployed in two modes:
 - React
 - TypeScript
 - ESModules (`"type": "module"` — use `import`/`export` everywhere, never `require()`)
+- Zustand + immer for state management
+- JSON files for document persistence
 
 ## Design system
 
@@ -105,9 +108,35 @@ A presentation app needs two windows simultaneously:
 Both windows are separate `BrowserWindow` instances. They share state via Electron IPC:
 - The main process is the source of truth for the current slide index during presentation
 - The editor sends "go to slide N" via IPC; the main process broadcasts to the live window
-- The live window is a stripped-down build of the renderer — no editor UI loaded
+- The live window loads the viewer bundle — no editor code
 
 This must be designed in from the start. Do not assume a single-window model.
+
+### Viewer bundle (shared links + live window)
+
+The viewer is a **separate Vite entry point** (`src/viewer/`) that produces its own minimal bundle. It contains only what is needed to render slides — no editor components, no store, no IPC, no Zustand.
+
+**Dependency rule: editor may import from viewer. Viewer must never import from editor.**
+
+```
+src/
+  editor/    →  may import from viewer/
+  viewer/    →  must NOT import from editor/
+  shared/    →  model types and utilities, imported by both
+```
+
+The viewer receives a document in one of two ways:
+- **Shared link:** fetches the document JSON from a backend API using the presentation ID from the URL (e.g. `/view/:id`)
+- **Live window:** receives the document via `postMessage` from the Electron main process
+
+### Publishing / shared links
+
+Publishing a presentation requires a backend:
+- The app POSTs the document JSON to an API endpoint
+- The backend stores it and returns a shareable URL (e.g. `https://presenter.app/view/abc123`)
+- Anyone opening that URL gets the viewer bundle + fetches the JSON — no editor loaded
+
+The backend is not part of this repository. The viewer fetches from a configurable `VITE_API_BASE_URL`.
 
 ## Development commands
 
@@ -124,27 +153,47 @@ npm run typecheck   # type-check without emitting
 
 ```
 src/
-  main/               # Electron main process (Node.js)
-  preload/            # Preload scripts (bridge between main and renderer)
-  renderer/           # React app (runs in both Electron and browser)
+  main/                     # Electron main process (Node.js)
+  preload/                  # Preload scripts (bridge between main and renderer)
+  shared/                   # Shared code — imported by both editor and viewer
+    model/
+      types.ts              # Serialisable document types (no framework deps)
+  renderer/                 # Electron editor app
     index.html
     src/
-      main.tsx        # React entry point — imports global.css
+      main.tsx              # Editor entry point — imports global.css
       App.tsx
       styles/
-        tokens.css    # CSS custom properties — single source of truth
-        global.css    # Reset + base styles, imports tokens.css
+        tokens.css          # CSS custom properties — single source of truth
+        global.css          # Reset + base styles, imports tokens.css
+      repository/
+        DocumentRepository.ts     # Interface
+        JsonFileRepository.ts     # Electron implementation (JSON files via IPC)
+      store/
+        documentStore.ts          # Zustand store: model + UI state + undo/redo
       components/
         ComponentName/
           ComponentName.tsx
           ComponentName.module.css
+  viewer/                   # Standalone viewer — shared links + live window
+    index.html              # Separate entry point, separate bundle
+    src/
+      main.tsx              # Viewer entry point
+      App.tsx               # Fetches doc from API or receives via postMessage
+      components/           # Renderer components only — no editor code
 
-electron.vite.config.ts   # Electron + Vite config (dev + Electron build)
-vite.web.config.ts        # Standalone web build config
+electron.vite.config.ts     # Electron editor build
+vite.viewer.config.ts       # Viewer-only build → out/viewer/ (deployed separately)
 ```
 
-## Dual deployment
+## Build targets
 
-- **Electron:** `npm run build` — uses `electron.vite.config.ts`
-- **Web:** `npm run build:web` — uses `vite.web.config.ts`, outputs to `out/web/`
-- Keep renderer code free of direct Electron API usage; access Electron via `window.electron` (exposed through preload)
+| Command              | Output        | Used for                        |
+|----------------------|---------------|---------------------------------|
+| `npm run dev`        | —             | Electron editor, hot reload     |
+| `npm run build`      | `out/`        | Electron app for distribution   |
+| `npm run build:viewer` | `out/viewer/` | Viewer bundle for hosting     |
+| `npm run preview:viewer` | —         | Preview viewer locally          |
+
+- Keep editor code free of direct Electron API usage; access via `window.electron` (preload)
+- Viewer bundle must never import from `src/renderer/`
