@@ -16,6 +16,50 @@ An Electron application built with React and TypeScript. There are three deploym
 - Zustand + immer for state management
 - JSON files for document persistence
 
+## Testing
+
+**Tooling:** Vitest + React Testing Library.
+
+```
+npm test           # run all tests once
+npm run test:watch # watch mode during development
+npm run test:ui    # browser UI for test results
+```
+
+Tests live next to the code they test: `Foo.ts` → `Foo.test.ts`.
+
+### TDD approach
+
+Follow red-green-refactor for all logic in `store/`, `model/`, and `repository/`:
+1. Write a failing test that describes the behaviour
+2. Write the minimum code to make it pass
+3. Refactor — the test suite keeps you safe
+
+For React components, write the test before (or alongside) the component. Test what the user sees and does — not implementation details.
+
+### What to test
+
+| Layer | Test | Don't test |
+|-------|------|-----------|
+| Store (Zustand) | State transitions, undo/redo, derived values | Internal helpers |
+| Model | Pure transformation functions | Type shapes alone |
+| Repository | Each implementation against the interface contract | That `fetch` was called |
+| Components | User interactions, rendered output for key states | Internal state, CSS classes |
+| Renderer | That it renders given slide data correctly | Editor-only behaviour |
+
+### Component testing rules
+
+- Use `@testing-library/react` — query by role, label, text; never by CSS class or test ID
+- Use `@testing-library/user-event` for interactions, not `fireEvent`
+- Test the three key states of every component: default, loading/empty, error
+- Do not test pure render components with no logic — the TypeScript compiler is enough
+
+### What not to test
+
+- Components that are pure functions of props with no logic or branching
+- Styling and layout
+- Third-party library behaviour (Zustand, React itself)
+
 ## Code quality principles
 
 These are non-negotiable. Apply them to every component, hook, and module written in this project.

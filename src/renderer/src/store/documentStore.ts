@@ -43,7 +43,8 @@ interface DocumentState {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function snapshot(doc: Document): HistoryEntry {
-  return { document: structuredClone(doc) }
+  // JSON round-trip works on both plain objects and immer drafts (Proxy objects)
+  return { document: JSON.parse(JSON.stringify(doc)) as Document }
 }
 
 function pushHistory(state: DocumentState, doc: Document): void {
@@ -152,7 +153,7 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         if (state.historyIndex <= 0) return
         state.historyIndex -= 1
-        state.document = structuredClone(state.history[state.historyIndex].document)
+        state.document = state.history[state.historyIndex].document
         state.isDirty = true
       })
     },
@@ -161,7 +162,7 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         if (state.historyIndex >= state.history.length - 1) return
         state.historyIndex += 1
-        state.document = structuredClone(state.history[state.historyIndex].document)
+        state.document = state.history[state.historyIndex].document
         state.isDirty = true
       })
     }
