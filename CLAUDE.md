@@ -12,6 +12,10 @@ An Electron application built with React and TypeScript. Deployed in two modes:
 - React
 - TypeScript
 
+## Design system
+
+See [DESIGN.md](./DESIGN.md) for colors, typography, spacing, and component rules. Always follow it when writing UI code.
+
 ## Key architectural constraints
 
 - Code must run in both Electron (Node.js + browser) and pure browser environments
