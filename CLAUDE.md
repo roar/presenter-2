@@ -30,11 +30,101 @@ An Electron application built with React and TypeScript. There are three deploym
 
 ### When integrating Clerk
 
-1. Install `@clerk/clerk-react` in the renderer and `@clerk/clerk-sdk-node` in the main process if needed
-2. Wrap the renderer app in `<ClerkProvider>`
-3. Replace `nullAuthContext` with a real implementation that calls `useAuth().getToken()`
-4. The `ApiRepository` (future) will pass the token as `Authorization: Bearer <token>` on all requests
-5. The viewer must handle unauthenticated access gracefully — public presentations load without a token, private ones redirect to login
+**1. Install dependencies**
+
+```bash
+npm install @clerk/clerk-react
+```
+
+**2. Add environment variables**
+
+```bash
+# .env.local (never commit this file)
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
+```
+
+Add `.env.local` to `.gitignore`. Add a `.env.example` with the key name but no value.
+
+**3. Wrap the renderer app**
+
+In `src/renderer/src/main.tsx`:
+
+```tsx
+import { ClerkProvider } from '@clerk/clerk-react'
+
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+ReactDOM.createRoot(...).render(
+  <ClerkProvider publishableKey={publishableKey}>
+    <App />
+  </ClerkProvider>
+)
+```
+
+Do the same in `src/viewer/src/main.tsx` if the viewer needs auth (private presentations).
+
+**4. Replace nullAuthContext with a real implementation**
+
+Create `src/renderer/src/auth/useAuthContext.ts`:
+
+```ts
+import { useAuth } from '@clerk/clerk-react'
+import type { AuthContext } from '../../../shared/auth/types'
+
+export function useAuthContext(): AuthContext {
+  const { userId, getToken } = useAuth()
+  return {
+    userId: userId ?? null,
+    getToken: () => getToken()
+  }
+}
+```
+
+Use this hook in any component that calls the store's `loadDocument` / `saveDocument`,
+replacing the default `nullAuthContext`.
+
+**5. Add an ApiRepository**
+
+Create `src/renderer/src/repository/ApiRepository.ts` implementing `DocumentRepository`.
+It attaches the token on every request:
+
+```ts
+async save(doc: Document, auth: AuthContext): Promise<void> {
+  const token = await auth.getToken()
+  await fetch(`${API_BASE}/presentations/${doc.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(doc)
+  })
+}
+```
+
+**6. Protect routes / handle unauthenticated state**
+
+- Public presentations (`isPublished: true`) — viewer loads without a token
+- Private presentations — viewer redirects to Clerk's hosted sign-in if no session
+- Editor — always requires auth; wrap with Clerk's `<SignedIn>` / `<RedirectToSignIn>`
+
+**7. Set ownerId on document creation**
+
+When creating a new document, set `ownerId` from `auth.userId`:
+
+```ts
+const doc: Document = {
+  ...newDocument(),
+  ownerId: auth.userId
+}
+```
+
+**Files to touch in summary:**
+- `src/renderer/src/main.tsx` — add ClerkProvider
+- `src/viewer/src/main.tsx` — add ClerkProvider (if viewer needs auth)
+- `src/renderer/src/auth/useAuthContext.ts` — new file, real AuthContext hook
+- `src/renderer/src/repository/ApiRepository.ts` — new file, replaces JsonFileRepository for cloud saves
+- Any component calling `loadDocument`/`saveDocument` — pass real auth context
 
 ## Testing
 
