@@ -1,0 +1,21 @@
+.outer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.inner {
+  position: absolute;
+  /* width and height set to SLIDE_WIDTH × SLIDE_HEIGHT via inline style */
+  transform-origin: top left;
+  /* scale set via inline style: computed from container size */
+}
+
+.msoLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}

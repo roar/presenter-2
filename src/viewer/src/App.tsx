@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import type { Document } from '../../shared/model/types'
+import { exampleDocument } from '../../shared/model/fixtures/example-document'
+import { buildTimeline } from '../../shared/animation/buildTimeline'
+import { resolveFrame } from '../../shared/animation/resolveFrame'
+import { SlideRenderer } from './components/SlideRenderer/SlideRenderer'
 
 // The viewer receives a document in one of two ways:
 // 1. Shared link: fetches from the API using the ID in the URL path (/view/:id)
@@ -29,10 +33,17 @@ function App(): React.JSX.Element {
   }, [])
 
   if (error) return <div style={{ padding: 24, color: '#ff453a' }}>Error: {error}</div>
-  if (!document) return <div style={{ padding: 24 }}>Loading…</div>
 
-  // TODO: replace with SlideRenderer once built
-  return <div style={{ padding: 24 }}>{document.title}</div>
+  // Use example document as fallback when no document is loaded from the network
+  const doc = document ?? exampleDocument
+  const timeline = buildTimeline(doc.slides, new Map())
+  const frame = resolveFrame(timeline, 0)
+
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <SlideRenderer frame={frame} />
+    </div>
+  )
 }
 
 function getPresentationIdFromUrl(): string | null {

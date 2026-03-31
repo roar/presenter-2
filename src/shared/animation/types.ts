@@ -1,0 +1,41 @@
+// Runtime-only animation types — not persisted to disk.
+// These describe the computed rendering state derived from the model.
+
+import type { Slide, SlideNode, SlideTransition, TextShadow } from '../model/types'
+
+export interface PresentationTimeline {
+  slides: import('../model/types').Slide[]
+  scheduledCues: ScheduledCue[]
+}
+
+export interface ScheduledCue {
+  cue: import('../model/types').Cue
+  slide: import('../model/types').Slide // the slide this cue belongs to
+  startTime: number // absolute seconds from presentation start
+  endTime: number // startTime + effective duration
+}
+
+export interface FrameState {
+  behind: RenderedSlide | null // outgoing slide — present only during a transition
+  front: RenderedSlide // current / incoming slide
+  transition: ActiveTransition | null
+  msoElements: RenderedElement[] // rendered above the transition layer; unaffected by it
+}
+
+export interface RenderedSlide {
+  slide: Slide
+  elements: RenderedElement[]
+}
+
+export interface RenderedElement {
+  element: SlideNode
+  visible: boolean
+  opacity: number // 0–1
+  transform: string // CSS transform string (translate, scale, etc.)
+  textShadow: TextShadow | null
+}
+
+export interface ActiveTransition {
+  kind: SlideTransition['kind']
+  progress: number // 0 → 1, easing already applied
+}
