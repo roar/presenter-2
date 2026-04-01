@@ -2,146 +2,162 @@
 // Plain TypeScript types only — no framework dependencies, no UI state.
 // This is exactly what gets written to / read from disk.
 
-export type ElementId = string
-export type SlideId = string
+// ─── ID types ────────────────────────────────────────────────────────────────
+
 export type DocumentId = string
+export type PresentationId = DocumentId
+export type SlideId = string
+export type MasterId = string
+export type AppearanceId = string
+export type AnimationId = string
+export type AnimationGroupTemplateId = string
+export type TextDecorationId = string
+export type BlockId = string
+export type RunId = string
+export type ElementId = string // used by legacy element types
 export type UserId = string // Clerk user ID (e.g. "user_2abc...")
 
-// --- Document ---
+// ─── Presentation (normalised document model) ─────────────────────────────────
 
-export interface Document {
-  id: DocumentId
+export interface Presentation {
+  id: PresentationId
   title: string
-  slides: Slide[]
-  recording?: Recording
-  ownerId: UserId | null // null when running locally without auth
+  slideOrder: SlideId[]
+  slidesById: Record<SlideId, Slide>
+  mastersById: Record<MasterId, MsoMaster>
+  appearancesById: Record<AppearanceId, Appearance>
+  animationsById: Record<AnimationId, ScheduledAnimation>
+  animationGroupTemplatesById: Record<AnimationGroupTemplateId, AnimationGroupTemplate>
+  textDecorationsById: Record<TextDecorationId, TextDecoration>
+  revision: number
+  ownerId: UserId | null
   isPublished: boolean
   createdAt: string // ISO 8601
   updatedAt: string // ISO 8601
+  recording?: Recording
 }
 
-// --- Slide ---
+// ─── Slide ────────────────────────────────────────────────────────────────────
 
 export interface Slide {
   id: SlideId
-  children: SlideNode[] // top-level nodes; groups nest their own children
-  cues: Cue[] // ordered — defines the click sequence for this slide
-  background?: string // CSS background value (color or gradient)
-  grain?: boolean // overlay a subtle noise texture over the background
+  appearanceIds: AppearanceId[]
+  transition?: SlideTransition
+  background: Background
 }
 
-// --- Slide nodes ---
-
-export type SlideNode = TextElement | ImageElement | ShapeElement | NodeGroup
-
-export interface NodeGroup {
-  kind: 'group'
-  id: ElementId
-  masterId?: string // if present, the whole group is an MSO unit; children must also carry their own masterId to support per-child animation chains
-  children: SlideNode[] // recursive — groups of groups are valid
+export interface Background {
+  color?: Color
+  image?: string
 }
 
-// --- Base element ---
+// ─── Master Slide Object ──────────────────────────────────────────────────────
 
-export interface BaseElement {
-  id: ElementId
-  x: number // position from slide left, in points
-  y: number // position from slide top, in points
+export interface MsoMaster {
+  id: MasterId
+  type: 'shape' | 'text' | 'image' | 'group' | 'table'
+  transform: Transform
+  style: StyleProperties
+  styleStates?: Record<string, Partial<StyleProperties>>
+  content: Content
+  geometry?: ShapeGeometry
+  childMasterIds?: MasterId[]
+  version: number
+}
+
+// ─── Appearance ───────────────────────────────────────────────────────────────
+
+export interface Appearance {
+  id: AppearanceId
+  masterId: MasterId
+  slideId: SlideId
+  animationIds: AnimationId[]
+  zIndex: number
+  initialVisibility: 'visible' | 'hidden'
+  version: number
+}
+
+// ─── Transform ───────────────────────────────────────────────────────────────
+// rotation is in degrees, matching CSS. The spec uses radians; this is a
+// deliberate divergence to keep parity with CSS transforms and the rendering code.
+
+export interface Transform {
+  x: number
+  y: number
   width: number
   height: number
   rotation: number // degrees
-  masterId?: string // present if this element is an MSO instance; links instances across slides
 }
 
-export interface TextElement extends BaseElement {
-  kind: 'text'
-  content: string // plain text for now; rich text later
-  fontSize: number
-  fontWeight: number
-  fontFamily?: string // CSS font-family; defaults to inherited/system sans-serif
-  color: string // CSS color string
-  align: 'left' | 'center' | 'right'
-  textShadow?: TextShadow // static shadow; fades naturally with element opacity
+// ─── Style ────────────────────────────────────────────────────────────────────
+
+export type Color = string // CSS color value
+
+export interface StyleProperties {
+  fill?: Color
+  stroke?: Color
+  strokeWidth?: number
+  opacity?: number
+  fontSize?: number
+  fontFamily?: string
+  fontWeight?: number
 }
 
-export interface ImageElement extends BaseElement {
-  kind: 'image'
-  src: string // relative path (Electron) or data URL (web)
+// ─── Content ─────────────────────────────────────────────────────────────────
+
+export type Content =
+  | { type: 'text'; value: TextContent }
+  | { type: 'image'; src: string }
+  | { type: 'none' }
+
+// ─── Shape geometry ──────────────────────────────────────────────────────────
+
+export interface ShapeGeometry {
+  type: 'rect' | 'ellipse' | 'path'
+  pathData?: string // for 'path' only
 }
 
-export interface ShapeElement extends BaseElement {
-  kind: 'shape'
-  pathData: string // SVG path d attribute
-  fill: Fill
-  stroke: Stroke
+// ─── Text system ─────────────────────────────────────────────────────────────
+
+export interface TextContent {
+  blocks: TextBlock[]
 }
 
-export interface Fill {
-  color: string // CSS color string
-  opacity: number // 0–1
+export interface TextBlock {
+  id: BlockId
+  runs: TextRun[]
 }
 
-export interface Stroke {
-  color: string // CSS color string
-  width: number // points
-  opacity: number // 0–1
+export interface TextRun {
+  id: RunId
+  text: string
+  marks: TextMark[]
 }
 
-// --- Cues ---
-
-export type Cue = AnimationCue | TransitionCue
-
-// AnimationCue: animates nodes on the current slide; does not change the active slide.
-export interface AnimationCue {
-  id: string
-  kind: 'animation'
-  trigger: 'on-click' | 'after-previous' | 'with-previous'
-  animations: ScheduledAnimation[]
-  loop: LoopConfig
+export interface TextMark {
+  type: 'bold' | 'italic' | 'underline' | 'color'
+  value?: Color // used for 'color' mark
 }
 
-// TransitionCue: advances to the next slide; contains no element animations.
-// after-previous follows the preceding entry in slide.cues[] by array position —
-// parallel with-previous cues do not affect this timing.
-export interface TransitionCue {
-  id: string
-  kind: 'transition'
-  trigger: 'on-click' | 'after-previous'
-  slideTransition: SlideTransition
+export interface TextRangeAnchor {
+  blockId: BlockId
+  startOffset: number // character offset within block
+  endOffset: number
+  degraded?: boolean
 }
 
-export interface SlideTransition {
-  kind: 'cut' | 'fade' | 'push'
-  duration: number // seconds
-  easing: Easing
+export interface TextDecoration {
+  id: TextDecorationId
+  kind: 'underline' | 'highlight' | 'outline'
+  anchor: TextRangeAnchor
 }
 
-// --- Animations ---
-
-export interface ScheduledAnimation {
-  id: string
-  targetId: ElementId // id of any SlideNode — element, group, or mso-instance
-  offset: number // seconds from cue start — encodes parallel/sequential mix
-  duration: number // seconds
-  easing: Easing
-  effect: AnimationEffect
-}
-
-export type AnimationEffect =
-  | { kind: 'enter'; animation: VisualEffect } // hidden → visible
-  | { kind: 'exit'; animation: VisualEffect } // visible → hidden
-  | { kind: 'property'; animation: VisualEffect } // no visibility change
-
-export type VisualEffect =
-  | { type: 'fade'; from: number; to: number }
-  | { type: 'move'; from: Position; to: Position }
-  | { type: 'scale'; from: number; to: number }
-  | { type: 'text-shadow'; from: TextShadow; to: TextShadow }
-  | { type: 'line-draw' } // draws an SVG stroke from 0% to 100% using stroke-dashoffset
-
+// ─── Easing ───────────────────────────────────────────────────────────────────
 // Named presets map directly to CSS equivalents.
 // cubic-bezier matches CSS cubic-bezier(x1, y1, x2, y2).
 // steps matches CSS steps(count, direction).
+// spring is evaluated as a damped oscillation bounded by durationMs.
+
 export type Easing =
   | 'linear'
   | 'ease-in'
@@ -149,10 +165,27 @@ export type Easing =
   | 'ease-in-out'
   | { kind: 'cubic-bezier'; x1: number; y1: number; x2: number; y2: number }
   | { kind: 'steps'; count: number; direction: 'start' | 'end' }
+  | { kind: 'spring'; mass: number; stiffness: number; damping: number; initialVelocity: number }
+
+// ─── Common types ─────────────────────────────────────────────────────────────
 
 export type LoopConfig = { kind: 'none' } | { kind: 'finite'; count: number } | { kind: 'infinite' }
 
-// --- Shared value types ---
+export interface SlideTransition {
+  kind: 'cut' | 'fade' | 'push'
+  duration: number // seconds
+  easing: Easing
+}
+
+export interface Recording {
+  videoUrl: string
+  triggers: RecordedTrigger[]
+}
+
+export interface RecordedTrigger {
+  time: number // absolute seconds from recording start
+  cueId: string
+}
 
 export interface Position {
   x: number
@@ -166,19 +199,193 @@ export interface TextShadow {
   color: string // CSS color string
 }
 
-// --- Recording ---
-
-export interface Recording {
-  videoUrl: string
-  triggers: RecordedTrigger[]
-}
-
-export interface RecordedTrigger {
-  time: number // absolute seconds from recording start
-  cueId: string // references an on-click Cue
-}
-
-// --- Slide dimensions ---
+// ─── Slide dimensions ─────────────────────────────────────────────────────────
 
 export const SLIDE_WIDTH = 1920
 export const SLIDE_HEIGHT = 1080
+
+// ─── Legacy document model (v0) ──────────────────────────────────────────────
+// The animation system (buildTimeline, resolveFrame) still uses these types
+// until Phase 3. The migration utility converts Document → Presentation.
+
+export interface Document {
+  id: DocumentId
+  title: string
+  slides: LegacySlide[]
+  recording?: Recording
+  ownerId: UserId | null // null when running locally without auth
+  isPublished: boolean
+  createdAt: string // ISO 8601
+  updatedAt: string // ISO 8601
+}
+
+/** @deprecated Use the new normalised Slide type for new code. */
+export interface LegacySlide {
+  id: SlideId
+  children: SlideNode[] // top-level nodes; groups nest their own children
+  cues: Cue[] // ordered — defines the click sequence for this slide
+  background?: string // CSS background value (color or gradient)
+  grain?: boolean // overlay a subtle noise texture over the background
+}
+
+export type SlideNode = TextElement | ImageElement | ShapeElement | NodeGroup
+
+export interface NodeGroup {
+  kind: 'group'
+  id: ElementId
+  masterId?: string
+  children: SlideNode[]
+}
+
+export interface BaseElement {
+  id: ElementId
+  x: number // position from slide left, in points
+  y: number // position from slide top, in points
+  width: number
+  height: number
+  rotation: number // degrees
+  masterId?: string // present if this element is an MSO instance
+}
+
+export interface TextElement extends BaseElement {
+  kind: 'text'
+  content: string // plain text — rich text handled by TextContent in new model
+  fontSize: number
+  fontWeight: number
+  fontFamily?: string
+  color: string // CSS color string
+  align: 'left' | 'center' | 'right'
+  textShadow?: TextShadow
+}
+
+export interface ImageElement extends BaseElement {
+  kind: 'image'
+  src: string
+}
+
+export interface ShapeElement extends BaseElement {
+  kind: 'shape'
+  pathData: string // SVG path d attribute
+  fill: Fill
+  stroke: Stroke
+}
+
+export interface Fill {
+  color: string
+  opacity: number
+}
+
+export interface Stroke {
+  color: string
+  width: number
+  opacity: number
+}
+
+export type Cue = AnimationCue | TransitionCue
+
+export interface AnimationCue {
+  id: string
+  kind: 'animation'
+  trigger: 'on-click' | 'after-previous' | 'with-previous'
+  animations: ScheduledAnimation[]
+  loop: LoopConfig
+}
+
+export interface TransitionCue {
+  id: string
+  kind: 'transition'
+  trigger: 'on-click' | 'after-previous'
+  slideTransition: SlideTransition
+}
+
+export interface ScheduledAnimation {
+  id: string
+  targetId: ElementId // id of any SlideNode
+  offset: number // seconds from cue start
+  duration: number // seconds
+  easing: Easing
+  effect: AnimationEffect
+}
+
+export type AnimationEffect =
+  | { kind: 'enter'; animation: VisualEffect }
+  | { kind: 'exit'; animation: VisualEffect }
+  | { kind: 'property'; animation: VisualEffect }
+
+export type VisualEffect =
+  | { type: 'fade'; from: number; to: number }
+  | { type: 'move'; from: Position; to: Position }
+  | { type: 'scale'; from: number; to: number }
+  | { type: 'text-shadow'; from: TextShadow; to: TextShadow }
+  | { type: 'line-draw' }
+
+// ─── Animation group templates ────────────────────────────────────────────────
+// A named, reusable set of animations applied as a single unit.
+// All members share the target of the AnimationGroupInstance they are applied through.
+
+export type GroupMemberTrigger =
+  | { type: 'withPrevious'; delayMs: number }
+  | { type: 'afterPrevious'; delayMs: number }
+
+export type AnimationGroupMember =
+  | {
+      id: AnimationId
+      kind: 'opacity'
+      trigger: GroupMemberTrigger
+      durationMs: number
+      easing: Easing
+      from: number
+      to: number
+    }
+  | {
+      id: AnimationId
+      kind: 'color'
+      trigger: GroupMemberTrigger
+      durationMs: number
+      easing: Easing
+      from: Color
+      to: Color
+    }
+  | {
+      id: AnimationId
+      kind: 'transform'
+      trigger: GroupMemberTrigger
+      durationMs: number
+      easing: Easing
+      from: Partial<Transform>
+      to: Partial<Transform>
+    }
+  | {
+      id: AnimationId
+      kind: 'decorationProgress'
+      trigger: GroupMemberTrigger
+      durationMs: number
+      easing: Easing
+      from: number
+      to: number
+    }
+  | {
+      id: AnimationId
+      kind: 'textReveal'
+      trigger: GroupMemberTrigger
+      durationMs: number
+      easing: Easing
+      from: number
+      to: number
+      mode: 'chars' | 'words' | 'lines'
+    }
+  | {
+      id: AnimationId
+      kind: 'stateChange'
+      trigger: GroupMemberTrigger
+      durationMs: number
+      easing: Easing
+      fromState: string | 'default'
+      toState: string | 'default'
+    }
+
+export interface AnimationGroupTemplate {
+  id: AnimationGroupTemplateId
+  name: string
+  members: AnimationGroupMember[]
+}

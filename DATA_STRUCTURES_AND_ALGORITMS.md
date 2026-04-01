@@ -145,6 +145,7 @@ interface Presentation {
   mastersById: Record<Id, MsoMaster>
   appearancesById: Record<Id, Appearance>
   animationsById: Record<Id, Animation>
+  animationGroupTemplatesById: Record<Id, AnimationGroupTemplate>
   textDecorationsById: Record<Id, TextDecoration>
   settings: PresentationSettings
   revision: number
@@ -195,12 +196,15 @@ interface MsoMaster {
   type: 'shape' | 'text' | 'image' | 'group' | 'table'
   transform: Transform
   style: StyleProperties
+  styleStates?: Record<string, Partial<StyleProperties>>
   content: Content
   geometry?: ShapeGeometry
   childNodeIds?: Id[]
   version: number
 }
 ```
+
+**`styleStates`** defines named style variants. Each entry is a partial override of `style` (the default state). A named state resolves to `{ ...style, ...styleStates[name] }`. The field is absent when no named states have been created. State names are user-defined strings (e.g. `"highlighted"`, `"muted"`).
 
 ### 5.5 Core Types
 
@@ -212,21 +216,6 @@ interface Transform {
   height: number
   rotation: number // radians
 }
-
-type AnimatableProperty =
-  | 'transform.x'
-  | 'transform.y'
-  | 'transform.scale'
-  | 'transform.rotation'
-  | 'opacity'
-  | 'color'
-  | 'backgroundColor'
-  | 'stroke'
-  | 'fill'
-  | 'textColor'
-  | 'decorationProgress' // for underline/highlight draw
-
-type PropertyValue = number | string | Color | Transform
 
 interface StyleProperties {
   fill?: Color
@@ -359,27 +348,105 @@ This allows:
 - text subrange animation
 - decoration animation
 
-### 8.2 Animation
+### 8.2 Authored model
+
+All animations share a common base interface. Animation-specific payloads are expressed as a discriminated union on `kind`, giving type-safe values per animation type and cleaner sampling dispatch.
 
 ```ts
-interface Animation {
+interface BaseAnimation {
   id: Id
   appearanceId: Id
-  originMasterId: Id // denormalized from appearance.masterId — see note below
+  originMasterId: Id   // denormalized from appearance.masterId — see note below
   target: AnimationTarget
-  property: AnimatableProperty
-  fromValue: PropertyValue
-  toValue: PropertyValue
   durationMs: number
   easing: Easing
   trigger: AnimationTrigger
   authoredOrder: number
 }
+
+type Animation =
+  | OpacityAnimation
+  | ColorAnimation
+  | TransformAnimation
+  | DecorationProgressAnimation
+  | TextRevealAnimation
+  | AnimationGroupInstance
+
+interface OpacityAnimation extends BaseAnimation {
+  kind: 'opacity'
+  from: number
+  to: number
+}
+
+interface ColorAnimation extends BaseAnimation {
+  kind: 'color'
+  from: Color
+  to: Color
+}
+
+interface TransformAnimation extends BaseAnimation {
+  kind: 'transform'
+  from: Partial<Transform>
+  to: Partial<Transform>
+}
+
+interface DecorationProgressAnimation extends BaseAnimation {
+  kind: 'decorationProgress'
+  from: number   // usually 0
+  to: number     // usually 1
+}
+
+interface TextRevealAnimation extends BaseAnimation {
+  kind: 'textReveal'
+  from: number
+  to: number
+  mode: 'chars' | 'words' | 'lines'
+}
+
+interface StateChangeAnimation extends BaseAnimation {
+  kind: 'stateChange'
+  fromState: string | 'default'
+  toState: string | 'default'
+}
+
+interface AnimationGroupInstance extends BaseAnimation {
+  kind: 'group'
+  templateId: Id
+  // durationMs and easing from BaseAnimation are unused — derived from template members
+}
 ```
+
+**Note on `StateChangeAnimation`:** `fromState` and `toState` reference keys in `MsoMaster.styleStates`, or the string `'default'` for the base `style`. The compiled sample function interpolates all `StyleProperties` fields between the two resolved states. Numeric fields (`opacity`, `strokeWidth`, `fontSize`, `fontWeight`) are linearly interpolated. Color fields (`fill`, `stroke`) are interpolated per sRGB channel. Non-interpolatable fields (`fontFamily`) snap to `toState` at `progress >= 1`. Using `'default'` as either state always resolves to `master.style`. If a named state key is absent from `styleStates`, it falls back to `'default'`.
 
 **Note on `originMasterId`:** This is a denormalized field equal to `appearance.masterId`. It exists as an optimization to avoid the lookup `animationId → Appearance → masterId` during downstream invalidation (e.g. when deciding which thumbnails to re-render after an animation change). It carries no independent semantic meaning and must be kept in sync when an appearance is reassigned to a different master.
 
-### 8.3 Triggers
+### 8.3 Compiled runtime model
+
+Timeline compilation normalizes the authored union into a single runtime interface with resolved absolute timing and a sampling function. This gives the playback engine a uniform loop regardless of animation kind.
+
+```ts
+interface CompiledAnimation {
+  id: Id
+  appearanceId: Id
+  target: AnimationTarget
+  kind: Animation['kind']
+  startMs: number
+  endMs: number
+  sample: (elapsedMs: number, state: RenderState) => void
+}
+
+interface RenderState {
+  opacity?: number
+  transform?: Partial<Transform>
+  textRevealProgress?: number
+  decorationProgress?: number
+  styleOverrides?: Partial<StyleProperties>  // written by stateChange sample()
+}
+```
+
+`RenderState.styleOverrides` is merged on top of `MsoMaster.style` at render time: `{ ...master.style, ...renderState.styleOverrides }`. The `stateChange` sample writes the interpolated properties here; other animation kinds leave it undefined.
+
+### 8.4 Triggers
 
 ```ts
 type AnimationTrigger =
@@ -387,6 +454,53 @@ type AnimationTrigger =
   | { type: 'afterPrevious'; delayMs: number }
   | { type: 'withPrevious'; delayMs: number }
 ```
+
+### 8.5 Animation Group Templates
+
+A named, reusable set of animations that can be applied to any appearance as a single unit. Groups are authored once and instantiated many times via `AnimationGroupInstance`.
+
+```ts
+interface AnimationGroupTemplate {
+  id: Id
+  name: string              // user-defined, e.g. "Pop In", "Highlight Sweep"
+  members: AnimationGroupMember[]
+}
+```
+
+Each member defines one animation within the group. Members share the same target as the `AnimationGroupInstance` they are applied through — the target is resolved at apply time.
+
+```ts
+type GroupMemberTrigger =
+  | { type: 'withPrevious'; delayMs: number }
+  | { type: 'afterPrevious'; delayMs: number }
+  // onClick is not allowed inside a group
+
+type AnimationGroupMember =
+  | { id: Id; kind: 'opacity';             trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number }
+  | { id: Id; kind: 'color';               trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: Color; to: Color }
+  | { id: Id; kind: 'transform';           trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: Partial<Transform>; to: Partial<Transform> }
+  | { id: Id; kind: 'decorationProgress'; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number }
+  | { id: Id; kind: 'textReveal';         trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number; mode: 'chars' | 'words' | 'lines' }
+  | { id: Id; kind: 'stateChange';        trigger: GroupMemberTrigger; durationMs: number; easing: Easing; fromState: string | 'default'; toState: string | 'default' }
+```
+
+**Timing model**
+
+The group instance's trigger (`onClick`, `withPrevious`, `afterPrevious`) determines when the group starts. From that moment, member timing is resolved exactly as if the members were standalone animations:
+
+- The first member (lowest `id` order) starts at `t = 0` relative to group start.
+- Subsequent members resolve `withPrevious` / `afterPrevious` relative to their predecessor within the group.
+- `delayMs` on members shifts start within the group.
+
+The group's total duration is derived — it equals the time from group start to the end of the last-finishing member.
+
+**Compilation**
+
+During timeline compilation, each `AnimationGroupInstance` is expanded in-place into one `CompiledAnimation` per member. The group itself does not appear as a compiled entry; only its children do. The instance's `appearanceId` and `target` are propagated to every expanded member.
+
+**`durationMs` and `easing` on `AnimationGroupInstance`**
+
+These fields are present because `AnimationGroupInstance` extends `BaseAnimation`, but they carry no meaning and must not be used during playback. Set `durationMs: 0` and `easing` to a default when creating an instance.
 
 ---
 
@@ -461,11 +575,22 @@ exit = entry + all animations (to completion)
 ### 10.4 Resolver
 
 ```ts
+interface ElementState {
+  opacity: number
+  transform: Transform
+  textRevealProgress: number
+  decorationProgress: number
+  activeStyleState: string | 'default'  // name of the active style state
+  resolvedStyle: StyleProperties        // master.style merged with activeStyleState overrides
+}
+
 class MsoStateResolver {
   resolveEntryState(masterId: Id, slideId: Id): ElementState
   resolveExitState(masterId: Id, slideId: Id): ElementState
 }
 ```
+
+`activeStyleState` starts as `'default'` and updates to `toState` when a `stateChange` animation completes. `resolvedStyle` is always `{ ...master.style, ...master.styleStates?.[activeStyleState] }` (identity when `activeStyleState === 'default'`).
 
 Caches results for performance.
 
@@ -478,9 +603,10 @@ Caches results for performance.
 For each slide:
 1. transition runs first
 2. animations start after transition
-3. animations grouped into click buckets
-4. dependencies resolved
-5. lanes assigned
+3. `AnimationGroupInstance` entries are expanded into their member animations (see §8.5) before further processing
+4. animations grouped into click buckets
+5. dependencies resolved
+6. lanes assigned
 
 ### 11.2 Click buckets
 - bucket 0 = autoplay
@@ -575,6 +701,7 @@ interface RenderNode {
   transform: string
   opacity: number
   visible: boolean
+  styleOverrides?: Partial<StyleProperties>  // merged on top of master.style at render time
   children: RenderNode[]
 }
 ```
