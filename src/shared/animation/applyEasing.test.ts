@@ -54,17 +54,65 @@ describe('applyEasing', () => {
     })
   })
 
-  describe('not implemented variants', () => {
-    it('throws for cubic-bezier', () => {
-      expect(() =>
-        applyEasing({ kind: 'cubic-bezier', x1: 0.4, y1: 0, x2: 0.2, y2: 1 }, 0.5)
-      ).toThrow('not implemented')
+  describe('cubic-bezier', () => {
+    it('returns 0 at progress 0', () => {
+      expect(applyEasing({ kind: 'cubic-bezier', x1: 0.4, y1: 0, x2: 0.2, y2: 1 }, 0)).toBe(0)
     })
 
-    it('throws for steps', () => {
-      expect(() => applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 0.5)).toThrow(
-        'not implemented'
+    it('returns ~1 at progress 1', () => {
+      expect(applyEasing({ kind: 'cubic-bezier', x1: 0.4, y1: 0, x2: 0.2, y2: 1 }, 1)).toBeCloseTo(
+        1
       )
+    })
+
+    it('midpoint is in (0, 1)', () => {
+      const mid = applyEasing({ kind: 'cubic-bezier', x1: 0.4, y1: 0, x2: 0.2, y2: 1 }, 0.5)
+      expect(mid).toBeGreaterThan(0)
+      expect(mid).toBeLessThan(1)
+    })
+  })
+
+  describe('steps(4, end)', () => {
+    it('t=0.25 → 0', () => {
+      expect(applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 0.25)).toBe(0)
+    })
+
+    it('t=0.5 → 0.25', () => {
+      expect(applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 0.5)).toBeCloseTo(0.25)
+    })
+
+    it('t=1.0 → 1.0', () => {
+      expect(applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 1.0)).toBeCloseTo(1.0)
+    })
+  })
+
+  describe('steps(4, start)', () => {
+    it('t=0.01 → 0.25', () => {
+      expect(applyEasing({ kind: 'steps', count: 4, direction: 'start' }, 0.01)).toBeCloseTo(0.25)
+    })
+  })
+
+  describe('spring', () => {
+    const spring = {
+      kind: 'spring' as const,
+      mass: 1,
+      stiffness: 100,
+      damping: 10,
+      initialVelocity: 0
+    }
+
+    it('returns 0 at progress 0', () => {
+      expect(applyEasing(spring, 0)).toBeCloseTo(0)
+    })
+
+    it('returns ~1 at progress 1', () => {
+      expect(applyEasing(spring, 1)).toBeCloseTo(1, 2)
+    })
+
+    it('may overshoot internally (progress between 0 and 1)', () => {
+      // Spring can overshoot — we just check it returns a number
+      const mid = applyEasing(spring, 0.5)
+      expect(typeof mid).toBe('number')
     })
   })
 })

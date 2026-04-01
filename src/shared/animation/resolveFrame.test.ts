@@ -298,6 +298,173 @@ describe('resolveFrame', () => {
     })
   })
 
+  describe('enter animation (scale)', () => {
+    function scaleEnterCue(
+      id: string,
+      trigger: AnimationCue['trigger'],
+      targetId: string,
+      duration = 1
+    ): AnimationCue {
+      return {
+        id,
+        kind: 'animation',
+        trigger,
+        loop: { kind: 'none' },
+        animations: [
+          {
+            id: `anim-${id}`,
+            targetId,
+            offset: 0,
+            duration,
+            easing: 'linear',
+            effect: { kind: 'enter', animation: { type: 'scale', from: 0, to: 1 } }
+          }
+        ]
+      }
+    }
+
+    it('element is hidden before the cue is triggered', () => {
+      const s = slide('s1', [textEl('el')], [scaleEnterCue('c1', 'on-click', 'el')])
+      const timeline = timelineFromSlides([s])
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].visible).toBe(false)
+    })
+
+    it('transform contains scale at midpoint', () => {
+      const s = slide('s1', [textEl('el')], [scaleEnterCue('c1', 'on-click', 'el', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 0.5)
+      expect(frame.front.elements[0].transform).toContain('scale(0.5)')
+    })
+
+    it('scale is 1 after animation completes', () => {
+      const s = slide('s1', [textEl('el')], [scaleEnterCue('c1', 'on-click', 'el', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 2)
+      expect(frame.front.elements[0].transform).toContain('scale(1)')
+    })
+  })
+
+  describe('property animation (text-shadow)', () => {
+    function textShadowCue(
+      id: string,
+      trigger: AnimationCue['trigger'],
+      targetId: string,
+      duration = 1
+    ): AnimationCue {
+      return {
+        id,
+        kind: 'animation',
+        trigger,
+        loop: { kind: 'none' },
+        animations: [
+          {
+            id: `anim-${id}`,
+            targetId,
+            offset: 0,
+            duration,
+            easing: 'linear',
+            effect: {
+              kind: 'property',
+              animation: {
+                type: 'text-shadow',
+                from: { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0, 0, 0, 0)' },
+                to: { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
+              }
+            }
+          }
+        ]
+      }
+    }
+
+    it('textShadow is null before cue triggers', () => {
+      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el')])
+      const timeline = timelineFromSlides([s])
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].textShadow).toBeNull()
+    })
+
+    it('element is visible before cue triggers (property — not an enter)', () => {
+      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el')])
+      const timeline = timelineFromSlides([s])
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].visible).toBe(true)
+    })
+
+    it('interpolates numeric shadow properties at midpoint', () => {
+      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 0.5)
+      const shadow = frame.front.elements[0].textShadow
+      expect(shadow).not.toBeNull()
+      expect(shadow!.offsetX).toBeCloseTo(2)
+      expect(shadow!.offsetY).toBeCloseTo(4)
+      expect(shadow!.blur).toBeCloseTo(10)
+    })
+
+    it('textShadow is at final values after completion', () => {
+      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 2)
+      const shadow = frame.front.elements[0].textShadow
+      expect(shadow).toEqual({ offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' })
+    })
+  })
+
+  describe('property animation (line-draw)', () => {
+    function lineDrawPropertyCue(
+      id: string,
+      trigger: AnimationCue['trigger'],
+      targetId: string,
+      duration = 1
+    ): AnimationCue {
+      return {
+        id,
+        kind: 'animation',
+        trigger,
+        loop: { kind: 'none' },
+        animations: [
+          {
+            id: `anim-${id}`,
+            targetId,
+            offset: 0,
+            duration,
+            easing: 'linear',
+            effect: { kind: 'property', animation: { type: 'line-draw' } }
+          }
+        ]
+      }
+    }
+
+    it('element is visible before cue triggers (property — not an enter)', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line')])
+      const timeline = timelineFromSlides([s])
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].visible).toBe(true)
+    })
+
+    it('strokeDashoffset is 1 (hidden) before the cue fires', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line')])
+      const timeline = timelineFromSlides([s])
+      const frame = resolveFrame(timeline, 0)
+      expect(frame.front.elements[0].strokeDashoffset).toBe(1)
+    })
+
+    it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 0.5)
+      expect(frame.front.elements[0].strokeDashoffset).toBeCloseTo(0.5)
+    })
+
+    it('strokeDashoffset is 0 (fully drawn) after animation completes', () => {
+      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line', 1)])
+      const timeline = timelineFromSlides([s], { c1: 0 })
+      const frame = resolveFrame(timeline, 2)
+      expect(frame.front.elements[0].strokeDashoffset).toBe(0)
+    })
+  })
+
   describe('MSO elements', () => {
     it('places MSO elements in msoElements, not in slide elements', () => {
       const mso = shapeEl('logo', { masterId: 'mso-logo' })

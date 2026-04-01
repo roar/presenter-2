@@ -39,6 +39,22 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
 
+function lerpColor(a: string, b: string, t: number): string {
+  const parse = (s: string) => {
+    const m = s.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/)
+    if (!m) return null
+    return [+m[1], +m[2], +m[3], m[4] !== undefined ? +m[4] : 1] as [number, number, number, number]
+  }
+  const ca = parse(a)
+  const cb = parse(b)
+  if (!ca || !cb) return t < 0.5 ? a : b
+  const r = Math.round(lerp(ca[0], cb[0], t))
+  const g = Math.round(lerp(ca[1], cb[1], t))
+  const bl = Math.round(lerp(ca[2], cb[2], t))
+  const al = lerp(ca[3], cb[3], t)
+  return `rgba(${r}, ${g}, ${bl}, ${al.toFixed(4)})`
+}
+
 // --- Element state resolution ---
 
 function hasEnterAnimation(elementId: string, slide: LegacySlide): boolean {
@@ -88,6 +104,8 @@ function resolveElementState(
   let opacity = visible ? 1 : 0
   let translateX = 0
   let translateY = 0
+  let scale: number | null = null
+  let textShadow: import('../model/types').TextShadow | null = null
   let strokeDashoffset: number | null = hasLineDraw(element.id, slide) ? 1 : null
 
   for (const { animation, cueStartTime } of animations) {
@@ -113,12 +131,13 @@ function resolveElementState(
           translateX = 0
           translateY = 0
         }
+      } else if (effect.animation.type === 'scale') {
+        scale = lerp(effect.animation.from, effect.animation.to, progress)
+        if (completed) scale = effect.animation.to
       } else if (effect.animation.type === 'line-draw') {
         opacity = 1 // visibility is controlled by strokeDashoffset, not opacity
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
-      } else {
-        throw new Error('not implemented')
       }
     } else if (effect.kind === 'exit') {
       if (effect.animation.type === 'fade') {
@@ -127,20 +146,34 @@ function resolveElementState(
           opacity = effect.animation.to
           visible = false
         }
-      } else {
-        throw new Error('not implemented')
       }
-    } else {
-      throw new Error('not implemented')
+    } else if (effect.kind === 'property') {
+      if (effect.animation.type === 'text-shadow') {
+        const from = effect.animation.from
+        const to = effect.animation.to
+        textShadow = {
+          offsetX: lerp(from.offsetX, to.offsetX, progress),
+          offsetY: lerp(from.offsetY, to.offsetY, progress),
+          blur: lerp(from.blur, to.blur, progress),
+          color: lerpColor(from.color, to.color, progress)
+        }
+        if (completed) textShadow = to
+      } else if (effect.animation.type === 'line-draw') {
+        strokeDashoffset = lerp(1, 0, progress)
+        if (completed) strokeDashoffset = 0
+      }
     }
   }
+
+  const translatePart = `translate(${translateX}px, ${translateY}px)`
+  const transform = scale !== null ? `${translatePart} scale(${scale})` : translatePart
 
   return {
     element,
     visible,
     opacity,
-    transform: `translate(${translateX}px, ${translateY}px)`,
-    textShadow: null,
+    transform,
+    textShadow,
     strokeDashoffset
   }
 }

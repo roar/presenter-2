@@ -38,14 +38,67 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number, t: number):
   return ((ay * u + by) * u + cy) * u
 }
 
+function applySteps(count: number, direction: 'start' | 'end', progress: number): number {
+  if (direction === 'end') {
+    // Step boundary is exclusive: at t = k/count the previous value still holds.
+    // At t = 1 we clamp to 1.
+    if (progress >= 1) return 1
+    return Math.max(0, Math.ceil(progress * count) - 1) / count
+  } else {
+    // 'start': first step fires immediately; at t=0 output is 0, at t just above 0 it's 1/count.
+    return Math.min(1, Math.ceil(progress * count) / count)
+  }
+}
+
+// Closed-form damped oscillation spring.
+// Uses angular frequency derived from stiffness/mass and the damping ratio.
+// Scaled so f(0)=0 and the settled value approaches 1.
+function applySpring(mass: number, stiffness: number, damping: number, progress: number): number {
+  if (progress <= 0) return 0
+  if (progress >= 1) return 1
+
+  const omega0 = Math.sqrt(stiffness / mass) // natural angular frequency
+  const zeta = damping / (2 * Math.sqrt(stiffness * mass)) // damping ratio
+  const t = progress
+
+  let value: number
+  if (zeta < 1) {
+    // Under-damped: oscillates before settling
+    const omegaD = omega0 * Math.sqrt(1 - zeta * zeta)
+    value =
+      1 -
+      Math.exp(-zeta * omega0 * t) *
+        (Math.cos(omegaD * t) + (zeta / Math.sqrt(1 - zeta * zeta)) * Math.sin(omegaD * t))
+  } else if (zeta === 1) {
+    // Critically damped
+    value = 1 - Math.exp(-omega0 * t) * (1 + omega0 * t)
+  } else {
+    // Over-damped
+    const alpha = omega0 * Math.sqrt(zeta * zeta - 1)
+    const r1 = -zeta * omega0 + alpha
+    const r2 = -zeta * omega0 - alpha
+    value = 1 - (r1 * Math.exp(r2 * t) - r2 * Math.exp(r1 * t)) / (r1 - r2)
+  }
+
+  return value
+}
+
 export function applyEasing(easing: Easing, progress: number): number {
   if (typeof easing === 'string') {
     const [x1, y1, x2, y2] = PRESETS[easing]
     return cubicBezier(x1, y1, x2, y2, progress)
   }
 
-  if (easing.kind === 'cubic-bezier' || easing.kind === 'steps' || easing.kind === 'spring') {
-    throw new Error('not implemented')
+  if (easing.kind === 'cubic-bezier') {
+    return cubicBezier(easing.x1, easing.y1, easing.x2, easing.y2, progress)
+  }
+
+  if (easing.kind === 'steps') {
+    return applySteps(easing.count, easing.direction, progress)
+  }
+
+  if (easing.kind === 'spring') {
+    return applySpring(easing.mass, easing.stiffness, easing.damping, progress)
   }
 
   // TypeScript exhaustiveness guard
