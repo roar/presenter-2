@@ -654,7 +654,7 @@ export const demoPresentationDocument: Document = {
           height: 60,
           rotation: 0,
           content:
-            'Also supported: cubic-bezier(x1, y1, x2, y2) · steps(n, direction) · spring(mass, stiffness, damping, velocity)',
+            'Also supported: cubic-bezier(x1, y1, x2, y2) · spring(mass, stiffness, damping, velocity)',
           fontSize: 24,
           fontWeight: 400,
           color: '#555555',

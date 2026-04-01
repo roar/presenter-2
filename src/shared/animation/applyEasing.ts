@@ -38,18 +38,6 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number, t: number):
   return ((ay * u + by) * u + cy) * u
 }
 
-function applySteps(count: number, direction: 'start' | 'end', progress: number): number {
-  if (direction === 'end') {
-    // Step boundary is exclusive: at t = k/count the previous value still holds.
-    // At t = 1 we clamp to 1.
-    if (progress >= 1) return 1
-    return Math.max(0, Math.ceil(progress * count) - 1) / count
-  } else {
-    // 'start': first step fires immediately; at t=0 output is 0, at t just above 0 it's 1/count.
-    return Math.min(1, Math.ceil(progress * count) / count)
-  }
-}
-
 // Closed-form damped oscillation spring.
 // Uses angular frequency derived from stiffness/mass and the damping ratio.
 // Scaled so f(0)=0 and the settled value approaches 1.
@@ -91,10 +79,6 @@ export function applyEasing(easing: Easing, progress: number): number {
 
   if (easing.kind === 'cubic-bezier') {
     return cubicBezier(easing.x1, easing.y1, easing.x2, easing.y2, progress)
-  }
-
-  if (easing.kind === 'steps') {
-    return applySteps(easing.count, easing.direction, progress)
   }
 
   if (easing.kind === 'spring') {

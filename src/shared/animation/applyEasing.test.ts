@@ -72,26 +72,6 @@ describe('applyEasing', () => {
     })
   })
 
-  describe('steps(4, end)', () => {
-    it('t=0.25 → 0', () => {
-      expect(applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 0.25)).toBe(0)
-    })
-
-    it('t=0.5 → 0.25', () => {
-      expect(applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 0.5)).toBeCloseTo(0.25)
-    })
-
-    it('t=1.0 → 1.0', () => {
-      expect(applyEasing({ kind: 'steps', count: 4, direction: 'end' }, 1.0)).toBeCloseTo(1.0)
-    })
-  })
-
-  describe('steps(4, start)', () => {
-    it('t=0.01 → 0.25', () => {
-      expect(applyEasing({ kind: 'steps', count: 4, direction: 'start' }, 0.01)).toBeCloseTo(0.25)
-    })
-  })
-
   describe('spring', () => {
     const spring = {
       kind: 'spring' as const,

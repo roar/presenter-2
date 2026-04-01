@@ -34,7 +34,7 @@ Propagation is **downstream only**: animations on a later appearance do not affe
 
 ### 3.1 Definition
 
-Every object has a **default style state** — its base set of visual properties (fill, stroke, opacity, font size, font weight, etc.).
+Every object has a **default style state** — its base set of visual properties (fill, stroke, opacity, font size, font weight, text shadow, etc.).
 
 The user may define any number of **named states** on an object. Each named state specifies one or more property overrides relative to the default. A named state resolves to the default style with its overrides applied on top; unspecified properties retain their default values.
 
@@ -158,8 +158,8 @@ Each slide may have a transition that plays when the slide is entered.
 
 All animations and transitions support configurable easing.
 
-- **Presets:** `linear`, `ease`, `easeIn`, `easeOut`, `easeInOut`.
-- **Custom cubic Bézier:** the user may define a custom curve by manipulating control points P1 and P2. P1x and P2x are constrained to [0, 1].
+- **Presets:** `linear`, `ease-in`, `ease-out`, `ease-in-out`.
+- **Custom cubic Bézier:** the user may define a custom curve by manipulating control points. `x1` and `x2` are constrained to [0, 1].
 - **Spring:** parameterised by mass, stiffness, damping, and initial velocity. Still bounded by `durationMs`; may overshoot internally.
 
 ---

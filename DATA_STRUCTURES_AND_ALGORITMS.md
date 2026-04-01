@@ -225,6 +225,14 @@ interface StyleProperties {
   fontSize?: number
   fontFamily?: string
   fontWeight?: number
+  textShadow?: TextShadow
+}
+
+interface TextShadow {
+  offsetX: number  // points
+  offsetY: number  // points
+  blur: number     // points
+  color: Color
 }
 
 type Content =
@@ -380,6 +388,7 @@ interface OpacityAnimation extends BaseAnimation {
 
 interface ColorAnimation extends BaseAnimation {
   kind: 'color'
+  property: 'fill' | 'stroke'
   from: Color
   to: Color
 }
@@ -412,6 +421,7 @@ interface StateChangeAnimation extends BaseAnimation {
 interface AnimationGroupInstance extends BaseAnimation {
   kind: 'group'
   templateId: Id
+  slotBindings: Record<string, AnimationTarget>  // maps slot name → actual target; must cover every slot declared in the template
   // durationMs and easing from BaseAnimation are unused — derived from template members
 }
 ```
@@ -463,11 +473,12 @@ A named, reusable set of animations that can be applied to any appearance as a s
 interface AnimationGroupTemplate {
   id: Id
   name: string              // user-defined, e.g. "Pop In", "Highlight Sweep"
+  slots: { name: string }[] // named parameter slots; may be empty for self-contained groups
   members: AnimationGroupMember[]
 }
 ```
 
-Each member defines one animation within the group. Members share the same target as the `AnimationGroupInstance` they are applied through — the target is resolved at apply time.
+Each member defines one animation within the group. Members reference a named slot as their target; the slot is resolved to an actual `AnimationTarget` via `AnimationGroupInstance.slotBindings` at apply time.
 
 ```ts
 type GroupMemberTrigger =
@@ -476,12 +487,12 @@ type GroupMemberTrigger =
   // onClick is not allowed inside a group
 
 type AnimationGroupMember =
-  | { id: Id; kind: 'opacity';             trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number }
-  | { id: Id; kind: 'color';               trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: Color; to: Color }
-  | { id: Id; kind: 'transform';           trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: Partial<Transform>; to: Partial<Transform> }
-  | { id: Id; kind: 'decorationProgress'; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number }
-  | { id: Id; kind: 'textReveal';         trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number; mode: 'chars' | 'words' | 'lines' }
-  | { id: Id; kind: 'stateChange';        trigger: GroupMemberTrigger; durationMs: number; easing: Easing; fromState: string | 'default'; toState: string | 'default' }
+  | { id: Id; kind: 'opacity';            targetSlot: string; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number }
+  | { id: Id; kind: 'color';              targetSlot: string; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; property: 'fill' | 'stroke'; from: Color; to: Color }
+  | { id: Id; kind: 'transform';          targetSlot: string; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: Partial<Transform>; to: Partial<Transform> }
+  | { id: Id; kind: 'decorationProgress'; targetSlot: string; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number }
+  | { id: Id; kind: 'textReveal';         targetSlot: string; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; from: number; to: number; mode: 'chars' | 'words' | 'lines' }
+  | { id: Id; kind: 'stateChange';        targetSlot: string; trigger: GroupMemberTrigger; durationMs: number; easing: Easing; fromState: string | 'default'; toState: string | 'default' }
 ```
 
 **Timing model**
@@ -496,7 +507,7 @@ The group's total duration is derived — it equals the time from group start to
 
 **Compilation**
 
-During timeline compilation, each `AnimationGroupInstance` is expanded in-place into one `CompiledAnimation` per member. The group itself does not appear as a compiled entry; only its children do. The instance's `appearanceId` and `target` are propagated to every expanded member.
+During timeline compilation, each `AnimationGroupInstance` is expanded in-place into one `CompiledAnimation` per member. The group itself does not appear as a compiled entry; only its children do. Each member's `targetSlot` is resolved to a concrete `AnimationTarget` by looking up `slotBindings[member.targetSlot]` on the instance. The instance's `appearanceId` is propagated to every expanded member.
 
 **`durationMs` and `easing` on `AnimationGroupInstance`**
 
@@ -510,32 +521,25 @@ Easing is a runtime subsystem, not just data.
 
 ### 9.1 Types
 
+Named presets map to their CSS equivalents. Custom curves use `cubic-bezier` with explicit control points. Spring is a separate kind.
+
 ```ts
 type Easing =
-  | {
-      kind: 'bezier'
-      preset: 'linear' | 'ease' | 'easeIn' | 'easeOut' | 'easeInOut' | 'custom'
-      cubicBezier?: [number, number, number, number]
-    }
-  | {
-      kind: 'spring'
-      mass: number
-      stiffness: number
-      damping: number
-      initialVelocity: number
-    }
+  | 'linear'
+  | 'ease-in'
+  | 'ease-out'
+  | 'ease-in-out'
+  | { kind: 'cubic-bezier'; x1: number; y1: number; x2: number; y2: number }
+  | { kind: 'spring'; mass: number; stiffness: number; damping: number; initialVelocity: number }
 ```
 
 ### 9.2 Bezier constraints
-- P1x and P2x must be in [0, 1]
+- `x1` and `x2` must be in [0, 1]
 - enforced in UI and model
 
 ### 9.3 Bezier runtime
 
-Uses:
-1. lookup table
-2. Newton-Raphson refinement
-3. binary subdivision fallback
+Uses Newton-Raphson to solve `X(u) = progress` for `u`, then evaluates `Y(u)`.
 
 Ensures speed, stability, and determinism.
 
@@ -628,6 +632,17 @@ interface CompiledSlideTimeline {
   transition?: CompiledTransitionBar
   clickBuckets: ClickBucket[]
 }
+
+interface CompiledTransitionBar {
+  startMs: number
+  endMs: number
+  easing: Easing
+}
+
+interface ClickBucket {
+  index: number            // 0 = autoplay; 1+ = user click N
+  animations: CompiledAnimation[]
+}
 ```
 
 ### 11.6 Presentation timeline
@@ -636,6 +651,13 @@ interface CompiledSlideTimeline {
 interface CompiledPresentationTimeline {
   slideSegments: CompiledSlideSegment[]
   totalDurationMs: number
+}
+
+interface CompiledSlideSegment {
+  slideId: Id
+  startMs: number          // absolute time within the presentation
+  endMs: number
+  timeline: CompiledSlideTimeline
 }
 ```
 
@@ -657,6 +679,11 @@ else         → evaluate animations
 interface SlideCheckpoint {
   timeMs: number
   state: CompactSlideStateSnapshot
+}
+
+interface CompactSlideStateSnapshot {
+  states: Record<Id, ElementState>  // keyed by appearanceId
+  activeClickBucket: number
 }
 ```
 

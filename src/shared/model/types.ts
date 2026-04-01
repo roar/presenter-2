@@ -101,6 +101,7 @@ export interface StyleProperties {
   fontSize?: number
   fontFamily?: string
   fontWeight?: number
+  textShadow?: TextShadow
 }
 
 // ─── Content ─────────────────────────────────────────────────────────────────
@@ -155,7 +156,6 @@ export interface TextDecoration {
 // ─── Easing ───────────────────────────────────────────────────────────────────
 // Named presets map directly to CSS equivalents.
 // cubic-bezier matches CSS cubic-bezier(x1, y1, x2, y2).
-// steps matches CSS steps(count, direction).
 // spring is evaluated as a damped oscillation bounded by durationMs.
 
 export type Easing =
@@ -164,7 +164,6 @@ export type Easing =
   | 'ease-out'
   | 'ease-in-out'
   | { kind: 'cubic-bezier'; x1: number; y1: number; x2: number; y2: number }
-  | { kind: 'steps'; count: number; direction: 'start' | 'end' }
   | { kind: 'spring'; mass: number; stiffness: number; damping: number; initialVelocity: number }
 
 // ─── Common types ─────────────────────────────────────────────────────────────
