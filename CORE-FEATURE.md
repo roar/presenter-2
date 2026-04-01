@@ -30,15 +30,40 @@ Propagation is **downstream only**: animations on a later appearance do not affe
 
 ---
 
-## 3. Animations
+## 3. Named Style States
 
-### 3.1 Ownership
+### 3.1 Definition
+
+Every object has a **default style state** — its base set of visual properties (fill, stroke, opacity, font size, font weight, etc.).
+
+The user may define any number of **named states** on an object. Each named state specifies one or more property overrides relative to the default. A named state resolves to the default style with its overrides applied on top; unspecified properties retain their default values.
+
+Named states are authored on the object master and are therefore shared across all appearances of that MSO.
+
+**Example:** An object with default fill `white` and opacity `1.0` might have a named state `"highlighted"` that overrides fill to `yellow`, and a named state `"muted"` that overrides opacity to `0.3`.
+
+### 3.2 State Change Animation
+
+The **State Change** animation type transitions an object from one style state to another.
+
+- **From state** — the starting state (may be the default state or a named state).
+- **To state** — the target state (may be the default state or a named state).
+- Animatable properties between states are interpolated over the animation duration using the configured easing.
+- Non-interpolatable properties (e.g. font family) snap to the target state at completion.
+
+When a State Change animation completes, the object's active style state updates to the `to` state. This updated state propagates forward to downstream appearances as part of exit state.
+
+---
+
+## 4. Animations
+
+### 4.1 Ownership
 
 Animations are owned by appearances, not by the master. This means:
 - An animation added to an appearance affects all downstream appearances.
 - It does not affect upstream appearances.
 
-### 3.2 Triggers
+### 4.2 Triggers
 
 Each animation has one of the following triggers:
 
@@ -48,16 +73,16 @@ Each animation has one of the following triggers:
 | `afterPrevious`  | Starts automatically after the previous animation ends, with an optional delay.    |
 | `withPrevious`   | Starts at the same time as the previous animation, with an optional delay.         |
 
-### 3.3 Properties
+### 4.3 Properties
 
 Each animation specifies:
 - **Target** — the object, group child, text range, or text decoration to animate.
-- **Property** — the animatable property (e.g. opacity, transform, color, stroke-dashoffset).
-- **From / To values** — start and end values for the property.
+- **Type** — the animation type (see §4.5).
+- **From / To values** — start and end values, specific to the animation type.
 - **Duration** — in milliseconds.
-- **Easing** — see Section 5.
+- **Easing** — see Section 7.
 
-### 3.4 Animation Targets
+### 4.4 Animation Targets
 
 Animations can target:
 
@@ -68,9 +93,58 @@ Animations can target:
 | `text-range`       | A range of text within a text object.                      |
 | `text-decoration`  | A decoration overlay (underline, highlight, outline).      |
 
+### 4.5 Animation Types
+
+| Type                  | From / To                          | Description                                                  |
+| --------------------- | ---------------------------------- | ------------------------------------------------------------ |
+| Opacity               | `number` (0–1)                     | Fades the target in or out.                                  |
+| Color                 | `Color`                            | Interpolates the fill or stroke color.                       |
+| Transform             | `Partial<Transform>`               | Moves, scales, or rotates the target.                        |
+| Decoration Progress   | `number` (0–1)                     | Animates a text decoration (e.g. underline draw).            |
+| Text Reveal           | `number` (0–1), mode: chars/words/lines | Reveals text progressively.                             |
+| State Change          | from state name, to state name     | Transitions the object between two named style states (§3).  |
+
 ---
 
-## 4. Slide Transitions
+## 5. Animation Groups
+
+### 5.1 Definition
+
+An **animation group** is a named, reusable set of animations that can be applied to a slide as a single unit. Groups are authored once and instantiated multiple times.
+
+**Examples:** `"Pop In"`, `"Highlight Sweep"`, `"Entrance with Underline"`.
+
+### 5.2 Parameter Slots
+
+A group declares zero or more **named parameter slots**. Each slot represents an object or text range that one or more animations in the group will target.
+
+- When a group has **no parameters**, the group is self-contained and has no external targets.
+- When a group has **one or more parameters**, the user binds actual objects or text ranges to each slot at the time the group is added to a slide.
+
+Each animation within the group references exactly one parameter slot by name as its target. A slot may be referenced by multiple animations.
+
+**Example:** A group `"Highlight with Underline"` declares two slots — `object` and `decoration`. One animation fades `object` from `muted` to `default` state; another animates the progress of `decoration` from 0 to 1.
+
+### 5.3 Timing
+
+Animations within a group use only `withPrevious` or `afterPrevious` triggers — `onClick` is not permitted inside a group.
+
+The **group instance** itself carries the trigger (`onClick`, `withPrevious`, or `afterPrevious`) that determines when the group begins. From that point, member animations resolve their timing relative to each other in authored order.
+
+The group's total duration is derived — it is the time from group start to the end of the last-finishing member animation.
+
+### 5.4 Authoring
+
+Each member animation in a group specifies:
+- **Target slot** — the named parameter slot this animation applies to.
+- **Type** — any animation type from §4.5.
+- **From / To values** — as per the animation type.
+- **Duration** and **Easing**.
+- **Trigger** — `withPrevious` or `afterPrevious`, with optional delay.
+
+---
+
+## 6. Slide Transitions
 
 Each slide may have a transition that plays when the slide is entered.
 
@@ -80,7 +154,7 @@ Each slide may have a transition that plays when the slide is entered.
 
 ---
 
-## 5. Easing
+## 7. Easing
 
 All animations and transitions support configurable easing.
 
@@ -90,27 +164,28 @@ All animations and transitions support configurable easing.
 
 ---
 
-## 6. Timeline
+## 8. Timeline
 
-### 6.1 Structure
+### 8.1 Structure
 
 The timeline is compiled from the document — it is never stored. For each slide it contains:
 
 - A transition bar (if applicable).
 - Animation bars grouped into **click buckets**.
 - Parallel animations displayed in parallel lanes (greedy interval partitioning).
+- Animation group instances rendered as a single collapsible bar, expandable to show member animations.
 
 Click bucket 0 contains animations that play automatically after the transition. Each subsequent user click advances to the next bucket.
 
 For timeline display purposes, `onClick` delays are rendered as a configurable constant duration.
 
-### 6.2 Playback Controls
+### 8.2 Playback Controls
 
 The timeline UI provides:
 - **Play / pause.**
 - **Scrubber** — the user can click or drag to any point in the timeline.
 
-### 6.3 Scrubbing
+### 8.3 Scrubbing
 
 When the scrubber is moved to time *t*:
 - The presentation view updates immediately, showing the exact visual state at *t*.
@@ -121,13 +196,13 @@ Scrubbing is implemented via state checkpoints and evaluated interpolation, not 
 
 ---
 
-## 7. Thumbnails
+## 9. Thumbnails
 
-### 7.1 Definition
+### 9.1 Definition
 
 Each thumbnail shows the **entry state** of its slide — the state as it looks the moment it is entered, before any animations play.
 
-### 7.2 Live Updates
+### 9.2 Live Updates
 
 | Event                                         | Thumbnail behaviour                                                                      |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -137,31 +212,31 @@ Each thumbnail shows the **entry state** of its slide — the state as it looks 
 
 ---
 
-## 8. Text System
+## 10. Text System
 
 Text editing is a first-class feature.
 
-### 8.1 Structure
+### 10.1 Structure
 
 Text is modelled as a hierarchy of blocks and runs, each with a stable ID. This allows animations to target specific text ranges and survive edits.
 
-### 8.2 Text Decorations
+### 10.2 Text Decorations
 
 Decorations (underline, highlight, outline) are rendered as SVG overlays positioned relative to the text layout — not as CSS `text-decoration`. This enables:
 
-- **Line-draw animation:** the underline strokes in using `stroke-dashoffset`.
+- **Line-draw animation:** the underline strokes in progressively.
 - **Highlight sweep:** a color fill sweeps across a word or phrase.
 - **Animated emphasis:** any decoration property can be animated.
 
 Decorations are anchored to text ranges using stable block/run IDs and character offsets.
 
-### 8.3 Animating Text Sub-ranges
+### 10.3 Animating Text Sub-ranges
 
 It is possible to animate a subset of text within a text object — for example, fading a single word to a different color, or drawing an underline under a specific phrase — without splitting the text object into multiple independent objects.
 
 ---
 
-## 9. Live Preview During Editing
+## 11. Live Preview During Editing
 
 While the user drags or otherwise manipulates an MSO:
 - No document mutation occurs until the interaction is committed.
@@ -170,7 +245,7 @@ While the user drags or otherwise manipulates an MSO:
 
 ---
 
-## 10. Multi-Window (Electron)
+## 12. Multi-Window (Electron)
 
 The application operates with two windows simultaneously during presentation:
 
