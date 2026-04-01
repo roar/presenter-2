@@ -1,4 +1,4 @@
-import type { Document, DocumentId } from '../../../shared/model/types'
+import type { Presentation, DocumentId } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import type { DocumentMeta, DocumentRepository } from './DocumentRepository'
 
@@ -8,11 +8,11 @@ import type { DocumentMeta, DocumentRepository } from './DocumentRepository'
 // TODO: wire up window.electron IPC calls once the main process handlers are added.
 
 export class JsonFileRepository implements DocumentRepository {
-  async load(id: DocumentId, _auth: AuthContext): Promise<Document> {
+  async load(id: DocumentId, _auth: AuthContext): Promise<Presentation> {
     throw new Error(`JsonFileRepository.load not yet implemented (id: ${id})`)
   }
 
-  async save(doc: Document, _auth: AuthContext): Promise<void> {
+  async save(doc: Presentation, _auth: AuthContext): Promise<void> {
     throw new Error(`JsonFileRepository.save not yet implemented (id: ${doc.id})`)
   }
 

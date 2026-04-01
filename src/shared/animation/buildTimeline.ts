@@ -1,4 +1,4 @@
-import type { Slide, AnimationCue, Cue } from '../model/types'
+import type { LegacySlide, AnimationCue, Cue } from '../model/types'
 import type { PresentationTimeline, ScheduledCue } from './types'
 
 function blockDuration(cue: AnimationCue): number {
@@ -12,7 +12,7 @@ function cueDuration(cue: Cue): number {
 }
 
 export function buildTimeline(
-  slides: Slide[],
+  slides: LegacySlide[],
   triggerTimes: Map<string, number>
 ): PresentationTimeline {
   const scheduledCues: ScheduledCue[] = []

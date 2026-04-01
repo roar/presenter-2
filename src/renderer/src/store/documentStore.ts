@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { Document, Slide, SlideId } from '../../../shared/model/types'
+import type { Presentation, Slide, SlideId } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
@@ -16,13 +16,13 @@ interface UiState {
 // ── History entry for undo/redo ───────────────────────────────────────────────
 
 interface HistoryEntry {
-  document: Document
+  document: Presentation
 }
 
 // ── Full store state ──────────────────────────────────────────────────────────
 
 interface DocumentState {
-  document: Document | null
+  document: Presentation | null
   ui: UiState
   history: HistoryEntry[]
   historyIndex: number // points to current position in history
@@ -31,7 +31,7 @@ interface DocumentState {
   // Actions
   loadDocument(repo: DocumentRepository, id: string, auth?: AuthContext): Promise<void>
   saveDocument(repo: DocumentRepository, auth?: AuthContext): Promise<void>
-  setDocument(doc: Document): void
+  setDocument(doc: Presentation): void
   selectSlide(id: SlideId | null): void
   selectElements(ids: string[]): void
   setZoom(zoom: number): void
@@ -44,12 +44,12 @@ interface DocumentState {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function snapshot(doc: Document): HistoryEntry {
+function snapshot(doc: Presentation): HistoryEntry {
   // JSON round-trip works on both plain objects and immer drafts (Proxy objects)
-  return { document: JSON.parse(JSON.stringify(doc)) as Document }
+  return { document: JSON.parse(JSON.stringify(doc)) as Presentation }
 }
 
-function pushHistory(state: DocumentState, doc: Document): void {
+function pushHistory(state: DocumentState, doc: Presentation): void {
   // Discard any redo history ahead of current position
   state.history = state.history.slice(0, state.historyIndex + 1)
   state.history.push(snapshot(doc))
@@ -71,13 +71,13 @@ export const useDocumentStore = create<DocumentState>()(
     isDirty: false,
 
     async loadDocument(repo, id, auth = nullAuthContext) {
-      const doc = await repo.load(id, auth)
+      const presentation = await repo.load(id, auth)
       set((state) => {
-        state.document = doc
-        state.history = [snapshot(doc)]
+        state.document = presentation
+        state.history = [snapshot(presentation)]
         state.historyIndex = 0
         state.isDirty = false
-        state.ui.selectedSlideId = doc.slides[0]?.id ?? null
+        state.ui.selectedSlideId = presentation.slideOrder[0] ?? null
       })
     },
 
@@ -122,7 +122,8 @@ export const useDocumentStore = create<DocumentState>()(
     addSlide(slide) {
       set((state) => {
         if (!state.document) return
-        state.document.slides.push(slide)
+        state.document.slideOrder.push(slide.id)
+        state.document.slidesById[slide.id] = slide
         pushHistory(state, state.document)
         state.isDirty = true
       })
@@ -131,9 +132,10 @@ export const useDocumentStore = create<DocumentState>()(
     removeSlide(id) {
       set((state) => {
         if (!state.document) return
-        state.document.slides = state.document.slides.filter((s) => s.id !== id)
+        state.document.slideOrder = state.document.slideOrder.filter((s) => s !== id)
+        delete state.document.slidesById[id]
         if (state.ui.selectedSlideId === id) {
-          state.ui.selectedSlideId = state.document.slides[0]?.id ?? null
+          state.ui.selectedSlideId = state.document.slideOrder[0] ?? null
         }
         pushHistory(state, state.document)
         state.isDirty = true
@@ -143,9 +145,9 @@ export const useDocumentStore = create<DocumentState>()(
     moveSlide(fromIndex, toIndex) {
       set((state) => {
         if (!state.document) return
-        const slides = state.document.slides
-        const [slide] = slides.splice(fromIndex, 1)
-        slides.splice(toIndex, 0, slide)
+        const order = state.document.slideOrder
+        const [id] = order.splice(fromIndex, 1)
+        order.splice(toIndex, 0, id)
         pushHistory(state, state.document)
         state.isDirty = true
       })

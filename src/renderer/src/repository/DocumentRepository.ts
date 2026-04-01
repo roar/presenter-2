@@ -1,4 +1,4 @@
-import type { Document, DocumentId } from '../../../shared/model/types'
+import type { Presentation, DocumentId } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 
 export interface DocumentMeta {
@@ -13,8 +13,8 @@ export interface DocumentMeta {
 // AuthContext is accepted by all methods so implementations can attach
 // tokens when needed — current local implementation ignores it.
 export interface DocumentRepository {
-  load(id: DocumentId, auth: AuthContext): Promise<Document>
-  save(doc: Document, auth: AuthContext): Promise<void>
+  load(id: DocumentId, auth: AuthContext): Promise<Presentation>
+  save(doc: Presentation, auth: AuthContext): Promise<void>
   list(auth: AuthContext): Promise<DocumentMeta[]>
   delete(id: DocumentId, auth: AuthContext): Promise<void>
 }

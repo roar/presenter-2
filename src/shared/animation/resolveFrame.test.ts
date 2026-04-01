@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { resolveFrame } from './resolveFrame'
 import { buildTimeline } from './buildTimeline'
-import type { Slide, TextElement, ShapeElement, AnimationCue, TransitionCue } from '../model/types'
+import type {
+  LegacySlide,
+  TextElement,
+  ShapeElement,
+  AnimationCue,
+  TransitionCue
+} from '../model/types'
 import type { PresentationTimeline } from './types'
 
 // --- Fixture helpers ---
@@ -103,12 +109,12 @@ function transitionCue(
   }
 }
 
-function slide(id: string, elements: TextElement[], cues: Slide['cues'] = []): Slide {
+function slide(id: string, elements: TextElement[], cues: LegacySlide['cues'] = []): LegacySlide {
   return { id, children: elements, cues }
 }
 
 function timelineFromSlides(
-  slides: Slide[],
+  slides: LegacySlide[],
   triggers: Record<string, number> = {}
 ): PresentationTimeline {
   return buildTimeline(slides, new Map(Object.entries(triggers)))

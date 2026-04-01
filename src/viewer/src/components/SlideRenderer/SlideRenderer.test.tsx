@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { SlideRenderer } from './SlideRenderer'
 import { buildTimeline } from '@shared/animation/buildTimeline'
 import { resolveFrame } from '@shared/animation/resolveFrame'
-import type { Slide, TextElement } from '@shared/model/types'
+import type { LegacySlide, TextElement } from '@shared/model/types'
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -30,7 +30,7 @@ function textEl(id: string, content: string): TextElement {
   }
 }
 
-function slide(id: string, elements: TextElement[], cues: Slide['cues'] = []): Slide {
+function slide(id: string, elements: TextElement[], cues: LegacySlide['cues'] = []): LegacySlide {
   return { id, children: elements, cues }
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildTimeline } from './buildTimeline'
-import type { Slide, AnimationCue, TransitionCue } from '../model/types'
+import type { LegacySlide, AnimationCue, TransitionCue } from '../model/types'
 
 // Helpers to build minimal cue fixtures
 function animCue(id: string, trigger: AnimationCue['trigger'], durationSec = 1): AnimationCue {
@@ -31,7 +31,7 @@ function transCue(id: string, trigger: TransitionCue['trigger'], durationSec = 0
   }
 }
 
-function slide(id: string, cues: Slide['cues']): Slide {
+function slide(id: string, cues: LegacySlide['cues']): LegacySlide {
   return { id, children: [], cues }
 }
 

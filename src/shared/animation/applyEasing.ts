@@ -44,7 +44,7 @@ export function applyEasing(easing: Easing, progress: number): number {
     return cubicBezier(x1, y1, x2, y2, progress)
   }
 
-  if (easing.kind === 'cubic-bezier' || easing.kind === 'steps') {
+  if (easing.kind === 'cubic-bezier' || easing.kind === 'steps' || easing.kind === 'spring') {
     throw new Error('not implemented')
   }
 

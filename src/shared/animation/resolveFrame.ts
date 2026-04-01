@@ -1,4 +1,10 @@
-import type { Slide, SlideNode, TextElement, ImageElement, ShapeElement } from '../model/types'
+import type {
+  LegacySlide,
+  SlideNode,
+  TextElement,
+  ImageElement,
+  ShapeElement
+} from '../model/types'
 import type {
   PresentationTimeline,
   ScheduledCue,
@@ -35,7 +41,7 @@ function lerp(a: number, b: number, t: number): number {
 
 // --- Element state resolution ---
 
-function hasEnterAnimation(elementId: string, slide: Slide): boolean {
+function hasEnterAnimation(elementId: string, slide: LegacySlide): boolean {
   for (const cue of slide.cues) {
     if (cue.kind !== 'animation') continue
     for (const anim of cue.animations) {
@@ -45,7 +51,7 @@ function hasEnterAnimation(elementId: string, slide: Slide): boolean {
   return false
 }
 
-function hasLineDraw(elementId: string, slide: Slide): boolean {
+function hasLineDraw(elementId: string, slide: LegacySlide): boolean {
   for (const cue of slide.cues) {
     if (cue.kind !== 'animation') continue
     for (const anim of cue.animations) {
@@ -63,7 +69,7 @@ function hasLineDraw(elementId: string, slide: Slide): boolean {
 
 function resolveElementState(
   element: LeafElement,
-  slide: Slide,
+  slide: LegacySlide,
   scheduledCues: ScheduledCue[],
   time: number
 ): RenderedElement {
@@ -163,7 +169,11 @@ function resolveActiveTransition(scheduledCues: ScheduledCue[], time: number) {
   return null
 }
 
-function renderSlide(slide: Slide, scheduledCues: ScheduledCue[], time: number): RenderedSlide {
+function renderSlide(
+  slide: LegacySlide,
+  scheduledCues: ScheduledCue[],
+  time: number
+): RenderedSlide {
   const leaves = flattenNodes(slide.children)
   const regular = leaves.filter((n) => !isMSO(n))
   return {
@@ -178,7 +188,7 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
   const { slides, scheduledCues } = timeline
 
   if (slides.length === 0) {
-    const emptySlide: Slide = { id: '', children: [], cues: [] }
+    const emptySlide: LegacySlide = { id: '', children: [], cues: [] }
     return {
       front: { slide: emptySlide, elements: [] },
       behind: null,
