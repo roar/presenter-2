@@ -100,9 +100,40 @@ Multiple targets:
 
 ---
 
-## 4. Source Data Model
+## 4. Multi-Window and IPC Architecture
 
-### 4.1 Root
+The application runs two windows simultaneously in Electron:
+
+```
+Editor (renderer)  ←→  Main Process (source of truth)  ←→  Viewer (renderer)
+```
+
+### 4.1 Responsibilities
+
+| Process | Role |
+| ------- | ---- |
+| Main process | Authoritative current slide index; playback clock; broadcasts state to viewer |
+| Editor | Authoring, timeline editing, state mutations; sends commands to main |
+| Viewer | Read-only presentation playback; evaluates state using the same engine as the editor |
+
+### 4.2 IPC Protocol
+
+```ts
+type IPCMessage =
+  | { type: 'STATE_UPDATE'; revision: number; patch: Patch }
+  | { type: 'SET_TIME'; timeMs: number }
+  | { type: 'SET_SLIDE'; slideId: Id }
+  | { type: 'PLAY' }
+  | { type: 'PAUSE' }
+```
+
+**Key rule:** The viewer never derives presentation state independently. It evaluates state using the same compiled timeline and render engine as the editor, driven by the shared time and document received via IPC.
+
+---
+
+## 5. Source Data Model
+
+### 5.1 Root
 
 ```ts
 type Id = string
@@ -120,7 +151,7 @@ interface Presentation {
 }
 ```
 
-### 4.2 Slide
+### 5.2 Slide
 
 ```ts
 interface Slide {
@@ -131,7 +162,32 @@ interface Slide {
 }
 ```
 
-### 4.3 Master
+### 5.3 Transition
+
+```ts
+interface Transition {
+  id: Id
+  slideId: Id                // destination slide
+
+  type: 'fade' | 'push' | 'wipe' | 'zoom' | 'none'
+
+  durationMs: number
+  easing: Easing
+
+  trigger:
+    | { type: 'onClick' }
+    | { type: 'afterPrevious'; delayMs: number }
+
+  direction?: 'left' | 'right' | 'up' | 'down' // for directional transitions
+}
+```
+
+**Semantics**
+- Owned by the destination slide.
+- Runs before any slide-local animations.
+- Uses the same timing model as animations (trigger + delay + easing).
+
+### 5.4 Master
 
 ```ts
 interface MsoMaster {
@@ -146,13 +202,70 @@ interface MsoMaster {
 }
 ```
 
+### 5.5 Core Types
+
+```ts
+interface Transform {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number // radians
+}
+
+type AnimatableProperty =
+  | 'transform.x'
+  | 'transform.y'
+  | 'transform.scale'
+  | 'transform.rotation'
+  | 'opacity'
+  | 'color'
+  | 'backgroundColor'
+  | 'stroke'
+  | 'fill'
+  | 'textColor'
+  | 'decorationProgress' // for underline/highlight draw
+
+type PropertyValue = number | string | Color | Transform
+
+interface StyleProperties {
+  fill?: Color
+  stroke?: Color
+  strokeWidth?: number
+  opacity?: number
+  fontSize?: number
+  fontFamily?: string
+  fontWeight?: number
+}
+
+type Content =
+  | { type: 'text'; value: TextContent }
+  | { type: 'image'; src: string }
+  | { type: 'none' }
+
+interface ShapeGeometry {
+  type: 'rect' | 'ellipse' | 'path'
+  pathData?: string // for 'path' only
+}
+
+interface Background {
+  color?: Color
+  image?: string
+}
+
+interface TextMark {
+  type: 'bold' | 'italic' | 'underline' | 'color'
+  value?: Color // used for 'color' mark
+}
+```
+
 ---
 
-## 5. Text System
+## 6. Text System
 
 Text is a first-class system because editing is central.
 
-### 5.1 Structured text model
+### 6.1 Structured text model
 
 ```ts
 interface TextContent {
@@ -171,20 +284,29 @@ interface TextRun {
 }
 ```
 
-### 5.2 Stable anchors
+### 6.2 Stable anchors
 
-Animations must survive edits as much as possible.
+Animations must survive edits as much as possible. Anchors use block-relative character offsets rather than run IDs, since runs can split or merge on every edit.
 
 ```ts
 interface TextRangeAnchor {
   blockId: Id
-  runId: Id
-  startOffset: number
+  startOffset: number // character offset within block
   endOffset: number
 }
 ```
 
-### 5.3 Decorations (overlay-based)
+**Anchor repair after text edits**
+
+After each edit to a `TextBlock`:
+
+1. Compute the diff between the old and new character sequence (e.g. Myers diff).
+2. Map each anchor's `startOffset` and `endOffset` through the diff to new positions.
+3. Update anchors in place.
+
+**Fallback:** if mapping fails (e.g. the entire block is replaced), mark the anchor as `degraded: true`, surface a UI warning, and allow manual repair.
+
+### 6.3 Decorations (overlay-based)
 
 ```ts
 interface TextDecoration {
@@ -201,7 +323,7 @@ Decorations are rendered as overlays (SVG), not native CSS `text-decoration`. Th
 
 ---
 
-## 6. Appearance
+## 7. Appearance
 
 ```ts
 interface Appearance {
@@ -215,11 +337,13 @@ interface Appearance {
 }
 ```
 
+**Note on `initialVisibility`:** Controls whether the object is visible at slide entry, before any animations play. Set to `'hidden'` when the object is intended to appear via an animation (e.g. a fade-in). This is distinct from opacity — a hidden object takes up no hit-test area and produces no visual output until revealed.
+
 ---
 
-## 7. Animation System
+## 8. Animation System
 
-### 7.1 Targets
+### 8.1 Targets
 
 ```ts
 type AnimationTarget =
@@ -235,13 +359,13 @@ This allows:
 - text subrange animation
 - decoration animation
 
-### 7.2 Animation
+### 8.2 Animation
 
 ```ts
 interface Animation {
   id: Id
   appearanceId: Id
-  originMasterId: Id
+  originMasterId: Id // denormalized from appearance.masterId — see note below
   target: AnimationTarget
   property: AnimatableProperty
   fromValue: PropertyValue
@@ -250,11 +374,12 @@ interface Animation {
   easing: Easing
   trigger: AnimationTrigger
   authoredOrder: number
-  groupId?: Id
 }
 ```
 
-### 7.3 Triggers
+**Note on `originMasterId`:** This is a denormalized field equal to `appearance.masterId`. It exists as an optimization to avoid the lookup `animationId → Appearance → masterId` during downstream invalidation (e.g. when deciding which thumbnails to re-render after an animation change). It carries no independent semantic meaning and must be kept in sync when an appearance is reassigned to a different master.
+
+### 8.3 Triggers
 
 ```ts
 type AnimationTrigger =
@@ -265,11 +390,11 @@ type AnimationTrigger =
 
 ---
 
-## 8. Easing System
+## 9. Easing System
 
 Easing is a runtime subsystem, not just data.
 
-### 8.1 Types
+### 9.1 Types
 
 ```ts
 type Easing =
@@ -287,11 +412,11 @@ type Easing =
     }
 ```
 
-### 8.2 Bezier constraints
+### 9.2 Bezier constraints
 - P1x and P2x must be in [0, 1]
 - enforced in UI and model
 
-### 8.3 Bezier runtime
+### 9.3 Bezier runtime
 
 Uses:
 1. lookup table
@@ -300,12 +425,12 @@ Uses:
 
 Ensures speed, stability, and determinism.
 
-### 8.4 Spring runtime
+### 9.4 Spring runtime
 - evaluated as f(t)
 - still bounded by `durationMs`
 - may overshoot internally but clamps at end
 
-### 8.5 Runtime caching
+### 9.5 Runtime caching
 
 ```ts
 Map<string, EasingRuntime>
@@ -315,25 +440,25 @@ Shared across playback, scrubbing, and thumbnails.
 
 ---
 
-## 9. State Propagation
+## 10. State Propagation
 
-### 9.1 Appearance chains
+### 10.1 Appearance chains
 
 For each master: collect appearances and sort by slide order.
 
-### 9.2 Entry state
+### 10.2 Entry state
 
 ```
 entry = previous appearance exit OR master state
 ```
 
-### 9.3 Exit state
+### 10.3 Exit state
 
 ```
 exit = entry + all animations (to completion)
 ```
 
-### 9.4 Resolver
+### 10.4 Resolver
 
 ```ts
 class MsoStateResolver {
@@ -346,9 +471,9 @@ Caches results for performance.
 
 ---
 
-## 10. Timeline Compilation
+## 11. Timeline Compilation
 
-### 10.1 Rules
+### 11.1 Rules
 
 For each slide:
 1. transition runs first
@@ -357,19 +482,19 @@ For each slide:
 4. dependencies resolved
 5. lanes assigned
 
-### 10.2 Click buckets
+### 11.2 Click buckets
 - bucket 0 = autoplay
 - each click creates a new bucket
 
-### 10.3 Dependency resolution
+### 11.3 Dependency resolution
 - `withPrevious` shares start time
 - `afterPrevious` follows previous
 
-### 10.4 Lane assignment
+### 11.4 Lane assignment
 
 Greedy interval partitioning.
 
-### 10.5 Structures
+### 11.5 Structures
 
 ```ts
 interface CompiledSlideTimeline {
@@ -379,7 +504,7 @@ interface CompiledSlideTimeline {
 }
 ```
 
-### 10.6 Presentation timeline
+### 11.6 Presentation timeline
 
 ```ts
 interface CompiledPresentationTimeline {
@@ -390,9 +515,9 @@ interface CompiledPresentationTimeline {
 
 ---
 
-## 11. Playback and Scrubbing
+## 12. Playback and Scrubbing
 
-### 11.1 Evaluate at time
+### 12.1 Evaluate at time
 
 ```
 find slide
@@ -400,7 +525,7 @@ if transition → blend states
 else         → evaluate animations
 ```
 
-### 11.2 Checkpoints
+### 12.2 Checkpoints
 
 ```ts
 interface SlideCheckpoint {
@@ -411,11 +536,29 @@ interface SlideCheckpoint {
 
 Used to avoid replaying all animations from the beginning.
 
+**Placement strategy**
+
+Checkpoints are created at:
+- Slide entry (immediately after transition completes).
+- Start of each click bucket.
+- End of each animation group.
+- Intermediate intervals when animation density is low and time gaps exceed `MAX_CHECKPOINT_INTERVAL_MS` (default: 100 ms).
+
+**Scrub guarantee**
+
+Worst-case evaluation time is bounded by:
+
+```
+distance to nearest checkpoint + cost of evaluating active animations
+```
+
+This ensures smooth scrubbing even on long or complex slides.
+
 ---
 
-## 12. Rendering Architecture
+## 13. Rendering Architecture
 
-### 12.1 Main renderer (DOM + SVG)
+### 13.1 Main renderer (DOM + SVG)
 
 | Layer | Responsibility |
 |-------|---------------|
@@ -423,7 +566,7 @@ Used to avoid replaying all animations from the beginning.
 | SVG   | shapes, overlays (underline, highlight) |
 | CSS   | transform, opacity |
 
-### 12.2 Render state
+### 13.2 Render state
 
 ```ts
 interface RenderNode {
@@ -438,7 +581,7 @@ interface RenderNode {
 
 ---
 
-## 13. Text Layout Service
+## 14. Text Layout Service
 
 Required to bridge the text model and rendering.
 
@@ -448,7 +591,7 @@ interface TextLayoutService {
 }
 ```
 
-### 13.1 Geometry
+### 14.1 Geometry
 
 ```ts
 interface TextRangeGeometry {
@@ -461,13 +604,13 @@ Used for underline drawing and highlight overlays.
 
 ---
 
-## 14. Thumbnails
+## 15. Thumbnails
 
-### 14.1 Definition
+### 15.1 Definition
 
 Thumbnail = entry state of slide.
 
-### 14.2 Cache
+### 15.2 Cache
 
 ```ts
 interface ThumbnailCache {
@@ -475,40 +618,45 @@ interface ThumbnailCache {
 }
 ```
 
-### 14.3 Invalidation
+A `null` value means the thumbnail has been invalidated and is pending re-render. The render scheduler uses this to prioritise visible thumbnails. An absent key means the thumbnail has never been rendered.
+
+### 15.3 Invalidation
 - master change → invalidate all appearances
 - animation change → invalidate downstream appearances
 - slide reorder → rebuild chains
 
 ---
 
-## 15. Live Preview
+## 16. Live Preview
 
 ```ts
 interface LivePreviewStore {
-  masterTransformPatches: Map<Id, Partial<Transform>>
+  masterPatches: Map<Id, Partial<MsoMaster>>
 }
 ```
 
-Used during drag:
-- no document mutation
-- instant visual feedback
-- commit on drag end
+Used during any interaction that modifies an MSO (drag, resize, style change, text edit):
+- No document mutation until interaction ends.
+- Patch is applied at render time on top of the committed master state.
+- Cleared and committed to the document on interaction end.
+
+This covers transform, style, geometry, and content changes — not only position.
 
 ---
 
-## 16. Rendering Priorities
+## 17. Rendering Priorities
 
-1. main canvas
-2. current slide
-3. visible thumbnails
-4. rest
+This is runtime scheduling guidance, not a data model concern. It describes how the render scheduler should prioritize work.
 
-Use batching and `requestAnimationFrame`.
+1. Main canvas (current slide at full resolution)
+2. Visible thumbnails (in viewport order)
+3. Off-screen thumbnails (background, lowest priority)
+
+Use batching and `requestAnimationFrame`. Invalidated thumbnails (`null` in cache) are queued and processed in priority order.
 
 ---
 
-## 17. Performance Principles
+## 18. Performance Principles
 
 - prefer `transform` and `opacity` (GPU-composited)
 - avoid layout-triggering properties
@@ -519,7 +667,7 @@ Use batching and `requestAnimationFrame`.
 
 ---
 
-## 18. Key Design Decisions
+## 19. Key Design Decisions
 
 - text is first-class and editable
 - animation targets include text ranges and decorations
