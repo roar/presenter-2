@@ -1,26 +1,30 @@
 import type { Presentation, DocumentId } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import type { DocumentMeta, DocumentRepository } from './DocumentRepository'
+import type { PresentationFileApi } from '../../../shared/persistence/presentationFileApi'
 
-// Electron implementation — reads/writes JSON files via the preload IPC bridge.
-// The actual file I/O happens in the main process; this class just calls through.
-// AuthContext is accepted but unused — local files don't require auth.
-// TODO: wire up window.electron IPC calls once the main process handlers are added.
+function getPresentationFileApi(): PresentationFileApi {
+  if (!window.presenterFiles) {
+    throw new Error('Presentation file API is not available in this environment')
+  }
+
+  return window.presenterFiles
+}
 
 export class JsonFileRepository implements DocumentRepository {
   async load(id: DocumentId, _auth: AuthContext): Promise<Presentation> {
-    throw new Error(`JsonFileRepository.load not yet implemented (id: ${id})`)
+    return getPresentationFileApi().loadPresentation(id)
   }
 
   async save(doc: Presentation, _auth: AuthContext): Promise<void> {
-    throw new Error(`JsonFileRepository.save not yet implemented (id: ${doc.id})`)
+    await getPresentationFileApi().savePresentation(doc)
   }
 
   async list(_auth: AuthContext): Promise<DocumentMeta[]> {
-    throw new Error('JsonFileRepository.list not yet implemented')
+    return getPresentationFileApi().listPresentations()
   }
 
   async delete(id: DocumentId, _auth: AuthContext): Promise<void> {
-    throw new Error(`JsonFileRepository.delete not yet implemented (id: ${id})`)
+    await getPresentationFileApi().deletePresentation(id)
   }
 }
