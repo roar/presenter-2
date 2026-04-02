@@ -12,7 +12,15 @@
   border: none;
 }
 
-.body {
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
+  min-height: 0;
+}
+
+.mainRow {
   display: flex;
   flex-direction: row;
   flex: 1;
@@ -20,26 +28,58 @@
   min-height: 0;
 }
 
-.thumbnailPanel {
+.slidesPanel {
   width: var(--panel-left-width);
   flex-shrink: 0;
-  border: none;
 }
 
 .newSlideRow {
-  padding: var(--space-sm) var(--space-md);
+  padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.canvasPanel {
+.slideList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.sidebarPanel {
+  width: var(--panel-right-width);
+  flex-shrink: 0;
+}
+
+.centralColumn {
   flex: 1;
-  border: none;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.slideEditorPanel {
+  flex: 1;
+  min-height: 0;
+}
+
+.slideCanvasContainer {
+  flex: 1;
+  min-height: 0;
   background: var(--canvas);
 }
 
-.animationPanel {
-  width: var(--panel-right-width);
-  flex-shrink: 0;
-  border: none;
+.centralLowerRow {
+  display: flex;
+  gap: 1px;
+}
+
+.bottomHalfPanel {
+  flex: 1;
+  min-width: 0;
+  min-height: 160px;
+}
+
+.timelinePanel {
+  min-height: 160px;
 }

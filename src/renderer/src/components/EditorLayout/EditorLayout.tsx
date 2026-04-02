@@ -12,6 +12,30 @@ import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
 import { Toolbar } from '../Toolbar/Toolbar'
 import styles from './EditorLayout.module.css'
 
+interface LayoutPanelProps {
+  title: string
+  className?: string
+  children?: React.ReactNode
+  testId?: string
+  selectedSlideId?: string | null
+}
+
+function LayoutPanel({
+  title,
+  className,
+  children,
+  testId,
+  selectedSlideId
+}: LayoutPanelProps): React.JSX.Element {
+  return (
+    <Panel className={className}>
+      <PanelSection title={title} testId={testId} selectedSlideId={selectedSlideId} fill={true}>
+        {children ?? null}
+      </PanelSection>
+    </Panel>
+  )
+}
+
 export function EditorLayout(): React.JSX.Element {
   const document = useDocumentStore((s) => s.document)
   const patchedPresentation = useDocumentStore(selectPatchedPresentation)
@@ -73,33 +97,53 @@ export function EditorLayout(): React.JSX.Element {
       <Panel className={styles.toolbar}>
         <Toolbar />
       </Panel>
-      <div className={styles.body}>
-        <Panel className={styles.thumbnailPanel}>
-          <div className={styles.newSlideRow}>
-            <Button variant="secondary" onClick={handleNewSlide}>
-              New Slide
-            </Button>
+      <div className={styles.workspace}>
+        <div className={styles.mainRow}>
+          <LayoutPanel title="Slides" className={styles.slidesPanel} testId="slides-panel">
+            <div className={styles.newSlideRow}>
+              <Button variant="secondary" onClick={handleNewSlide}>
+                New Slide
+              </Button>
+            </div>
+            <div className={styles.slideList}>
+              {slideOrder.map((id, idx) => (
+                <ThumbnailCard
+                  key={id}
+                  slideNumber={idx + 1}
+                  isSelected={selectedSlideId === id}
+                  renderedSlide={
+                    allEntryStates[idx] ?? { slide: document!.slidesById[id], appearances: [] }
+                  }
+                  onClick={() => selectSlide(id)}
+                />
+              ))}
+            </div>
+          </LayoutPanel>
+          <LayoutPanel title="Animation" className={styles.sidebarPanel} testId="animation-panel" />
+          <LayoutPanel title="Objects" className={styles.sidebarPanel} testId="objects-panel" />
+          <div className={styles.centralColumn}>
+            <LayoutPanel
+              title="SlideEditor"
+              className={styles.slideEditorPanel}
+              testId="slide-editor-panel"
+              selectedSlideId={selectedSlideId}
+            >
+              <div className={styles.slideCanvasContainer}>
+                <SlideCanvas />
+              </div>
+            </LayoutPanel>
+            <div className={styles.centralLowerRow}>
+              <LayoutPanel title="Notes" className={styles.bottomHalfPanel} testId="notes-panel" />
+              <LayoutPanel title="Video" className={styles.bottomHalfPanel} testId="video-panel" />
+            </div>
           </div>
-          {slideOrder.map((id, idx) => (
-            <ThumbnailCard
-              key={id}
-              slideNumber={idx + 1}
-              isSelected={selectedSlideId === id}
-              renderedSlide={
-                allEntryStates[idx] ?? { slide: document!.slidesById[id], appearances: [] }
-              }
-              onClick={() => selectSlide(id)}
-            />
-          ))}
-        </Panel>
-        <Panel className={styles.animationPanel}>
-          <div data-selected-slide-id={selectedSlideId ?? undefined}>
-            <PanelSection title="Animations">{null}</PanelSection>
-          </div>
-        </Panel>
-        <Panel className={styles.canvasPanel}>
-          <SlideCanvas />
-        </Panel>
+          <LayoutPanel
+            title="Properties"
+            className={styles.sidebarPanel}
+            testId="properties-panel"
+          />
+        </div>
+        <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel" />
       </div>
     </div>
   )

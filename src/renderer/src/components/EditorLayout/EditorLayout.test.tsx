@@ -80,15 +80,50 @@ describe('EditorLayout', () => {
     expect(screen.getAllByRole('button', { name: /^\d+$/ })).toHaveLength(2)
   })
 
-  it('renders the animation panel for the selected slide', () => {
+  it('renders the requested panel layout', () => {
     const slide = createSlide()
     mockStore(makePresentation(slide), slide.id)
 
     render(<EditorLayout />)
 
-    expect(screen.getByText('Animations').closest('[data-selected-slide-id]')).toHaveAttribute(
-      'data-selected-slide-id',
-      slide.id
+    const slidesPanel = screen.getByTestId('slides-panel')
+    const animationPanel = screen.getByTestId('animation-panel')
+    const objectsPanel = screen.getByTestId('objects-panel')
+    const slideEditorPanel = screen.getByTestId('slide-editor-panel')
+    const notesPanel = screen.getByTestId('notes-panel')
+    const videoPanel = screen.getByTestId('video-panel')
+    const propertiesPanel = screen.getByTestId('properties-panel')
+    const timelinePanel = screen.getByTestId('timeline-panel')
+
+    expect(screen.getByText('Slides')).toBeInTheDocument()
+    expect(screen.getByText('Animation')).toBeInTheDocument()
+    expect(screen.getByText('Objects')).toBeInTheDocument()
+    expect(screen.getByText('SlideEditor')).toBeInTheDocument()
+    expect(screen.getByText('Notes')).toBeInTheDocument()
+    expect(screen.getByText('Video')).toBeInTheDocument()
+    expect(screen.getByText('Properties')).toBeInTheDocument()
+    expect(screen.getByText('Timeline')).toBeInTheDocument()
+    expect(slideEditorPanel).toHaveAttribute('data-selected-slide-id', slide.id)
+    expect(
+      slidesPanel.compareDocumentPosition(animationPanel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(
+      animationPanel.compareDocumentPosition(objectsPanel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(
+      objectsPanel.compareDocumentPosition(slideEditorPanel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(
+      slideEditorPanel.compareDocumentPosition(propertiesPanel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(
+      slideEditorPanel.compareDocumentPosition(notesPanel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(notesPanel.compareDocumentPosition(videoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
     )
+    expect(
+      propertiesPanel.compareDocumentPosition(timelinePanel) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 })
