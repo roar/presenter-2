@@ -40,6 +40,7 @@ interface DocumentState {
   addSlide(slide: Slide): void
   removeSlide(id: SlideId): void
   insertElement(slideId: SlideId, master: MsoMaster): void
+  moveElement(masterId: string, x: number, y: number): void
   moveSlide(fromIndex: number, toIndex: number): void
   undo(): void
   redo(): void
@@ -169,6 +170,18 @@ export const useDocumentStore = create<DocumentState>()(
         state.document.mastersById[master.id] = master
         state.document.appearancesById[appearance.id] = appearance
         slide.appearanceIds.push(appearance.id)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    moveElement(masterId, x, y) {
+      set((state) => {
+        if (!state.document) return
+        const master = state.document.mastersById[masterId]
+        if (!master) return
+        master.transform.x = x
+        master.transform.y = y
         pushHistory(state, state.document)
         state.isDirty = true
       })

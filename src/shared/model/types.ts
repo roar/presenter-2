@@ -138,6 +138,10 @@ export type Content =
 export interface ShapeGeometry {
   type: 'rect' | 'ellipse' | 'path'
   pathData?: string // for 'path' only
+  // Natural coordinate space the pathData was authored in.
+  // Used as the SVG viewBox so the path scales to fit transform.width × transform.height.
+  baseWidth?: number
+  baseHeight?: number
 }
 
 // ─── Text system ─────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { Toolbar } from '../Toolbar/Toolbar'
 import styles from './EditorLayout.module.css'
 
 export function EditorLayout(): React.JSX.Element {
-  const slideOrder = useDocumentStore((s) => s.document?.slideOrder ?? [])
+  const slideOrder = useDocumentStore((s) => s.document?.slideOrder) ?? []
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectSlide = useDocumentStore((s) => s.selectSlide)
 

@@ -28,8 +28,13 @@ export function ShapeView({ master, appearance }: ShapeViewProps): React.JSX.Ele
     strokeWidth: style.strokeWidth ?? 0
   }
 
+  const viewBox =
+    geometry?.type === 'path' && geometry.baseWidth && geometry.baseHeight
+      ? `0 0 ${geometry.baseWidth} ${geometry.baseHeight}`
+      : undefined
+
   return (
-    <svg style={svgStyle}>
+    <svg style={svgStyle} viewBox={viewBox}>
       {geometry?.type === 'path' && <path d={geometry.pathData ?? ''} {...shapeProps} />}
       {geometry?.type === 'rect' && (
         <rect x={0} y={0} width={t.width} height={t.height} {...shapeProps} />

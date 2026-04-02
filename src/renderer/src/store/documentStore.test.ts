@@ -218,4 +218,58 @@ describe('documentStore', () => {
       expect(ui.selectedElementIds).toHaveLength(0)
     })
   })
+
+  describe('moveElement', () => {
+    it('updates the master transform position', () => {
+      const master = createMsoMaster('shape')
+      master.transform = { x: 100, y: 200, width: 50, height: 50, rotation: 0 }
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ mastersById: { [master.id]: master } }))
+
+      useDocumentStore.getState().moveElement(master.id, 300, 400)
+
+      const updated = useDocumentStore.getState().document?.mastersById[master.id]
+      expect(updated?.transform.x).toBe(300)
+      expect(updated?.transform.y).toBe(400)
+    })
+
+    it('preserves width, height, and rotation', () => {
+      const master = createMsoMaster('shape')
+      master.transform = { x: 0, y: 0, width: 120, height: 80, rotation: 45 }
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ mastersById: { [master.id]: master } }))
+
+      useDocumentStore.getState().moveElement(master.id, 10, 20)
+
+      const updated = useDocumentStore.getState().document?.mastersById[master.id]
+      expect(updated?.transform.width).toBe(120)
+      expect(updated?.transform.height).toBe(80)
+      expect(updated?.transform.rotation).toBe(45)
+    })
+
+    it('marks the document dirty and pushes history', () => {
+      const master = createMsoMaster('shape')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ mastersById: { [master.id]: master } }))
+
+      const historyLengthBefore = useDocumentStore.getState().history.length
+      useDocumentStore.getState().moveElement(master.id, 50, 50)
+
+      const state = useDocumentStore.getState()
+      expect(state.isDirty).toBe(true)
+      expect(state.history.length).toBe(historyLengthBefore + 1)
+    })
+
+    it('does nothing when the master does not exist', () => {
+      useDocumentStore.getState().setDocument(makePresentation())
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().moveElement('nonexistent-id', 100, 100)
+
+      expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
 })

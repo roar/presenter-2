@@ -31,7 +31,12 @@ export function Toolbar(): React.JSX.Element {
       },
       namedStates: {}
     }
-    master.geometry = { type: 'path', pathData: entry.template.path.d }
+    master.geometry = {
+      type: 'path',
+      pathData: entry.template.path.d,
+      baseWidth: entry.template.path.baseWidth,
+      baseHeight: entry.template.path.baseHeight
+    }
     insertElement(selectedSlideId, master)
   }
 
