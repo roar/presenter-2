@@ -229,6 +229,17 @@ export function SlideCanvas(): React.JSX.Element {
       </div>
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
+          <ContextMenuItem
+            submenu={
+              <>
+                <ContextMenuItem disabled>Move</ContextMenuItem>
+                <ContextMenuItem disabled>Scale</ContextMenuItem>
+                <ContextMenuItem disabled>Rotate</ContextMenuItem>
+              </>
+            }
+          >
+            Add animation
+          </ContextMenuItem>
           {document?.mastersById[contextMenu.masterId]?.isMultiSlideObject ? (
             <ContextMenuItem onClick={handleConvertToSingle}>
               Convert to Single Appearance

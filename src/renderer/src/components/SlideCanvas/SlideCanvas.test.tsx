@@ -133,6 +133,22 @@ describe('SlideCanvas', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
+  it('shows add animation submenu items in the context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    mockStore(slideId, pres)
+
+    render(<SlideCanvas />)
+
+    const hitbox = screen.getByTestId('element-hitbox')
+    await userEvent.pointer({ keys: '[MouseRight]', target: hitbox })
+    await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
+
+    expect(screen.getByRole('menuitem', { name: 'Move' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Scale' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Rotate' })).toBeDisabled()
+  })
+
   it('shows selection indicator when element is selected', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]

@@ -1,5 +1,11 @@
+.itemWrapper {
+  position: relative;
+}
+
 .item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
   text-align: left;
@@ -14,4 +20,30 @@
 
 .item:hover {
   background: var(--bg-hover);
+}
+
+.item:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.item:disabled:hover {
+  background: none;
+}
+
+.chevron {
+  margin-left: var(--space-md);
+  color: var(--text-dim);
+}
+
+.submenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% - 1px);
+  min-width: 160px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-xs) 0;
 }
