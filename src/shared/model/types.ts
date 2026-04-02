@@ -327,7 +327,16 @@ export interface AnimationCue {
   id: string
   kind: 'animation'
   trigger: 'on-click' | 'after-previous' | 'with-previous'
-  animations: ScheduledAnimation[]
+  // Legacy: animations target SlideNode IDs and share the cue's trigger.
+  // In the new model each ScheduledAnimation carries its own trigger and target.
+  animations: {
+    id: string
+    targetId: ElementId
+    offset: number
+    duration: number
+    easing: Easing
+    effect: Animation
+  }[]
   loop: LoopConfig
 }
 
@@ -338,12 +347,24 @@ export interface TransitionCue {
   slideTransition: SlideTransition
 }
 
+// ─── Scheduled animation (new normalised model) ───────────────────────────────
+
+export type AnimationTrigger = 'on-click' | 'after-previous' | 'with-previous'
+
+export type AnimationTarget =
+  | { kind: 'appearance'; appearanceId: AppearanceId }
+  | { kind: 'group-child'; appearanceId: AppearanceId; path: string[] }
+  | { kind: 'text-range'; appearanceId: AppearanceId; anchor: TextRangeAnchor }
+  | { kind: 'text-decoration'; decorationId: TextDecorationId }
+
 export interface ScheduledAnimation {
-  id: string
-  targetId: ElementId // id of any SlideNode
-  offset: number // seconds from cue start
+  id: AnimationId
+  target: AnimationTarget
+  trigger: AnimationTrigger
+  offset: number // seconds of delay from trigger point
   duration: number // seconds
   easing: Easing
+  loop: LoopConfig
   effect: Animation
 }
 
