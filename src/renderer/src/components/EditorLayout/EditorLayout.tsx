@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react'
 import { createSlide } from '../../../../shared/model/factories'
+import type { Presentation, TargetedAnimation } from '@shared/model/types'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
@@ -11,6 +12,7 @@ import { Panel, PanelSection } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
 import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
 import { Toolbar } from '../Toolbar/Toolbar'
+import { getMasterDisplayName } from '../../utils/getMasterDisplayName'
 import styles from './EditorLayout.module.css'
 
 interface LayoutPanelProps {
@@ -35,6 +37,21 @@ function LayoutPanel({
       </PanelSection>
     </Panel>
   )
+}
+
+function getAnimationObjectName(
+  animation: TargetedAnimation,
+  document: Presentation | null
+): string {
+  if (!document) return 'Object'
+
+  if (animation.target.kind === 'appearance' || animation.target.kind === 'group-child') {
+    const appearance = document.appearancesById[animation.target.appearanceId]
+    const master = appearance ? document.mastersById[appearance.masterId] : null
+    return getMasterDisplayName(master)
+  }
+
+  return 'Object'
 }
 
 export function EditorLayout(): React.JSX.Element {
@@ -138,6 +155,7 @@ export function EditorLayout(): React.JSX.Element {
               <AnimationCard
                 key={animation.id}
                 animation={animation}
+                objectName={getAnimationObjectName(animation, document)}
                 isSelected={false}
                 onTriggerChange={(trigger) => updateAnimationTrigger(animation.id, trigger)}
                 onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}

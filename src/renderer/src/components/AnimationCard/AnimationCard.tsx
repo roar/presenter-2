@@ -7,6 +7,7 @@ import styles from './AnimationCard.module.css'
 
 interface AnimationCardProps {
   animation: TargetedAnimation
+  objectName: string
   isSelected: boolean
   onClick?: () => void
   onTriggerChange?: (trigger: TargetedAnimation['trigger']) => void
@@ -69,6 +70,7 @@ function mapEasingOptionValue(value: EasingOptionValue, current: Easing): Easing
 
 export function AnimationCard({
   animation,
+  objectName,
   isSelected,
   onClick,
   onTriggerChange,
@@ -114,7 +116,11 @@ export function AnimationCard({
     )
 
   return (
-    <InfoCard header={formatEffectType(animation)} isSelected={isSelected} onClick={onClick}>
+    <InfoCard
+      header={`${formatEffectType(animation)}: ${objectName}`}
+      isSelected={isSelected}
+      onClick={onClick}
+    >
       <div className={styles.details}>
         <div className={styles.detail}>
           <span className={styles.label}>Trigger</span>

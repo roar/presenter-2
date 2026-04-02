@@ -135,6 +135,7 @@ describe('EditorLayout', () => {
   it('renders animation cards for the selected slide', () => {
     const slide = createSlide()
     const master = createMsoMaster('shape')
+    master.name = 'Airplane'
     const appearance = createAppearance(master.id, slide.id)
     const animation: TargetedAnimation = {
       id: 'anim-1',
@@ -174,7 +175,7 @@ describe('EditorLayout', () => {
 
     render(<EditorLayout />)
 
-    expect(screen.getByText('Move')).toBeInTheDocument()
+    expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
     expect(screen.getByText('On click')).toBeInTheDocument()
   })
 })

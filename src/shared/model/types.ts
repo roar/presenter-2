@@ -60,6 +60,7 @@ export interface Background {
 export interface MsoMaster {
   id: MasterId
   type: 'shape' | 'text' | 'image' | 'group' | 'table'
+  name?: string
   isMultiSlideObject?: boolean
   transform: Transform
   objectStyle: ObjectStyle

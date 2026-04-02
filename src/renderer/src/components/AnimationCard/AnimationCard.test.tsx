@@ -20,13 +20,13 @@ function makeAnimation(overrides?: Partial<TargetedAnimation>): TargetedAnimatio
 
 describe('AnimationCard', () => {
   it('renders the effect type as the header', () => {
-    render(<AnimationCard animation={makeAnimation()} isSelected={false} />)
+    render(<AnimationCard animation={makeAnimation()} objectName="Airplane" isSelected={false} />)
 
-    expect(screen.getByText('Move')).toBeInTheDocument()
+    expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
   })
 
   it('renders the general animation fields', () => {
-    render(<AnimationCard animation={makeAnimation()} isSelected={false} />)
+    render(<AnimationCard animation={makeAnimation()} objectName="Airplane" isSelected={false} />)
 
     expect(screen.getByText('Trigger')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /on click/i })).toBeInTheDocument()
@@ -39,7 +39,7 @@ describe('AnimationCard', () => {
   })
 
   it('renders the animation-specific To value for move effects', () => {
-    render(<AnimationCard animation={makeAnimation()} isSelected={false} />)
+    render(<AnimationCard animation={makeAnimation()} objectName="Airplane" isSelected={false} />)
 
     expect(screen.getByText('To')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Move delta X' })).toHaveValue('0.00')
@@ -50,6 +50,7 @@ describe('AnimationCard', () => {
     render(
       <AnimationCard
         animation={makeAnimation({ effect: { kind: 'action', type: 'scale', to: 1.5 } })}
+        objectName="Airplane"
         isSelected={false}
       />
     )
@@ -64,6 +65,7 @@ describe('AnimationCard', () => {
     render(
       <AnimationCard
         animation={makeAnimation({ effect: { kind: 'action', type: 'scale', to: 1.5 } })}
+        objectName="Airplane"
         isSelected={false}
         onNumericToChange={onNumericToChange}
       />
@@ -86,6 +88,7 @@ describe('AnimationCard', () => {
     render(
       <AnimationCard
         animation={makeAnimation()}
+        objectName="Airplane"
         isSelected={false}
         onMoveDeltaChange={onMoveDeltaChange}
       />
@@ -111,6 +114,7 @@ describe('AnimationCard', () => {
         animation={makeAnimation({
           effect: { kind: 'action', type: 'move', fromOffset: { x: 12, y: 34 } } as never
         })}
+        objectName="Airplane"
         isSelected={false}
       />
     )
@@ -120,9 +124,9 @@ describe('AnimationCard', () => {
   })
 
   it('passes selection state to the info card', () => {
-    render(<AnimationCard animation={makeAnimation()} isSelected={true} />)
+    render(<AnimationCard animation={makeAnimation()} objectName="Airplane" isSelected={true} />)
 
-    expect(screen.getByText('Move').closest('[data-selected="true"]')).toHaveAttribute(
+    expect(screen.getByText('Move: Airplane').closest('[data-selected="true"]')).toHaveAttribute(
       'data-selected',
       'true'
     )
@@ -135,6 +139,7 @@ describe('AnimationCard', () => {
     render(
       <AnimationCard
         animation={makeAnimation()}
+        objectName="Airplane"
         isSelected={false}
         onTriggerChange={onTriggerChange}
       />
@@ -154,6 +159,7 @@ describe('AnimationCard', () => {
     render(
       <AnimationCard
         animation={makeAnimation()}
+        objectName="Airplane"
         isSelected={false}
         onOffsetChange={onOffsetChange}
         onDurationChange={onDurationChange}
@@ -181,6 +187,7 @@ describe('AnimationCard', () => {
     render(
       <AnimationCard
         animation={makeAnimation({ easing: 'linear' })}
+        objectName="Airplane"
         isSelected={false}
         onEasingChange={onEasingChange}
       />

@@ -35,7 +35,7 @@ beforeEach(() => {
       loadDocument: loadDocumentMock,
       updatePresentationTitle: updatePresentationTitleMock,
       insertElement: insertElementMock,
-      ui: { selectedSlideId: null }
+      ui: { selectedSlideId: 'slide-1' }
     })
   })
 })
@@ -78,6 +78,19 @@ describe('Toolbar', () => {
     render(<Toolbar />)
     await user.click(screen.getByRole('button', { name: 'Insert Shape' }))
     expect(screen.getByRole('dialog', { name: 'Insert shape' })).toBeInTheDocument()
+  })
+
+  it('passes the shape library name to the inserted master', async () => {
+    const user = userEvent.setup()
+    render(<Toolbar />)
+
+    await user.click(screen.getByRole('button', { name: 'Insert Shape' }))
+    await user.click(screen.getByRole('button', { name: 'Dog' }))
+
+    expect(insertElementMock).toHaveBeenCalledWith(
+      'slide-1',
+      expect.objectContaining({ type: 'shape', name: 'Dog' })
+    )
   })
 
   it('opens presentation picker popup when Open is clicked', async () => {

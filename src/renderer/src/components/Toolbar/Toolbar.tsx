@@ -37,6 +37,7 @@ export function Toolbar(): React.JSX.Element {
   function handleInsertShape(entry: ShapeLibraryEntry): void {
     if (!selectedSlideId) return
     const master = createMsoMaster('shape')
+    master.name = entry.name || entry.template.name
     master.transform = {
       x: 100,
       y: 100,
