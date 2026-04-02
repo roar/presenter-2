@@ -344,22 +344,19 @@ export interface ScheduledAnimation {
   offset: number // seconds from cue start
   duration: number // seconds
   easing: Easing
-  effect: AnimationEffect
+  effect: Animation
 }
 
-export type AnimationEffect =
-  | { kind: 'build-in'; animation: VisualEffect }
-  | { kind: 'build-out'; animation: VisualEffect }
-  | { kind: 'action'; animation: VisualEffect }
+export type AnimationKind = 'build-in' | 'build-out' | 'action'
 
-export type VisualEffect =
-  | { type: 'fade'; to: number }
+export type Animation =
+  | { kind: AnimationKind; type: 'fade'; to: number }
   // fromOffset is the displacement from the element's natural position where the animation starts.
   // The implicit destination is always the natural position (zero offset).
-  | { type: 'move'; fromOffset: Position }
-  | { type: 'scale'; to: number }
-  | { type: 'text-shadow'; to: TextShadow }
-  | { type: 'line-draw' }
+  | { kind: AnimationKind; type: 'move'; fromOffset: Position }
+  | { kind: AnimationKind; type: 'scale'; to: number }
+  | { kind: AnimationKind; type: 'text-shadow'; to: TextShadow }
+  | { kind: AnimationKind; type: 'line-draw' }
 
 // ─── Animation group templates ────────────────────────────────────────────────
 // A named, reusable set of animations applied as a single unit.

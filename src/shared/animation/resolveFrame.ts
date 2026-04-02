@@ -75,7 +75,7 @@ function hasLineDraw(elementId: string, slide: LegacySlide): boolean {
       if (
         anim.targetId === elementId &&
         (effect.kind === 'build-in' || effect.kind === 'build-out' || effect.kind === 'action') &&
-        effect.animation.type === 'line-draw'
+        effect.type === 'line-draw'
       )
         return true
     }
@@ -119,37 +119,37 @@ function resolveElementState(
 
     if (effect.kind === 'build-in') {
       visible = true
-      if (effect.animation.type === 'fade') {
-        opacity = lerp(opacity, effect.animation.to, progress)
-        if (completed) opacity = effect.animation.to
-      } else if (effect.animation.type === 'move') {
-        const { fromOffset } = effect.animation
+      if (effect.type === 'fade') {
+        opacity = lerp(opacity, effect.to, progress)
+        if (completed) opacity = effect.to
+      } else if (effect.type === 'move') {
+        const { fromOffset } = effect
         translateX = lerp(fromOffset.x, 0, progress)
         translateY = lerp(fromOffset.y, 0, progress)
         if (completed) {
           translateX = 0
           translateY = 0
         }
-      } else if (effect.animation.type === 'scale') {
-        scale = lerp(scale ?? 0, effect.animation.to, progress)
-        if (completed) scale = effect.animation.to
-      } else if (effect.animation.type === 'line-draw') {
+      } else if (effect.type === 'scale') {
+        scale = lerp(scale ?? 0, effect.to, progress)
+        if (completed) scale = effect.to
+      } else if (effect.type === 'line-draw') {
         opacity = 1 // visibility is controlled by strokeDashoffset, not opacity
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
       }
     } else if (effect.kind === 'build-out') {
-      if (effect.animation.type === 'fade') {
-        opacity = lerp(opacity, effect.animation.to, progress)
+      if (effect.type === 'fade') {
+        opacity = lerp(opacity, effect.to, progress)
         if (completed) {
-          opacity = effect.animation.to
+          opacity = effect.to
           visible = false
         }
       }
     } else if (effect.kind === 'action') {
-      if (effect.animation.type === 'text-shadow') {
+      if (effect.type === 'text-shadow') {
         const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
-        const to = effect.animation.to
+        const to = effect.to
         textShadow = {
           offsetX: lerp(from.offsetX, to.offsetX, progress),
           offsetY: lerp(from.offsetY, to.offsetY, progress),
@@ -157,7 +157,7 @@ function resolveElementState(
           color: lerpColor(from.color, to.color, progress)
         }
         if (completed) textShadow = to
-      } else if (effect.animation.type === 'line-draw') {
+      } else if (effect.type === 'line-draw') {
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
       }

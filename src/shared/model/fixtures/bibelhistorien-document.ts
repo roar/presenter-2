@@ -89,7 +89,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
+              effect: { kind: 'build-in', type: 'fade', to: 1 }
             },
             {
               id: 'anim-b2',
@@ -99,7 +99,8 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'build-in',
-                animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
+                type: 'move',
+                fromOffset: { x: 0, y: -100 }
               }
             },
             // Subtitle: fade in + move down
@@ -109,7 +110,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
+              effect: { kind: 'build-in', type: 'fade', to: 1 }
             },
             {
               id: 'anim-b4',
@@ -119,7 +120,8 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'build-in',
-                animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
+                type: 'move',
+                fromOffset: { x: 0, y: -100 }
               }
             },
             // Underline: draw in + move down with subtitle (simultaneously)
@@ -129,7 +131,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'build-in', animation: { type: 'line-draw' } }
+              effect: { kind: 'build-in', type: 'line-draw' }
             },
             {
               id: 'anim-b6',
@@ -139,7 +141,8 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'build-in',
-                animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
+                type: 'move',
+                fromOffset: { x: 0, y: -100 }
               }
             }
           ]

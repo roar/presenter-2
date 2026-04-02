@@ -64,7 +64,7 @@ function fadeEnterCue(
         offset: 0,
         duration,
         easing: 'linear',
-        effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
+        effect: { kind: 'build-in', type: 'fade', to: 1 }
       }
     ]
   }
@@ -89,7 +89,8 @@ function moveEnterCue(
         easing: 'linear',
         effect: {
           kind: 'build-in',
-          animation: { type: 'move', fromOffset: { x: 0, y: 100 } }
+          type: 'move',
+          fromOffset: { x: 0, y: 100 }
         }
       }
     ]
@@ -254,7 +255,7 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'build-in', animation: { type: 'line-draw' } }
+            effect: { kind: 'build-in', type: 'line-draw' }
           }
         ]
       }
@@ -315,7 +316,7 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'build-in', animation: { type: 'scale', to: 1 } }
+            effect: { kind: 'build-in', type: 'scale', to: 1 }
           }
         ]
       }
@@ -364,10 +365,8 @@ describe('resolveFrame', () => {
             easing: 'linear',
             effect: {
               kind: 'action',
-              animation: {
-                type: 'text-shadow',
-                to: { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
-              }
+              type: 'text-shadow',
+              to: { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
             }
           }
         ]
@@ -427,7 +426,7 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'action', animation: { type: 'line-draw' } }
+            effect: { kind: 'action', type: 'line-draw' }
           }
         ]
       }

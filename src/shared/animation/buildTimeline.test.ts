@@ -16,7 +16,7 @@ function animCue(id: string, trigger: AnimationCue['trigger'], durationSec = 1):
         offset: 0,
         duration: durationSec,
         easing: 'linear',
-        effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
+        effect: { kind: 'build-in', type: 'fade', to: 1 }
       }
     ]
   }
@@ -107,7 +107,7 @@ describe('buildTimeline', () => {
             offset: 0,
             duration: 1,
             easing: 'linear',
-            effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
+            effect: { kind: 'build-in', type: 'fade', to: 1 }
           },
           {
             id: 'a2',
@@ -115,7 +115,7 @@ describe('buildTimeline', () => {
             offset: 0.5,
             duration: 0.8,
             easing: 'linear',
-            effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
+            effect: { kind: 'build-in', type: 'fade', to: 1 }
           }
         ]
       }
