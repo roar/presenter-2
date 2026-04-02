@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { Button } from '../Button/Button'
 import type { SlideTimelineBar, SlideTimelineModel } from './slideTimelineModel'
 import styles from './SlideTimeline.module.css'
@@ -53,6 +53,8 @@ export function SlideTimeline({
   onTimeChange,
   onPlayToggle
 }: SlideTimelineProps): React.JSX.Element {
+  const [isScrubMode, setIsScrubMode] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
   const clampedTime = Math.max(0, Math.min(currentTime, timeline.totalDuration))
   const playheadStyle = {
     left: `${(clampedTime / Math.max(timeline.totalDuration, 1)) * 100}%`
@@ -61,17 +63,50 @@ export function SlideTimeline({
   const allBars = timeline.buckets.flatMap((bucket) => bucket.bars)
   const laneCount = Math.max(1, ...timeline.buckets.map((bucket) => Math.max(bucket.laneCount, 1)))
 
+  function scrubToPointer(clientX: number): void {
+    const rect = rootRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 0) return
+
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width))
+    const ratio = x / rect.width
+    onTimeChange(Number((ratio * timeline.totalDuration).toFixed(2)))
+  }
+
   return (
-    <div className={styles.root}>
+    <div
+      ref={rootRef}
+      className={styles.root}
+      data-testid="timeline-root"
+      onMouseMove={(event) => {
+        if (!isScrubMode) return
+        scrubToPointer(event.clientX)
+      }}
+    >
       <div className={styles.controls}>
-        <Button
-          type="button"
-          variant="secondary"
-          aria-label={isPlaying ? 'Pause timeline' : 'Play timeline'}
-          onClick={() => onPlayToggle(!isPlaying)}
-        >
-          {isPlaying ? 'Pause' : 'Play'}
-        </Button>
+        <div className={styles.controlButtons}>
+          <Button
+            type="button"
+            variant="secondary"
+            aria-label={isPlaying ? 'Pause timeline' : 'Play timeline'}
+            onClick={() => {
+              setIsScrubMode(false)
+              onPlayToggle(!isPlaying)
+            }}
+          >
+            {isPlaying ? 'Pause' : 'Play'}
+          </Button>
+          <Button
+            type="button"
+            variant={isScrubMode ? 'primary' : 'secondary'}
+            aria-label={isScrubMode ? 'Disable scrub mode' : 'Enable scrub mode'}
+            onClick={() => {
+              setIsScrubMode((current) => !current)
+              onPlayToggle(false)
+            }}
+          >
+            {isScrubMode ? 'Scrub On' : 'Scrub Off'}
+          </Button>
+        </div>
         <div className={styles.timeReadout}>
           {formatTime(clampedTime)} / {formatTime(timeline.totalDuration)}
         </div>

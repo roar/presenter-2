@@ -134,6 +134,114 @@ describe('SlideTimeline', () => {
     expect(onPlayToggle).toHaveBeenCalledWith(false)
   })
 
+  it('renders a scrub button next to play', () => {
+    render(
+      <SlideTimeline
+        timeline={makeTimeline()}
+        currentTime={0}
+        isPlaying={false}
+        onTimeChange={vi.fn()}
+        onPlayToggle={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Play timeline' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enable scrub mode' })).toHaveTextContent('Scrub Off')
+  })
+
+  it('follows mouse movement anywhere inside the timeline panel when scrub mode is enabled', async () => {
+    const user = userEvent.setup()
+    const onTimeChange = vi.fn()
+
+    render(
+      <SlideTimeline
+        timeline={makeTimeline()}
+        currentTime={0}
+        isPlaying={false}
+        onTimeChange={onTimeChange}
+        onPlayToggle={vi.fn()}
+      />
+    )
+
+    const panel = screen.getByTestId('timeline-root')
+    Object.defineProperty(panel, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 0,
+        width: 300,
+        height: 60,
+        top: 0,
+        left: 100,
+        right: 400,
+        bottom: 60,
+        toJSON: () => ({})
+      })
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    fireEvent.mouseMove(panel, { clientX: 250, clientY: 80 })
+
+    expect(onTimeChange).toHaveBeenCalledWith(1.5)
+  })
+
+  it('turns scrub mode off when play is pressed', async () => {
+    const user = userEvent.setup()
+    const onPlayToggle = vi.fn()
+
+    render(
+      <SlideTimeline
+        timeline={makeTimeline()}
+        currentTime={0}
+        isPlaying={false}
+        onTimeChange={vi.fn()}
+        onPlayToggle={onPlayToggle}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    expect(screen.getByRole('button', { name: 'Disable scrub mode' })).toHaveTextContent('Scrub On')
+
+    await user.click(screen.getByRole('button', { name: 'Play timeline' }))
+
+    expect(screen.getByRole('button', { name: 'Enable scrub mode' })).toHaveTextContent('Scrub Off')
+    expect(onPlayToggle).toHaveBeenCalledWith(true)
+  })
+
+  it('does not scrub on mouse movement when scrub mode is disabled', () => {
+    const onTimeChange = vi.fn()
+
+    render(
+      <SlideTimeline
+        timeline={makeTimeline()}
+        currentTime={0}
+        isPlaying={false}
+        onTimeChange={onTimeChange}
+        onPlayToggle={vi.fn()}
+      />
+    )
+
+    const panel = screen.getByTestId('timeline-root')
+    Object.defineProperty(panel, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 0,
+        width: 300,
+        height: 60,
+        top: 0,
+        left: 100,
+        right: 400,
+        bottom: 60,
+        toJSON: () => ({})
+      })
+    })
+
+    fireEvent.mouseMove(panel, { clientX: 250, clientY: 80 })
+
+    expect(onTimeChange).not.toHaveBeenCalled()
+  })
+
   it('reports scrubber changes', () => {
     const onTimeChange = vi.fn()
 
