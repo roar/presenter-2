@@ -14,7 +14,6 @@ export type AnimationGroupTemplateId = string
 export type TextDecorationId = string
 export type BlockId = string
 export type RunId = string
-export type ElementId = string // used by legacy element types
 export type UserId = string // Clerk user ID (e.g. "user_2abc...")
 
 // ─── Presentation (normalised document model) ─────────────────────────────────
@@ -42,6 +41,11 @@ export interface Presentation {
 export interface Slide {
   id: SlideId
   appearanceIds: AppearanceId[]
+  // Ordered list of animation IDs defining the click sequence for this slide.
+  // Each animation carries its own trigger (on-click / after-previous / with-previous).
+  animationOrder: AnimationId[]
+  // If set, the key in triggerTimes that fires the slide transition (always on-click).
+  transitionTriggerId?: string
   transition?: SlideTransition
   background: Background
 }
@@ -244,110 +248,7 @@ export interface TextShadow {
 export const SLIDE_WIDTH = 1920
 export const SLIDE_HEIGHT = 1080
 
-// ─── Legacy document model (v0) ──────────────────────────────────────────────
-// The animation system (buildTimeline, resolveFrame) still uses these types
-// until Phase 3. The migration utility converts Document → Presentation.
-
-export interface Document {
-  id: DocumentId
-  title: string
-  slides: LegacySlide[]
-  recording?: Recording
-  ownerId: UserId | null // null when running locally without auth
-  isPublished: boolean
-  createdAt: string // ISO 8601
-  updatedAt: string // ISO 8601
-}
-
-/** @deprecated Use the new normalised Slide type for new code. */
-export interface LegacySlide {
-  id: SlideId
-  children: SlideNode[] // top-level nodes; groups nest their own children
-  cues: Cue[] // ordered — defines the click sequence for this slide
-  background?: string // CSS background value (color or gradient)
-  grain?: boolean // overlay a subtle noise texture over the background
-}
-
-export type SlideNode = TextElement | ImageElement | ShapeElement | NodeGroup
-
-export interface NodeGroup {
-  kind: 'group'
-  id: ElementId
-  masterId?: string
-  children: SlideNode[]
-}
-
-export interface BaseElement {
-  id: ElementId
-  x: number // position from slide left, in points
-  y: number // position from slide top, in points
-  width: number
-  height: number
-  rotation: number // degrees
-  masterId?: string // present if this element is an MSO instance
-}
-
-export interface TextElement extends BaseElement {
-  kind: 'text'
-  content: string // plain text — rich text handled by TextContent in new model
-  fontSize: number
-  fontWeight: number
-  fontFamily?: string
-  color: string // CSS color string
-  align: 'left' | 'center' | 'right'
-  textShadow?: TextShadow
-}
-
-export interface ImageElement extends BaseElement {
-  kind: 'image'
-  src: string
-}
-
-export interface ShapeElement extends BaseElement {
-  kind: 'shape'
-  pathData: string // SVG path d attribute
-  fill: Fill
-  stroke: Stroke
-}
-
-export interface Fill {
-  color: string
-  opacity: number
-}
-
-export interface Stroke {
-  color: string
-  width: number
-  opacity: number
-}
-
-export type Cue = AnimationCue | TransitionCue
-
-export interface AnimationCue {
-  id: string
-  kind: 'animation'
-  trigger: 'on-click' | 'after-previous' | 'with-previous'
-  // Legacy: animations target SlideNode IDs and share the cue's trigger.
-  // In the new model each ScheduledAnimation carries its own trigger and target.
-  animations: {
-    id: string
-    targetId: ElementId
-    offset: number
-    duration: number
-    easing: Easing
-    effect: Animation
-  }[]
-  loop: LoopConfig
-}
-
-export interface TransitionCue {
-  id: string
-  kind: 'transition'
-  trigger: 'on-click' | 'after-previous'
-  slideTransition: SlideTransition
-}
-
-// ─── Scheduled animation (new normalised model) ───────────────────────────────
+// ─── Animation model ─────────────────────────────────────────────────────────
 
 export type AnimationTrigger = 'on-click' | 'after-previous' | 'with-previous'
 

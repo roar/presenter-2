@@ -32,6 +32,7 @@ export function createSlide(): Slide {
   return {
     id: crypto.randomUUID(),
     appearanceIds: [],
+    animationOrder: [],
     background: {}
   }
 }
@@ -63,6 +64,7 @@ export function createAnimationGroupTemplate(name: string): AnimationGroupTempla
   return {
     id: crypto.randomUUID(),
     name,
+    slots: [],
     members: []
   }
 }

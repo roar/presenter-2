@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import type { Document } from '../../shared/model/types'
-import { demoPresentationDocument } from '../../shared/model/fixtures/demo-presentation'
+import type { Presentation } from '../../shared/model/types'
+import { examplePresentation } from '../../shared/model/fixtures/example-presentation'
 import { buildTimeline } from '../../shared/animation/buildTimeline'
 import { resolveFrame } from '../../shared/animation/resolveFrame'
 import { SlideRenderer } from './components/SlideRenderer/SlideRenderer'
 
-// The viewer receives a document in one of two ways:
+// The viewer receives a presentation in one of two ways:
 // 1. Shared link: fetches from the API using the ID in the URL path (/view/:id)
 // 2. Live window: receives via postMessage from the Electron main process (future)
 
 function App(): React.JSX.Element {
-  const [document, setDocument] = useState<Document | null>(null)
+  const [presentation, setPresentation] = useState<Presentation | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Playback state
@@ -23,15 +23,15 @@ function App(): React.JSX.Element {
     const id = getPresentationIdFromUrl()
 
     if (id) {
-      fetchDocument(id)
-        .then(setDocument)
-        .catch((e) => setError(e.message))
+      fetchPresentation(id)
+        .then(setPresentation)
+        .catch((e: Error) => setError(e.message))
     }
 
-    // Live window: listen for document via postMessage
+    // Live window: listen for presentation via postMessage
     const onMessage = (event: MessageEvent): void => {
-      if (event.data?.type === 'LOAD_DOCUMENT') {
-        setDocument(event.data.document as Document)
+      if (event.data?.type === 'LOAD_PRESENTATION') {
+        setPresentation(event.data.presentation as Presentation)
       }
     }
     window.addEventListener('message', onMessage)
@@ -51,23 +51,27 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  const doc = document ?? demoPresentationDocument
+  const pres = presentation ?? examplePresentation
 
-  // Collect all on-click cue IDs in slide order
-  const onClickCueIds = doc.slides
-    .flatMap((s) => s.cues)
-    .filter((c) => c.trigger === 'on-click')
-    .map((c) => c.id)
+  // Collect all on-click IDs in slide order: on-click animation IDs + transitionTriggerIds
+  const onClickIds = pres.slideOrder.flatMap((slideId) => {
+    const slide = pres.slidesById[slideId]
+    const animClickIds = slide.animationOrder.filter(
+      (animId) => pres.animationsById[animId]?.trigger === 'on-click'
+    )
+    const transId = slide.transitionTriggerId ? [slide.transitionTriggerId] : []
+    return [...animClickIds, ...transId]
+  })
 
   const handleClick = useCallback(() => {
-    const nextId = onClickCueIds.find((id) => !triggerTimes.has(id))
+    const nextId = onClickIds.find((id) => !triggerTimes.has(id))
     if (nextId) {
       setTriggerTimes((prev) => new Map([...prev, [nextId, currentTime]]))
     }
-  }, [onClickCueIds, triggerTimes, currentTime])
+  }, [onClickIds, triggerTimes, currentTime])
 
-  const timeline = buildTimeline(doc.slides, triggerTimes)
-  const frame = resolveFrame(timeline, currentTime)
+  const tl = buildTimeline(pres, triggerTimes)
+  const frame = resolveFrame(tl, currentTime)
 
   if (error) return <div style={{ padding: 24, color: '#ff453a' }}>Error: {error}</div>
 
@@ -83,11 +87,11 @@ function getPresentationIdFromUrl(): string | null {
   return match ? match[1] : null
 }
 
-async function fetchDocument(id: string): Promise<Document> {
+async function fetchPresentation(id: string): Promise<Presentation> {
   const base = import.meta.env.VITE_API_BASE_URL ?? ''
   const res = await fetch(`${base}/api/presentations/${id}`)
   if (!res.ok) throw new Error(`Failed to load presentation (${res.status})`)
-  return res.json() as Promise<Document>
+  return res.json() as Promise<Presentation>
 }
 
 export default App

@@ -2,396 +2,350 @@ import { describe, it, expect } from 'vitest'
 import { resolveFrame } from './resolveFrame'
 import { buildTimeline } from './buildTimeline'
 import type {
-  LegacySlide,
-  TextElement,
-  ShapeElement,
-  AnimationCue,
-  TransitionCue
+  Presentation,
+  Slide,
+  MsoMaster,
+  Appearance,
+  TargetedAnimation,
+  TextShadow
 } from '../model/types'
-import type { PresentationTimeline } from './types'
+import { createPresentation, createSlide, createAppearance } from '../model/factories'
 
-// --- Fixture helpers ---
+// ─── Fixture helpers ──────────────────────────────────────────────────────────
 
-function textEl(id: string, extra: Partial<TextElement> = {}): TextElement {
+function textMaster(id: string): MsoMaster {
   return {
-    kind: 'text',
     id,
-    x: 100,
-    y: 100,
-    width: 400,
-    height: 100,
-    rotation: 0,
-    content: id,
-    fontSize: 24,
-    fontWeight: 400,
-    color: '#fff',
-    align: 'left',
-    ...extra
+    type: 'text',
+    transform: { x: 100, y: 100, width: 400, height: 100, rotation: 0 },
+    objectStyle: { defaultState: {}, namedStates: {} },
+    textStyle: { defaultState: { fontSize: 24, color: '#fff' }, namedStates: {} },
+    content: {
+      type: 'text',
+      value: { blocks: [{ id: 'b1', runs: [{ id: 'r1', text: 'hello', marks: [] }] }] }
+    },
+    version: 0
   }
 }
 
-function shapeEl(id: string, extra: Partial<ShapeElement> = {}): ShapeElement {
+function shapeMaster(id: string): MsoMaster {
   return {
-    kind: 'shape',
     id,
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 100,
-    rotation: 0,
-    pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z',
-    fill: { color: '#fff', opacity: 1 },
-    stroke: { color: 'transparent', width: 0, opacity: 0 },
-    ...extra
+    type: 'shape',
+    transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0 },
+    objectStyle: {
+      defaultState: { fill: '#fff', stroke: 'transparent', strokeWidth: 0 },
+      namedStates: {}
+    },
+    content: { type: 'none' },
+    geometry: { type: 'path', pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z' },
+    version: 0
   }
 }
 
-function fadeEnterCue(
+function makeAppearance(
+  masterId: string,
+  slideId: string,
+  initialVisibility: Appearance['initialVisibility'] = 'visible'
+): Appearance {
+  const app = createAppearance(masterId, slideId)
+  app.initialVisibility = initialVisibility
+  return app
+}
+
+function makeAnim(
   id: string,
-  trigger: AnimationCue['trigger'],
-  targetId: string,
-  duration = 1
-): AnimationCue {
+  appearanceId: string,
+  trigger: TargetedAnimation['trigger'],
+  effect: TargetedAnimation['effect'],
+  duration = 1,
+  offset = 0
+): TargetedAnimation {
   return {
     id,
-    kind: 'animation',
     trigger,
+    offset,
+    duration,
+    easing: 'linear',
     loop: { kind: 'none' },
-    animations: [
-      {
-        id: `anim-${id}`,
-        targetId,
-        offset: 0,
-        duration,
-        easing: 'linear',
-        effect: { kind: 'build-in', type: 'fade', to: 1 }
-      }
-    ]
+    effect,
+    target: { kind: 'appearance', appearanceId }
   }
 }
 
-function moveEnterCue(
-  id: string,
-  trigger: AnimationCue['trigger'],
-  targetId: string
-): AnimationCue {
-  return {
-    id,
-    kind: 'animation',
-    trigger,
-    loop: { kind: 'none' },
-    animations: [
-      {
-        id: `anim-${id}`,
-        targetId,
-        offset: 0,
-        duration: 1,
-        easing: 'linear',
-        effect: {
-          kind: 'build-in',
-          type: 'move',
-          fromOffset: { x: 0, y: 100 }
-        }
-      }
-    ]
-  }
+function singleSlidePresentation(
+  appearance: Appearance,
+  master: MsoMaster,
+  animations: TargetedAnimation[] = [],
+  slideOpts: Partial<Pick<Slide, 'transition' | 'transitionTriggerId'>> = {}
+): Presentation {
+  const pres = createPresentation()
+  const slide = createSlide()
+  appearance.slideId = slide.id
+  slide.appearanceIds = [appearance.id]
+  slide.animationOrder = animations.map((a) => a.id)
+  if (slideOpts.transition) slide.transition = slideOpts.transition
+  if (slideOpts.transitionTriggerId) slide.transitionTriggerId = slideOpts.transitionTriggerId
+
+  pres.slideOrder = [slide.id]
+  pres.slidesById[slide.id] = slide
+  pres.mastersById[master.id] = master
+  pres.appearancesById[appearance.id] = appearance
+  for (const anim of animations) pres.animationsById[anim.id] = anim
+  return pres
 }
 
-function transitionCue(
-  id: string,
-  trigger: TransitionCue['trigger'],
-  duration = 0.5
-): TransitionCue {
-  return {
-    id,
-    kind: 'transition',
-    trigger,
-    slideTransition: { kind: 'fade-through-color', duration, easing: 'linear' }
-  }
+function timeline(pres: Presentation, triggers: Record<string, number> = {}) {
+  return buildTimeline(pres, new Map(Object.entries(triggers)))
 }
 
-function slide(id: string, elements: TextElement[], cues: LegacySlide['cues'] = []): LegacySlide {
-  return { id, children: elements, cues }
-}
-
-function timelineFromSlides(
-  slides: LegacySlide[],
-  triggers: Record<string, number> = {}
-): PresentationTimeline {
-  return buildTimeline(slides, new Map(Object.entries(triggers)))
-}
-
-// --- Tests ---
+// ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('resolveFrame', () => {
-  describe('element with no animations', () => {
+  describe('appearance with no animations', () => {
     it('is visible with full opacity at any time', () => {
-      const s = slide('s1', [textEl('el')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      const el = frame.front.elements[0]
-      expect(el.visible).toBe(true)
-      expect(el.opacity).toBe(1)
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const pres = singleSlidePresentation(app, master)
+      const frame = resolveFrame(timeline(pres), 0)
+      const ra = frame.front.appearances[0]
+      expect(ra.visible).toBe(true)
+      expect(ra.opacity).toBe(1)
     })
   })
 
-  describe('enter animation (fade)', () => {
-    it('element is hidden before the cue is triggered', () => {
-      const s = slide('s1', [textEl('el')], [fadeEnterCue('c1', 'on-click', 'el')])
-      const timeline = timelineFromSlides([s]) // c1 never triggered
-      const frame = resolveFrame(timeline, 0)
-      const el = frame.front.elements[0]
-      expect(el.visible).toBe(false)
-      expect(el.opacity).toBe(0)
+  describe('build-in (fade)', () => {
+    it('appearance is hidden before the animation is triggered', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'fade', to: 1 })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0) // a1 never triggered
+      const ra = frame.front.appearances[0]
+      expect(ra.visible).toBe(false)
+      expect(ra.opacity).toBe(0)
     })
 
-    it('element is partially visible mid-animation', () => {
-      const s = slide('s1', [textEl('el')], [fadeEnterCue('c1', 'on-click', 'el', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5) // halfway through 1s fade
-      const el = frame.front.elements[0]
-      expect(el.visible).toBe(true)
-      expect(el.opacity).toBeCloseTo(0.5)
+    it('appearance is partially visible mid-animation', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'fade', to: 1 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].opacity).toBeCloseTo(0.5)
     })
 
-    it('element is fully visible after animation completes', () => {
-      const s = slide('s1', [textEl('el')], [fadeEnterCue('c1', 'on-click', 'el', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 2) // well after 1s
-      const el = frame.front.elements[0]
-      expect(el.visible).toBe(true)
-      expect(el.opacity).toBe(1)
+    it('appearance is fully visible after animation completes', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'fade', to: 1 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].visible).toBe(true)
+      expect(frame.front.appearances[0].opacity).toBe(1)
     })
   })
 
-  describe('enter animation (move)', () => {
-    it('element is at from-position before cue triggers (hidden)', () => {
-      const s = slide(
-        's1',
-        [textEl('el', { x: 100, y: 100 })],
-        [moveEnterCue('c1', 'on-click', 'el')]
-      )
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      const el = frame.front.elements[0]
-      expect(el.visible).toBe(false)
+  describe('build-in (move)', () => {
+    it('appearance is hidden before the animation is triggered', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', {
+        kind: 'build-in',
+        type: 'move',
+        fromOffset: { x: 0, y: 100 }
+      })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].visible).toBe(false)
     })
 
     it('interpolates position mid-animation', () => {
-      const s = slide(
-        's1',
-        [textEl('el', { x: 100, y: 100 })],
-        [moveEnterCue('c1', 'on-click', 'el')]
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        { kind: 'build-in', type: 'move', fromOffset: { x: 0, y: 100 } },
+        1
       )
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5) // halfway: fromOffset.y=100 lerps to 0, midpoint = 50
-      const el = frame.front.elements[0]
-      expect(el.visible).toBe(true)
-      expect(el.transform).toContain('translate(0px, 50px)')
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('translate(0px, 50px)')
     })
 
     it('has no residual transform after animation completes', () => {
-      const s = slide(
-        's1',
-        [textEl('el', { x: 100, y: 100 })],
-        [moveEnterCue('c1', 'on-click', 'el')]
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        { kind: 'build-in', type: 'move', fromOffset: { x: 0, y: 100 } },
+        1
       )
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 2)
-      const el = frame.front.elements[0]
-      expect(el.transform).toContain('translate(0px, 0px)')
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].transform).toContain('translate(0px, 0px)')
     })
   })
 
-  describe('slide transitions', () => {
-    it('has no transition when no TransitionCue has fired', () => {
-      const s1 = slide('s1', [textEl('el')])
-      const s2 = slide('s2', [textEl('el2')])
-      const timeline = timelineFromSlides([s1, s2])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.transition).toBeNull()
-      expect(frame.behind).toBeNull()
-    })
-
-    it('has transition in progress when time is within transition window', () => {
-      const s1 = slide('s1', [], [transitionCue('tc', 'on-click', 0.5)])
-      const s2 = slide('s2', [textEl('el2')])
-      const timeline = timelineFromSlides([s1, s2], { tc: 0 })
-      const frame = resolveFrame(timeline, 0.25) // halfway through 0.5s transition
-      expect(frame.transition).not.toBeNull()
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      expect(frame.transition!.progress).toBeCloseTo(0.5)
-      expect(frame.behind).not.toBeNull()
-      expect(frame.front.slide.id).toBe('s2')
-    })
-
-    it('transition is null after it completes', () => {
-      const s1 = slide('s1', [], [transitionCue('tc', 'on-click', 0.5)])
-      const s2 = slide('s2', [textEl('el2')])
-      const timeline = timelineFromSlides([s1, s2], { tc: 0 })
-      const frame = resolveFrame(timeline, 1)
-      expect(frame.transition).toBeNull()
-      expect(frame.behind).toBeNull()
-      expect(frame.front.slide.id).toBe('s2')
-    })
-  })
-
-  describe('line-draw animation', () => {
-    function lineDrawCue(
-      id: string,
-      trigger: AnimationCue['trigger'],
-      targetId: string,
-      duration = 1
-    ): AnimationCue {
-      return {
-        id,
-        kind: 'animation',
-        trigger,
-        loop: { kind: 'none' },
-        animations: [
-          {
-            id: `anim-${id}`,
-            targetId,
-            offset: 0,
-            duration,
-            easing: 'linear',
-            effect: { kind: 'build-in', type: 'line-draw' }
-          }
-        ]
-      }
-    }
-
-    it('strokeDashoffset is null for elements without a line-draw animation', () => {
-      const s = slide('s1', [textEl('el')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].strokeDashoffset).toBeNull()
-    })
-
-    it('strokeDashoffset is 1 (hidden) before the cue fires', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line')])
-      const timeline = timelineFromSlides([s]) // c1 never triggered
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].strokeDashoffset).toBe(1)
-    })
-
-    it('opacity is 1 once the animation fires (not stuck at 0)', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5)
-      expect(frame.front.elements[0].opacity).toBe(1)
-    })
-
-    it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5)
-      expect(frame.front.elements[0].strokeDashoffset).toBeCloseTo(0.5)
-    })
-
-    it('strokeDashoffset is 0 (fully drawn) after animation completes', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawCue('c1', 'on-click', 'line', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 2)
-      expect(frame.front.elements[0].strokeDashoffset).toBe(0)
-    })
-  })
-
-  describe('enter animation (scale)', () => {
-    function scaleEnterCue(
-      id: string,
-      trigger: AnimationCue['trigger'],
-      targetId: string,
-      duration = 1
-    ): AnimationCue {
-      return {
-        id,
-        kind: 'animation',
-        trigger,
-        loop: { kind: 'none' },
-        animations: [
-          {
-            id: `anim-${id}`,
-            targetId,
-            offset: 0,
-            duration,
-            easing: 'linear',
-            effect: { kind: 'build-in', type: 'scale', to: 1 }
-          }
-        ]
-      }
-    }
-
-    it('element is hidden before the cue is triggered', () => {
-      const s = slide('s1', [textEl('el')], [scaleEnterCue('c1', 'on-click', 'el')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].visible).toBe(false)
+  describe('build-in (scale)', () => {
+    it('appearance is hidden before the animation is triggered', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'scale', to: 1 })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].visible).toBe(false)
     })
 
     it('transform contains scale at midpoint', () => {
-      const s = slide('s1', [textEl('el')], [scaleEnterCue('c1', 'on-click', 'el', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5)
-      expect(frame.front.elements[0].transform).toContain('scale(0.5)')
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'scale', to: 1 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('scale(0.5)')
     })
 
     it('scale is 1 after animation completes', () => {
-      const s = slide('s1', [textEl('el')], [scaleEnterCue('c1', 'on-click', 'el', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 2)
-      expect(frame.front.elements[0].transform).toContain('scale(1)')
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'scale', to: 1 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].transform).toContain('scale(1)')
     })
   })
 
-  describe('action animation (text-shadow)', () => {
-    function textShadowCue(
-      id: string,
-      trigger: AnimationCue['trigger'],
-      targetId: string,
-      duration = 1
-    ): AnimationCue {
-      return {
-        id,
-        kind: 'animation',
-        trigger,
-        loop: { kind: 'none' },
-        animations: [
-          {
-            id: `anim-${id}`,
-            targetId,
-            offset: 0,
-            duration,
-            easing: 'linear',
-            effect: {
-              kind: 'action',
-              type: 'text-shadow',
-              to: { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
-            }
-          }
-        ]
-      }
-    }
-
-    it('textShadow is null before cue triggers', () => {
-      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].textShadow).toBeNull()
+  describe('line-draw (build-in)', () => {
+    it('strokeDashoffset is null for appearances without a line-draw animation', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const pres = singleSlidePresentation(app, master)
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].strokeDashoffset).toBeNull()
     })
 
-    it('element is visible before cue triggers (action — not a build-in)', () => {
-      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].visible).toBe(true)
+    it('strokeDashoffset is 1 (hidden) before the animation fires', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'line-draw' })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].strokeDashoffset).toBe(1)
+    })
+
+    it('opacity is 1 once the animation fires', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'line-draw' }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].opacity).toBe(1)
+    })
+
+    it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'line-draw' }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].strokeDashoffset).toBeCloseTo(0.5)
+    })
+
+    it('strokeDashoffset is 0 after animation completes', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'build-in', type: 'line-draw' }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].strokeDashoffset).toBe(0)
+    })
+  })
+
+  describe('action (line-draw)', () => {
+    it('appearance is visible before cue triggers (action — not a build-in)', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'line-draw' })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].visible).toBe(true)
+    })
+
+    it('strokeDashoffset is 1 before the animation fires', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'line-draw' })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].strokeDashoffset).toBe(1)
+    })
+
+    it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'line-draw' }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].strokeDashoffset).toBeCloseTo(0.5)
+    })
+
+    it('strokeDashoffset is 0 after animation completes', () => {
+      const master = shapeMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'line-draw' }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].strokeDashoffset).toBe(0)
+    })
+  })
+
+  describe('action (text-shadow)', () => {
+    const shadowTo: TextShadow = { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
+
+    it('textShadow is null before animation triggers', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', {
+        kind: 'action',
+        type: 'text-shadow',
+        to: shadowTo
+      })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].textShadow).toBeNull()
+    })
+
+    it('appearance is visible before cue triggers (action — not a build-in)', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', {
+        kind: 'action',
+        type: 'text-shadow',
+        to: shadowTo
+      })
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres), 0)
+      expect(frame.front.appearances[0].visible).toBe(true)
     })
 
     it('interpolates numeric shadow properties at midpoint', () => {
-      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5)
-      const shadow = frame.front.elements[0].textShadow
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        { kind: 'action', type: 'text-shadow', to: shadowTo },
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      const shadow = frame.front.appearances[0].textShadow
       expect(shadow).not.toBeNull()
       expect(shadow!.offsetX).toBeCloseTo(2)
       expect(shadow!.offsetY).toBeCloseTo(4)
@@ -399,79 +353,107 @@ describe('resolveFrame', () => {
     })
 
     it('textShadow is at final values after completion', () => {
-      const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 2)
-      const shadow = frame.front.elements[0].textShadow
-      expect(shadow).toEqual({ offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' })
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        { kind: 'action', type: 'text-shadow', to: shadowTo },
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].textShadow).toEqual(shadowTo)
     })
   })
 
-  describe('action animation (line-draw)', () => {
-    function lineDrawPropertyCue(
-      id: string,
-      trigger: AnimationCue['trigger'],
-      targetId: string,
-      duration = 1
-    ): AnimationCue {
-      return {
-        id,
-        kind: 'animation',
-        trigger,
-        loop: { kind: 'none' },
-        animations: [
-          {
-            id: `anim-${id}`,
-            targetId,
-            offset: 0,
-            duration,
-            easing: 'linear',
-            effect: { kind: 'action', type: 'line-draw' }
-          }
-        ]
-      }
+  describe('slide transitions', () => {
+    function twoSlidePresentation(): { pres: Presentation; slide1Id: string; slide2Id: string } {
+      const pres = createPresentation()
+
+      const m1 = textMaster('m1')
+      const app1 = makeAppearance(m1.id, 's1')
+      const slide1 = createSlide()
+      slide1.id = 's1'
+      app1.slideId = 's1'
+      slide1.appearanceIds = [app1.id]
+      slide1.animationOrder = []
+      slide1.transitionTriggerId = 'trans-1'
+      slide1.transition = { kind: 'fade-through-color', duration: 0.5, easing: 'linear' }
+
+      const m2 = textMaster('m2')
+      const app2 = makeAppearance(m2.id, 's2')
+      const slide2 = createSlide()
+      slide2.id = 's2'
+      app2.slideId = 's2'
+      slide2.appearanceIds = [app2.id]
+      slide2.animationOrder = []
+
+      pres.slideOrder = [slide1.id, slide2.id]
+      pres.slidesById[slide1.id] = slide1
+      pres.slidesById[slide2.id] = slide2
+      pres.mastersById[m1.id] = m1
+      pres.mastersById[m2.id] = m2
+      pres.appearancesById[app1.id] = app1
+      pres.appearancesById[app2.id] = app2
+
+      return { pres, slide1Id: slide1.id, slide2Id: slide2.id }
     }
 
-    it('element is visible before cue triggers (action — not a build-in)', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].visible).toBe(true)
+    it('has no transition when no transition has been triggered', () => {
+      const { pres } = twoSlidePresentation()
+      const frame = resolveFrame(buildTimeline(pres, new Map()), 0)
+      expect(frame.transition).toBeNull()
+      expect(frame.behind).toBeNull()
     })
 
-    it('strokeDashoffset is 1 (hidden) before the cue fires', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line')])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.front.elements[0].strokeDashoffset).toBe(1)
+    it('has transition in progress when time is within transition window', () => {
+      const { pres, slide2Id } = twoSlidePresentation()
+      const frame = resolveFrame(buildTimeline(pres, new Map([['trans-1', 0]])), 0.25)
+      expect(frame.transition).not.toBeNull()
+      expect(frame.transition!.progress).toBeCloseTo(0.5)
+      expect(frame.behind).not.toBeNull()
+      expect(frame.front.slide.id).toBe(slide2Id)
     })
 
-    it('interpolates strokeDashoffset from 1 to 0 during animation', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5)
-      expect(frame.front.elements[0].strokeDashoffset).toBeCloseTo(0.5)
-    })
-
-    it('strokeDashoffset is 0 (fully drawn) after animation completes', () => {
-      const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line', 1)])
-      const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 2)
-      expect(frame.front.elements[0].strokeDashoffset).toBe(0)
+    it('transition is null after it completes', () => {
+      const { pres, slide2Id } = twoSlidePresentation()
+      const frame = resolveFrame(buildTimeline(pres, new Map([['trans-1', 0]])), 1)
+      expect(frame.transition).toBeNull()
+      expect(frame.behind).toBeNull()
+      expect(frame.front.slide.id).toBe(slide2Id)
     })
   })
 
-  describe('MSO elements', () => {
-    it('places MSO elements in msoElements, not in slide elements', () => {
-      const mso = shapeEl('logo', { masterId: 'mso-logo' })
-      const regular = textEl('title')
-      const s = slide('s1', [mso as unknown as TextElement, regular])
-      const timeline = timelineFromSlides([s])
-      const frame = resolveFrame(timeline, 0)
-      expect(frame.msoElements).toHaveLength(1)
-      expect(frame.msoElements[0].element.id).toBe('logo')
-      expect(frame.front.elements).toHaveLength(1)
-      expect(frame.front.elements[0].element.id).toBe('title')
+  describe('MSO appearances', () => {
+    it('places appearances whose master is shared across slides in msoAppearances', () => {
+      const pres = createPresentation()
+      const sharedMaster = shapeMaster('shared-m')
+
+      const app1 = makeAppearance(sharedMaster.id, 's1')
+      const s1 = createSlide()
+      s1.id = 's1'
+      app1.slideId = 's1'
+      s1.appearanceIds = [app1.id]
+
+      const app2 = makeAppearance(sharedMaster.id, 's2')
+      const s2 = createSlide()
+      s2.id = 's2'
+      app2.slideId = 's2'
+      s2.appearanceIds = [app2.id]
+
+      pres.slideOrder = [s1.id, s2.id]
+      pres.slidesById[s1.id] = s1
+      pres.slidesById[s2.id] = s2
+      pres.mastersById[sharedMaster.id] = sharedMaster
+      pres.appearancesById[app1.id] = app1
+      pres.appearancesById[app2.id] = app2
+
+      const frame = resolveFrame(buildTimeline(pres, new Map()), 0)
+      expect(frame.msoAppearances).toHaveLength(1)
+      expect(frame.msoAppearances[0].appearance.id).toBe(app1.id)
+      expect(frame.front.appearances).toHaveLength(0)
     })
   })
 })

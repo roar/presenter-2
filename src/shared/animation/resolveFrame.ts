@@ -1,39 +1,14 @@
-import type {
-  LegacySlide,
-  SlideNode,
-  TextElement,
-  ImageElement,
-  ShapeElement
-} from '../model/types'
+import type { Appearance, MsoMaster, TextShadow, TargetedAnimation } from '../model/types'
 import type {
   PresentationTimeline,
-  ScheduledCue,
+  ScheduledAnimationEntry,
   FrameState,
   RenderedSlide,
-  RenderedElement
+  RenderedAppearance
 } from './types'
 import { applyEasing } from './applyEasing'
 
-// --- Node helpers ---
-
-type LeafElement = TextElement | ImageElement | ShapeElement
-
-function isMSO(node: SlideNode): boolean {
-  if (node.kind === 'group') return node.masterId !== undefined
-  return (node as LeafElement).masterId !== undefined
-}
-
-function flattenNodes(nodes: SlideNode[]): LeafElement[] {
-  const result: LeafElement[] = []
-  for (const node of nodes) {
-    if (node.kind === 'group') {
-      result.push(...flattenNodes(node.children))
-    } else {
-      result.push(node)
-    }
-  }
-  return result
-}
+// ─── Lerp helpers ─────────────────────────────────────────────────────────────
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
@@ -55,67 +30,54 @@ function lerpColor(a: string, b: string, t: number): string {
   return `rgba(${r}, ${g}, ${bl}, ${al.toFixed(4)})`
 }
 
-// --- Element state resolution ---
+// ─── Appearance state resolution ──────────────────────────────────────────────
 
-function hasEnterAnimation(elementId: string, slide: LegacySlide): boolean {
-  for (const cue of slide.cues) {
-    if (cue.kind !== 'animation') continue
-    for (const anim of cue.animations) {
-      if (anim.targetId === elementId && anim.effect.kind === 'build-in') return true
-    }
-  }
-  return false
+function hasEffect(
+  appearanceId: string,
+  animationsById: Record<string, TargetedAnimation>,
+  predicate: (a: TargetedAnimation) => boolean
+): boolean {
+  return Object.values(animationsById).some(
+    (a) => a.target.kind === 'appearance' && a.target.appearanceId === appearanceId && predicate(a)
+  )
 }
 
-function hasLineDraw(elementId: string, slide: LegacySlide): boolean {
-  for (const cue of slide.cues) {
-    if (cue.kind !== 'animation') continue
-    for (const anim of cue.animations) {
-      const { effect } = anim
-      if (
-        anim.targetId === elementId &&
-        (effect.kind === 'build-in' || effect.kind === 'build-out' || effect.kind === 'action') &&
-        effect.type === 'line-draw'
-      )
-        return true
-    }
-  }
-  return false
-}
-
-function resolveElementState(
-  element: LeafElement,
-  slide: LegacySlide,
-  scheduledCues: ScheduledCue[],
+function resolveAppearanceState(
+  appearance: Appearance,
+  master: MsoMaster,
+  scheduledAnimations: ScheduledAnimationEntry[],
+  animationsById: Record<string, TargetedAnimation>,
   time: number
-): RenderedElement {
-  const animations = scheduledCues
-    .filter((sc) => sc.cue.kind === 'animation')
-    .flatMap((sc) =>
-      sc.cue.kind === 'animation'
-        ? sc.cue.animations
-            .filter((a) => a.targetId === element.id)
-            .map((a) => ({ animation: a, cueStartTime: sc.startTime }))
-        : []
-    )
+): RenderedAppearance {
+  // Animations that target this appearance and have been scheduled
+  const relevantEntries = scheduledAnimations.filter((entry) => {
+    const anim = animationsById[entry.animationId]
+    return anim?.target.kind === 'appearance' && anim.target.appearanceId === appearance.id
+  })
 
-  // Initial visibility: hidden if the element has any enter animation in the slide's cues
-  let visible = !hasEnterAnimation(element.id, slide)
+  // Does this appearance have a build-in animation (anywhere in the presentation)?
+  const hasBuildIn = hasEffect(appearance.id, animationsById, (a) => a.effect.kind === 'build-in')
+  // Does it have a line-draw animation?
+  const hasLineDraw = hasEffect(appearance.id, animationsById, (a) => a.effect.type === 'line-draw')
+
+  // Initial state
+  let visible = appearance.initialVisibility === 'visible' && !hasBuildIn
   let opacity = visible ? 1 : 0
   let translateX = 0
   let translateY = 0
   let scale: number | null = null
-  let textShadow: import('../model/types').TextShadow | null = null
-  let strokeDashoffset: number | null = hasLineDraw(element.id, slide) ? 1 : null
+  let textShadow: TextShadow | null = null
+  let strokeDashoffset: number | null = hasLineDraw ? 1 : null
 
-  for (const { animation, cueStartTime } of animations) {
-    const localTime = time - cueStartTime - animation.offset
+  for (const entry of relevantEntries) {
+    const anim = animationsById[entry.animationId]
+    const localTime = time - entry.startTime
     if (localTime < 0) continue
 
-    const rawProgress = Math.min(localTime / animation.duration, 1)
-    const progress = applyEasing(animation.easing, rawProgress)
+    const rawProgress = Math.min(localTime / anim.duration, 1)
+    const progress = applyEasing(anim.easing, rawProgress)
     const completed = rawProgress >= 1
-    const effect = animation.effect
+    const effect = anim.effect
 
     if (effect.kind === 'build-in') {
       visible = true
@@ -123,9 +85,8 @@ function resolveElementState(
         opacity = lerp(opacity, effect.to, progress)
         if (completed) opacity = effect.to
       } else if (effect.type === 'move') {
-        const { fromOffset } = effect
-        translateX = lerp(fromOffset.x, 0, progress)
-        translateY = lerp(fromOffset.y, 0, progress)
+        translateX = lerp(effect.fromOffset.x, 0, progress)
+        translateY = lerp(effect.fromOffset.y, 0, progress)
         if (completed) {
           translateX = 0
           translateY = 0
@@ -134,7 +95,7 @@ function resolveElementState(
         scale = lerp(scale ?? 0, effect.to, progress)
         if (completed) scale = effect.to
       } else if (effect.type === 'line-draw') {
-        opacity = 1 // visibility is controlled by strokeDashoffset, not opacity
+        opacity = 1
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
       }
@@ -149,14 +110,13 @@ function resolveElementState(
     } else if (effect.kind === 'action') {
       if (effect.type === 'text-shadow') {
         const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
-        const to = effect.to
         textShadow = {
-          offsetX: lerp(from.offsetX, to.offsetX, progress),
-          offsetY: lerp(from.offsetY, to.offsetY, progress),
-          blur: lerp(from.blur, to.blur, progress),
-          color: lerpColor(from.color, to.color, progress)
+          offsetX: lerp(from.offsetX, effect.to.offsetX, progress),
+          offsetY: lerp(from.offsetY, effect.to.offsetY, progress),
+          blur: lerp(from.blur, effect.to.blur, progress),
+          color: lerpColor(from.color, effect.to.color, progress)
         }
-        if (completed) textShadow = to
+        if (completed) textShadow = effect.to
       } else if (effect.type === 'line-draw') {
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
@@ -167,82 +127,113 @@ function resolveElementState(
   const translatePart = `translate(${translateX}px, ${translateY}px)`
   const transform = scale !== null ? `${translatePart} scale(${scale})` : translatePart
 
-  return {
-    element,
-    visible,
-    opacity,
-    transform,
-    textShadow,
-    strokeDashoffset
-  }
+  return { appearance, master, visible, opacity, transform, textShadow, strokeDashoffset }
 }
 
-// --- Slide and transition resolution ---
-
-function resolveActiveSlideIndex(scheduledCues: ScheduledCue[], time: number): number {
-  let index = 0
-  for (const sc of scheduledCues) {
-    // Increment as soon as a transition starts — front becomes the next slide
-    if (sc.cue.kind === 'transition' && sc.startTime <= time) {
-      index++
-    }
-  }
-  return index
-}
-
-function resolveActiveTransition(scheduledCues: ScheduledCue[], time: number) {
-  for (const sc of scheduledCues) {
-    if (sc.cue.kind === 'transition' && sc.startTime <= time && time < sc.endTime) {
-      const rawProgress = (time - sc.startTime) / (sc.endTime - sc.startTime)
-      const progress = applyEasing(sc.cue.slideTransition.easing, rawProgress)
-      return { kind: sc.cue.slideTransition.kind, progress } as const
-    }
-  }
-  return null
-}
+// ─── Slide rendering ──────────────────────────────────────────────────────────
 
 function renderSlide(
-  slide: LegacySlide,
-  scheduledCues: ScheduledCue[],
+  slideId: string,
+  timeline: PresentationTimeline,
+  msoMasterIds: Set<string>,
   time: number
-): RenderedSlide {
-  const leaves = flattenNodes(slide.children)
-  const regular = leaves.filter((n) => !isMSO(n))
-  return {
-    slide,
-    elements: regular.map((el) => resolveElementState(el, slide, scheduledCues, time))
-  }
-}
+): { regular: RenderedAppearance[]; mso: RenderedAppearance[] } {
+  const { presentation, scheduledAnimations } = timeline
+  const { slidesById, mastersById, appearancesById, animationsById } = presentation
+  const slide = slidesById[slideId]
 
-// --- Public API ---
+  const regular: RenderedAppearance[] = []
+  const mso: RenderedAppearance[] = []
 
-export function resolveFrame(timeline: PresentationTimeline, time: number): FrameState {
-  const { slides, scheduledCues } = timeline
-
-  if (slides.length === 0) {
-    const emptySlide: LegacySlide = { id: '', children: [], cues: [] }
-    return {
-      front: { slide: emptySlide, elements: [] },
-      behind: null,
-      transition: null,
-      msoElements: []
+  for (const appId of slide.appearanceIds) {
+    const appearance = appearancesById[appId]
+    const master = mastersById[appearance.masterId]
+    const rendered = resolveAppearanceState(
+      appearance,
+      master,
+      scheduledAnimations,
+      animationsById,
+      time
+    )
+    if (msoMasterIds.has(master.id)) {
+      mso.push(rendered)
+    } else {
+      regular.push(rendered)
     }
   }
 
-  const activeIndex = Math.min(resolveActiveSlideIndex(scheduledCues, time), slides.length - 1)
-  const activeTransition = resolveActiveTransition(scheduledCues, time)
-  const activeSlide = slides[activeIndex]
+  return { regular, mso }
+}
 
-  const front = renderSlide(activeSlide, scheduledCues, time)
-  const behind =
-    activeTransition && activeIndex > 0
-      ? renderSlide(slides[activeIndex - 1], scheduledCues, time)
-      : null
+// ─── Public API ───────────────────────────────────────────────────────────────
 
-  const msoLeaves = flattenNodes(activeSlide.children).filter(isMSO)
-  const msoElements = msoLeaves.map((el) =>
-    resolveElementState(el, activeSlide, scheduledCues, time)
+export function resolveFrame(timeline: PresentationTimeline, time: number): FrameState {
+  const { presentation, scheduledTransitions } = timeline
+  const { slideOrder, slidesById } = presentation
+
+  if (slideOrder.length === 0) {
+    const emptySlide = { id: '', appearanceIds: [], animationOrder: [], background: {} }
+    return {
+      front: { slide: emptySlide, appearances: [] },
+      behind: null,
+      transition: null,
+      msoAppearances: []
+    }
+  }
+
+  // Determine active slide index
+  let activeIndex = 0
+  for (const st of scheduledTransitions) {
+    if (st.startTime <= time) activeIndex = st.outgoingSlideIndex + 1
+  }
+  activeIndex = Math.min(activeIndex, slideOrder.length - 1)
+
+  // Active transition
+  let activeTransition: FrameState['transition'] = null
+  for (const st of scheduledTransitions) {
+    if (st.startTime <= time && time < st.endTime) {
+      const rawProgress = (time - st.startTime) / (st.endTime - st.startTime)
+      const progress = applyEasing(st.transition.easing, rawProgress)
+      activeTransition = { kind: st.transition.kind, progress }
+      break
+    }
+  }
+
+  // Identify MSO masters: shared across more than one slide
+  const masterSlideCount = new Map<string, Set<string>>()
+  for (const app of Object.values(presentation.appearancesById)) {
+    let slideIds = masterSlideCount.get(app.masterId)
+    if (!slideIds) {
+      slideIds = new Set()
+      masterSlideCount.set(app.masterId, slideIds)
+    }
+    slideIds.add(app.slideId)
+  }
+  const msoMasterIds = new Set<string>(
+    [...masterSlideCount.entries()]
+      .filter(([, slideIds]) => slideIds.size > 1)
+      .map(([masterId]) => masterId)
   )
 
-  return { front, behind, transition: activeTransition, msoElements }
+  const frontSlideId = slideOrder[activeIndex]
+  const { regular: frontRegular, mso: frontMso } = renderSlide(
+    frontSlideId,
+    timeline,
+    msoMasterIds,
+    time
+  )
+
+  const front: RenderedSlide = { slide: slidesById[frontSlideId], appearances: frontRegular }
+
+  let behind: RenderedSlide | null = null
+  if (activeTransition && activeIndex > 0) {
+    const behindSlideId = slideOrder[activeIndex - 1]
+    const { regular: behindRegular } = renderSlide(behindSlideId, timeline, msoMasterIds, time)
+    behind = { slide: slidesById[behindSlideId], appearances: behindRegular }
+  }
+
+  // MSO appearances come from the front slide (they're the same master across slides)
+  const msoAppearances = frontMso
+
+  return { front, behind, transition: activeTransition, msoAppearances }
 }

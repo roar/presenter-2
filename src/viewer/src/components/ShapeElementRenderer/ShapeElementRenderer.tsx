@@ -1,39 +1,37 @@
-import type { ShapeElement } from '@shared/model/types'
-import type { RenderedElement } from '@shared/animation/types'
+import type { RenderedAppearance } from '@shared/animation/types'
 
 interface ShapeElementRendererProps {
-  element: ShapeElement
-  state: RenderedElement
+  rendered: RenderedAppearance
 }
 
-export function ShapeElementRenderer({
-  element,
-  state
-}: ShapeElementRendererProps): React.JSX.Element {
+export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): React.JSX.Element {
+  const { master, visible, opacity, transform, strokeDashoffset } = rendered
+  const { transform: t, objectStyle, geometry } = master
+  const style = objectStyle.defaultState
+  const pathData = geometry?.pathData ?? ''
+
   return (
     <svg
       style={{
         position: 'absolute',
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
+        left: t.x,
+        top: t.y,
+        width: t.width,
+        height: t.height,
         overflow: 'visible',
-        transform: `rotate(${element.rotation}deg) ${state.transform}`,
-        opacity: state.opacity,
-        visibility: state.visible ? 'visible' : 'hidden'
+        transform: `rotate(${t.rotation}deg) ${transform}`,
+        opacity,
+        visibility: visible ? 'visible' : 'hidden'
       }}
     >
       <path
-        d={element.pathData}
-        fill={element.fill.color}
-        fillOpacity={element.fill.opacity}
-        stroke={element.stroke.color}
-        strokeWidth={element.stroke.width}
-        strokeOpacity={element.stroke.opacity}
-        pathLength={state.strokeDashoffset !== null ? 1 : undefined}
-        strokeDasharray={state.strokeDashoffset !== null ? '1' : undefined}
-        strokeDashoffset={state.strokeDashoffset ?? undefined}
+        d={pathData}
+        fill={style.fill ?? 'none'}
+        stroke={style.stroke ?? 'none'}
+        strokeWidth={style.strokeWidth ?? 0}
+        pathLength={strokeDashoffset !== null ? 1 : undefined}
+        strokeDasharray={strokeDashoffset !== null ? '1' : undefined}
+        strokeDashoffset={strokeDashoffset ?? undefined}
       />
     </svg>
   )

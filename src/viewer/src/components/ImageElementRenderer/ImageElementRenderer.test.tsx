@@ -1,26 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { ImageElementRenderer } from './ImageElementRenderer'
-import type { ImageElement } from '@shared/model/types'
-import type { RenderedElement } from '@shared/animation/types'
+import type { RenderedAppearance } from '@shared/animation/types'
+import type { MsoMaster } from '@shared/model/types'
+import { createAppearance, createMsoMaster } from '@shared/model/factories'
 
-function makeElement(overrides: Partial<ImageElement> = {}): ImageElement {
-  return {
-    kind: 'image',
-    id: 'img-1',
-    x: 0,
-    y: 0,
-    width: 200,
-    height: 150,
-    rotation: 0,
-    src: '/assets/photo.jpg',
-    ...overrides
-  }
+function makeMaster(): MsoMaster {
+  const m = createMsoMaster('image')
+  m.transform = { x: 0, y: 0, width: 200, height: 150, rotation: 0 }
+  m.content = { type: 'image', src: '/assets/photo.jpg' }
+  return m
 }
 
-function makeState(overrides: Partial<RenderedElement> = {}): RenderedElement {
+function makeRendered(overrides: Partial<RenderedAppearance> = {}): RenderedAppearance {
+  const master = makeMaster()
   return {
-    element: makeElement(),
+    master,
+    appearance: createAppearance(master.id, 'slide-1'),
     visible: true,
     opacity: 1,
     transform: 'translate(0px, 0px)',
@@ -32,25 +28,21 @@ function makeState(overrides: Partial<RenderedElement> = {}): RenderedElement {
 
 describe('ImageElementRenderer', () => {
   it('renders an img with the correct src', () => {
-    const { container } = render(
-      <ImageElementRenderer element={makeElement()} state={makeState()} />
-    )
+    const { container } = render(<ImageElementRenderer rendered={makeRendered()} />)
     const img = container.querySelector('img') as HTMLImageElement
     expect(img.src).toContain('/assets/photo.jpg')
   })
 
-  it('is hidden when state.visible is false', () => {
+  it('is hidden when visible is false', () => {
     const { container } = render(
-      <ImageElementRenderer element={makeElement()} state={makeState({ visible: false })} />
+      <ImageElementRenderer rendered={makeRendered({ visible: false })} />
     )
     const img = container.querySelector('img') as HTMLImageElement
     expect(img.style.visibility).toBe('hidden')
   })
 
-  it('applies opacity from state', () => {
-    const { container } = render(
-      <ImageElementRenderer element={makeElement()} state={makeState({ opacity: 0.3 })} />
-    )
+  it('applies opacity', () => {
+    const { container } = render(<ImageElementRenderer rendered={makeRendered({ opacity: 0.3 })} />)
     const img = container.querySelector('img') as HTMLImageElement
     expect(img.style.opacity).toBe('0.3')
   })

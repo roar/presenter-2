@@ -1,28 +1,27 @@
-import type { ImageElement } from '@shared/model/types'
-import type { RenderedElement } from '@shared/animation/types'
+import type { RenderedAppearance } from '@shared/animation/types'
 
 interface ImageElementRendererProps {
-  element: ImageElement
-  state: RenderedElement
+  rendered: RenderedAppearance
 }
 
-export function ImageElementRenderer({
-  element,
-  state
-}: ImageElementRendererProps): React.JSX.Element {
+export function ImageElementRenderer({ rendered }: ImageElementRendererProps): React.JSX.Element {
+  const { master, visible, opacity, transform } = rendered
+  const { transform: t, content } = master
+  const src = content.type === 'image' ? content.src : ''
+
   return (
     <img
-      src={element.src}
+      src={src}
       alt=""
       style={{
         position: 'absolute',
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height,
-        transform: `rotate(${element.rotation}deg) ${state.transform}`,
-        opacity: state.opacity,
-        visibility: state.visible ? 'visible' : 'hidden',
+        left: t.x,
+        top: t.y,
+        width: t.width,
+        height: t.height,
+        transform: `rotate(${t.rotation}deg) ${transform}`,
+        opacity,
+        visibility: visible ? 'visible' : 'hidden',
         objectFit: 'contain'
       }}
     />

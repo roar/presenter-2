@@ -1,18 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react'
-import type { FrameState, RenderedElement } from '@shared/animation/types'
-import type { TextElement, ImageElement, ShapeElement } from '@shared/model/types'
+import type { FrameState } from '@shared/animation/types'
 import { SLIDE_WIDTH, SLIDE_HEIGHT } from '@shared/model/types'
 import { SlideLayer } from '../SlideLayer/SlideLayer'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
 import { ShapeElementRenderer } from '../ShapeElementRenderer/ShapeElementRenderer'
 import styles from './SlideRenderer.module.css'
-
-const elementRenderers = {
-  text: TextElementRenderer,
-  image: ImageElementRenderer,
-  shape: ShapeElementRenderer
-} as const
 
 interface SlideRendererProps {
   frame: FrameState
@@ -40,7 +33,7 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
     return () => observer.disconnect()
   }, [])
 
-  const { front, behind, transition, msoElements } = frame
+  const { front, behind, transition, msoAppearances } = frame
 
   const frontOpacity =
     transition?.kind === 'fade-through-color'
@@ -75,17 +68,15 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
 
         {/* MSO layer — above transitions, unaffected by them */}
         <div className={styles.msoLayer} style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT }}>
-          {msoElements.map((re: RenderedElement) => {
-            const kind = re.element.kind as keyof typeof elementRenderers
-            const Renderer = elementRenderers[kind]
-            if (!Renderer) return null
-            return (
-              <Renderer
-                key={re.element.id}
-                element={re.element as TextElement & ImageElement & ShapeElement}
-                state={re}
-              />
-            )
+          {msoAppearances.map((ra) => {
+            const { master } = ra
+            if (master.type === 'text')
+              return <TextElementRenderer key={ra.appearance.id} rendered={ra} />
+            if (master.type === 'image')
+              return <ImageElementRenderer key={ra.appearance.id} rendered={ra} />
+            if (master.type === 'shape')
+              return <ShapeElementRenderer key={ra.appearance.id} rendered={ra} />
+            return null
           })}
         </div>
       </div>

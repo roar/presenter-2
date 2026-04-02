@@ -1,161 +1,245 @@
 import { describe, it, expect } from 'vitest'
 import { buildTimeline } from './buildTimeline'
-import type { LegacySlide, AnimationCue, TransitionCue } from '../model/types'
+import type {
+  Presentation,
+  Slide,
+  MsoMaster,
+  Appearance,
+  TargetedAnimation,
+  SlideTransition,
+  AnimationId
+} from '../model/types'
+import {
+  createPresentation,
+  createSlide,
+  createMsoMaster,
+  createAppearance
+} from '../model/factories'
 
-// Helpers to build minimal cue fixtures
-function animCue(id: string, trigger: AnimationCue['trigger'], durationSec = 1): AnimationCue {
+// ─── Minimal fixture helpers ──────────────────────────────────────────────────
+
+function fadeAnim(
+  id: AnimationId,
+  appearanceId: string,
+  trigger: TargetedAnimation['trigger'],
+  duration = 1
+): TargetedAnimation {
   return {
     id,
-    kind: 'animation',
     trigger,
+    offset: 0,
+    duration,
+    easing: 'linear',
     loop: { kind: 'none' },
-    animations: [
-      {
-        id: `anim-${id}`,
-        targetId: 'el-1',
-        offset: 0,
-        duration: durationSec,
-        easing: 'linear',
-        effect: { kind: 'build-in', type: 'fade', to: 1 }
-      }
-    ]
+    effect: { kind: 'build-in', type: 'fade', to: 1 },
+    target: { kind: 'appearance', appearanceId }
   }
 }
 
-function transCue(id: string, trigger: TransitionCue['trigger'], durationSec = 0.5): TransitionCue {
-  return {
-    id,
-    kind: 'transition',
-    trigger,
-    slideTransition: { kind: 'fade-through-color', duration: durationSec, easing: 'linear' }
-  }
+function makeSlideWithAnims(
+  anims: TargetedAnimation[],
+  opts: { transition?: SlideTransition; transitionTriggerId?: string } = {}
+): { slide: Slide; master: MsoMaster; appearance: Appearance } {
+  const master = createMsoMaster('text')
+  const appearance = createAppearance(master.id, 'placeholder')
+  const slide = createSlide()
+  appearance.slideId = slide.id
+  slide.appearanceIds = [appearance.id]
+  slide.animationOrder = anims.map((a) => a.id)
+  if (opts.transition) slide.transition = opts.transition
+  if (opts.transitionTriggerId) slide.transitionTriggerId = opts.transitionTriggerId
+  return { slide, master, appearance }
 }
 
-function slide(id: string, cues: LegacySlide['cues']): LegacySlide {
-  return { id, children: [], cues }
+function makePresentationFrom(
+  slideFixtures: { slide: Slide; master: MsoMaster; appearance: Appearance }[],
+  animations: TargetedAnimation[]
+): Presentation {
+  const pres = createPresentation()
+  for (const { slide, master, appearance } of slideFixtures) {
+    pres.slideOrder.push(slide.id)
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+  }
+  for (const anim of animations) {
+    pres.animationsById[anim.id] = anim
+  }
+  return pres
 }
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('buildTimeline', () => {
-  describe('on-click cues', () => {
-    it('schedules an on-click cue at its trigger time', () => {
-      const s = slide('s1', [animCue('c1', 'on-click', 1)])
-      const triggers = new Map([['c1', 5]])
-      const { scheduledCues } = buildTimeline([s], triggers)
-      expect(scheduledCues).toHaveLength(1)
-      expect(scheduledCues[0].startTime).toBe(5)
-      expect(scheduledCues[0].endTime).toBe(6)
+  describe('on-click animations', () => {
+    it('schedules an on-click animation at its trigger time', () => {
+      const { slide, master, appearance } = makeSlideWithAnims([
+        fadeAnim('a1', 'app-1', 'on-click', 1)
+      ])
+      appearance.id = 'app-1'
+      const anim = fadeAnim('a1', 'app-1', 'on-click', 1)
+      const pres = makePresentationFrom([{ slide, master, appearance }], [anim])
+      const { scheduledAnimations } = buildTimeline(pres, new Map([['a1', 5]]))
+      expect(scheduledAnimations).toHaveLength(1)
+      expect(scheduledAnimations[0].startTime).toBe(5)
+      expect(scheduledAnimations[0].endTime).toBe(6)
     })
 
-    it('stops scheduling when an on-click cue has no trigger time', () => {
-      const s = slide('s1', [animCue('c1', 'on-click', 1), animCue('c2', 'on-click', 1)])
-      const triggers = new Map<string, number>() // c1 not triggered
-      const { scheduledCues } = buildTimeline([s], triggers)
-      expect(scheduledCues).toHaveLength(0)
+    it('stops scheduling when an on-click animation has no trigger time', () => {
+      const { slide, master, appearance } = makeSlideWithAnims([
+        fadeAnim('a1', 'app-1', 'on-click', 1),
+        fadeAnim('a2', 'app-1', 'on-click', 1)
+      ])
+      appearance.id = 'app-1'
+      const pres = makePresentationFrom(
+        [{ slide, master, appearance }],
+        [fadeAnim('a1', 'app-1', 'on-click', 1), fadeAnim('a2', 'app-1', 'on-click', 1)]
+      )
+      const { scheduledAnimations } = buildTimeline(pres, new Map())
+      expect(scheduledAnimations).toHaveLength(0)
     })
 
-    it('stops at the first untriggered on-click, even with later triggers', () => {
-      const s = slide('s1', [animCue('c1', 'on-click', 1), animCue('c2', 'on-click', 1)])
-      const triggers = new Map([['c2', 10]]) // c1 not triggered
-      const { scheduledCues } = buildTimeline([s], triggers)
-      expect(scheduledCues).toHaveLength(0)
+    it('stops at the first untriggered on-click even if later ones have trigger times', () => {
+      const { slide, master, appearance } = makeSlideWithAnims([
+        fadeAnim('a1', 'app-1', 'on-click'),
+        fadeAnim('a2', 'app-1', 'on-click')
+      ])
+      appearance.id = 'app-1'
+      const pres = makePresentationFrom(
+        [{ slide, master, appearance }],
+        [fadeAnim('a1', 'app-1', 'on-click'), fadeAnim('a2', 'app-1', 'on-click')]
+      )
+      const { scheduledAnimations } = buildTimeline(pres, new Map([['a2', 10]])) // a1 not triggered
+      expect(scheduledAnimations).toHaveLength(0)
     })
   })
 
   describe('after-previous', () => {
-    it('starts immediately after the preceding cue ends', () => {
-      const s = slide('s1', [animCue('c1', 'on-click', 1), animCue('c2', 'after-previous', 2)])
-      const triggers = new Map([['c1', 0]])
-      const { scheduledCues } = buildTimeline([s], triggers)
-      expect(scheduledCues[1].startTime).toBe(1) // c1 endTime = 0 + 1
-      expect(scheduledCues[1].endTime).toBe(3) // 1 + 2
-    })
-
-    it('follows the preceding array entry, not parallel cues', () => {
-      const s = slide('s1', [
-        animCue('c1', 'on-click', 1),
-        animCue('c2', 'with-previous', 3), // parallel, longer
-        animCue('c3', 'after-previous', 1) // follows c2 by position, not c1
+    it('starts immediately after the preceding animation ends', () => {
+      const { slide, master, appearance } = makeSlideWithAnims([
+        fadeAnim('a1', 'app-1', 'on-click', 1),
+        fadeAnim('a2', 'app-1', 'after-previous', 2)
       ])
-      const triggers = new Map([['c1', 0]])
-      const { scheduledCues } = buildTimeline([s], triggers)
-      const c2 = scheduledCues[1]
-      const c3 = scheduledCues[2]
-      expect(c3.startTime).toBe(c2.endTime) // follows c2, not c1
+      appearance.id = 'app-1'
+      const pres = makePresentationFrom(
+        [{ slide, master, appearance }],
+        [fadeAnim('a1', 'app-1', 'on-click', 1), fadeAnim('a2', 'app-1', 'after-previous', 2)]
+      )
+      const { scheduledAnimations } = buildTimeline(pres, new Map([['a1', 0]]))
+      expect(scheduledAnimations[1].startTime).toBe(1) // a1 endTime = 0 + 1
+      expect(scheduledAnimations[1].endTime).toBe(3)
     })
   })
 
   describe('with-previous', () => {
-    it('starts at the same time as the preceding cue', () => {
-      const s = slide('s1', [animCue('c1', 'on-click', 1), animCue('c2', 'with-previous', 2)])
-      const triggers = new Map([['c1', 5]])
-      const { scheduledCues } = buildTimeline([s], triggers)
-      expect(scheduledCues[1].startTime).toBe(5) // same as c1
+    it('starts at the same trigger time as the preceding animation', () => {
+      const { slide, master, appearance } = makeSlideWithAnims([
+        fadeAnim('a1', 'app-1', 'on-click', 1),
+        fadeAnim('a2', 'app-1', 'with-previous', 2)
+      ])
+      appearance.id = 'app-1'
+      const pres = makePresentationFrom(
+        [{ slide, master, appearance }],
+        [fadeAnim('a1', 'app-1', 'on-click', 1), fadeAnim('a2', 'app-1', 'with-previous', 2)]
+      )
+      const { scheduledAnimations } = buildTimeline(pres, new Map([['a1', 5]]))
+      expect(scheduledAnimations[1].startTime).toBe(5) // same trigger as a1
     })
   })
 
-  describe('endTime', () => {
-    it('computes endTime for AnimationCue as startTime + max(offset + duration)', () => {
-      const cue: AnimationCue = {
-        id: 'c1',
-        kind: 'animation',
+  describe('offset', () => {
+    it('adds the animation offset to the trigger time', () => {
+      const anim: TargetedAnimation = {
+        id: 'a1',
         trigger: 'on-click',
+        offset: 0.3,
+        duration: 0.5,
+        easing: 'linear',
         loop: { kind: 'none' },
-        animations: [
-          {
-            id: 'a1',
-            targetId: 'el',
-            offset: 0,
-            duration: 1,
-            easing: 'linear',
-            effect: { kind: 'build-in', type: 'fade', to: 1 }
-          },
-          {
-            id: 'a2',
-            targetId: 'el',
-            offset: 0.5,
-            duration: 0.8,
-            easing: 'linear',
-            effect: { kind: 'build-in', type: 'fade', to: 1 }
-          }
-        ]
+        effect: { kind: 'build-in', type: 'fade', to: 1 },
+        target: { kind: 'appearance', appearanceId: 'app-1' }
       }
-      const s = slide('s1', [cue])
-      const { scheduledCues } = buildTimeline([s], new Map([['c1', 0]]))
-      expect(scheduledCues[0].endTime).toBe(1.3) // max(0+1, 0.5+0.8)
+      const { slide, master, appearance } = makeSlideWithAnims([anim])
+      appearance.id = 'app-1'
+      const pres = makePresentationFrom([{ slide, master, appearance }], [anim])
+      const { scheduledAnimations } = buildTimeline(pres, new Map([['a1', 2]]))
+      expect(scheduledAnimations[0].startTime).toBe(2.3)
+      expect(scheduledAnimations[0].endTime).toBeCloseTo(2.8)
+    })
+  })
+
+  describe('transitions', () => {
+    it('schedules a transition when transitionTriggerId is in triggerTimes', () => {
+      const transition: SlideTransition = {
+        kind: 'fade-through-color',
+        duration: 0.5,
+        easing: 'linear'
+      }
+      const { slide, master, appearance } = makeSlideWithAnims([], {
+        transition,
+        transitionTriggerId: 'trans-s1'
+      })
+      const pres = makePresentationFrom([{ slide, master, appearance }], [])
+      const { scheduledTransitions } = buildTimeline(pres, new Map([['trans-s1', 2]]))
+      expect(scheduledTransitions).toHaveLength(1)
+      expect(scheduledTransitions[0].startTime).toBe(2)
+      expect(scheduledTransitions[0].endTime).toBe(2.5)
     })
 
-    it('computes endTime for TransitionCue as startTime + transition duration', () => {
-      const s = slide('s1', [transCue('c1', 'on-click', 0.5)])
-      const { scheduledCues } = buildTimeline([s], new Map([['c1', 2]]))
-      expect(scheduledCues[0].endTime).toBe(2.5)
-    })
-
-    it('endTime equals startTime for an AnimationCue with no animations', () => {
-      const cue: AnimationCue = {
-        id: 'c1',
-        kind: 'animation',
-        trigger: 'on-click',
-        loop: { kind: 'none' },
-        animations: []
+    it('does not schedule a transition when transitionTriggerId is absent from triggerTimes', () => {
+      const transition: SlideTransition = {
+        kind: 'fade-through-color',
+        duration: 0.5,
+        easing: 'linear'
       }
-      const s = slide('s1', [cue])
-      const { scheduledCues } = buildTimeline([s], new Map([['c1', 3]]))
-      expect(scheduledCues[0].endTime).toBe(3)
+      const { slide, master, appearance } = makeSlideWithAnims([], {
+        transition,
+        transitionTriggerId: 'trans-s1'
+      })
+      const pres = makePresentationFrom([{ slide, master, appearance }], [])
+      const { scheduledTransitions } = buildTimeline(pres, new Map())
+      expect(scheduledTransitions).toHaveLength(0)
     })
   })
 
   describe('multiple slides', () => {
-    it('schedules cues across slides in order', () => {
-      const s1 = slide('s1', [animCue('c1', 'on-click', 1)])
-      const s2 = slide('s2', [animCue('c2', 'on-click', 1)])
-      const triggers = new Map([
-        ['c1', 0],
-        ['c2', 5]
-      ])
-      const { scheduledCues } = buildTimeline([s1, s2], triggers)
-      expect(scheduledCues).toHaveLength(2)
-      expect(scheduledCues[0].cue.id).toBe('c1')
-      expect(scheduledCues[1].cue.id).toBe('c2')
+    it('schedules animations from multiple slides independently', () => {
+      const m1 = createMsoMaster('text')
+      const app1 = createAppearance(m1.id, 's1')
+      const s1 = createSlide()
+      s1.id = 's1'
+      app1.slideId = 's1'
+      s1.appearanceIds = [app1.id]
+      s1.animationOrder = ['a1']
+
+      const m2 = createMsoMaster('text')
+      const app2 = createAppearance(m2.id, 's2')
+      const s2 = createSlide()
+      s2.id = 's2'
+      app2.slideId = 's2'
+      s2.appearanceIds = [app2.id]
+      s2.animationOrder = ['a2']
+
+      const a1 = fadeAnim('a1', app1.id, 'on-click', 1)
+      const a2 = fadeAnim('a2', app2.id, 'on-click', 1)
+
+      const pres = makePresentationFrom(
+        [
+          { slide: s1, master: m1, appearance: app1 },
+          { slide: s2, master: m2, appearance: app2 }
+        ],
+        [a1, a2]
+      )
+      const { scheduledAnimations } = buildTimeline(
+        pres,
+        new Map([
+          ['a1', 0],
+          ['a2', 5]
+        ])
+      )
+      expect(scheduledAnimations).toHaveLength(2)
+      expect(scheduledAnimations[0].animationId).toBe('a1')
+      expect(scheduledAnimations[1].animationId).toBe('a2')
     })
   })
 })

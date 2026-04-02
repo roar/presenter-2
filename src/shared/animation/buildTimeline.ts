@@ -1,46 +1,73 @@
-import type { LegacySlide, AnimationCue, Cue } from '../model/types'
-import type { PresentationTimeline, ScheduledCue } from './types'
-
-function blockDuration(cue: AnimationCue): number {
-  if (cue.animations.length === 0) return 0
-  return Math.max(...cue.animations.map((a) => a.offset + a.duration))
-}
-
-function cueDuration(cue: Cue): number {
-  if (cue.kind === 'animation') return blockDuration(cue)
-  return cue.slideTransition.duration
-}
+import type { Presentation } from '../model/types'
+import type {
+  PresentationTimeline,
+  ScheduledAnimationEntry,
+  ScheduledTransitionEntry
+} from './types'
 
 export function buildTimeline(
-  slides: LegacySlide[],
+  presentation: Presentation,
   triggerTimes: Map<string, number>
 ): PresentationTimeline {
-  const scheduledCues: ScheduledCue[] = []
+  const scheduledAnimations: ScheduledAnimationEntry[] = []
+  const scheduledTransitions: ScheduledTransitionEntry[] = []
 
-  for (const slide of slides) {
-    let previousCue: ScheduledCue | null = null
+  let slideIndex = 0
 
-    for (const cue of slide.cues) {
-      let startTime: number
+  for (const slideId of presentation.slideOrder) {
+    const slide = presentation.slidesById[slideId]
+    let previous: ScheduledAnimationEntry | null = null
 
-      if (cue.trigger === 'on-click') {
-        if (!triggerTimes.has(cue.id)) break // not yet triggered — stop here
+    for (const animId of slide.animationOrder) {
+      const animation = presentation.animationsById[animId]
+      if (!animation) continue
+
+      let triggerTime: number
+
+      if (animation.trigger === 'on-click') {
+        if (!triggerTimes.has(animId)) break // not yet triggered — stop here
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        startTime = triggerTimes.get(cue.id)!
-      } else if (cue.trigger === 'after-previous') {
-        // Follows the preceding entry in cues[] by array position
-        startTime = previousCue ? previousCue.endTime : 0
+        triggerTime = triggerTimes.get(animId)!
+      } else if (animation.trigger === 'after-previous') {
+        triggerTime = previous ? previous.endTime : 0
       } else {
-        // with-previous
-        startTime = previousCue ? previousCue.startTime : 0
+        // with-previous — same trigger time as the preceding entry
+        triggerTime = previous ? previous.triggerTime : 0
       }
 
-      const endTime = startTime + cueDuration(cue)
-      const scheduled: ScheduledCue = { cue, slide, startTime, endTime }
-      scheduledCues.push(scheduled)
-      previousCue = scheduled
+      const startTime = triggerTime + animation.offset
+      const endTime = startTime + animation.duration
+      const entry: ScheduledAnimationEntry = {
+        animationId: animId,
+        triggerTime,
+        startTime,
+        endTime
+      }
+      scheduledAnimations.push(entry)
+      previous = entry
     }
+
+    // Schedule the slide transition if it has been triggered
+    if (
+      slide.transitionTriggerId &&
+      triggerTimes.has(slide.transitionTriggerId) &&
+      slide.transition
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const triggerTime = triggerTimes.get(slide.transitionTriggerId)!
+      const startTime = triggerTime
+      const endTime = startTime + slide.transition.duration
+      const entry: ScheduledTransitionEntry = {
+        outgoingSlideIndex: slideIndex,
+        startTime,
+        endTime,
+        transition: slide.transition
+      }
+      scheduledTransitions.push(entry)
+    }
+
+    slideIndex++
   }
 
-  return { slides, scheduledCues }
+  return { presentation, scheduledAnimations, scheduledTransitions }
 }
