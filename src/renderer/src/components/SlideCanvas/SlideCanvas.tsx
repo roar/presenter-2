@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { MsoMaster } from '@shared/model/types'
 import { useDocumentStore } from '../../store/documentStore'
+import { ContextMenu } from '../ContextMenu/ContextMenu'
 import { ImageView } from './ImageView'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
@@ -39,6 +40,9 @@ export function SlideCanvas(): React.JSX.Element {
   }, [moveElement])
 
   // Render-visible drag state (separate from the ref so JSX can react to it)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; masterId: string } | null>(
+    null
+  )
   const [draggingMasterId, setDraggingMasterId] = useState<string | null>(null)
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
   const [liveDelta, setLiveDelta] = useState<{ x: number; y: number } | null>(null)
@@ -90,6 +94,11 @@ export function SlideCanvas(): React.JSX.Element {
     }
   }, [])
 
+  const handleElementContextMenu = useCallback((masterId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, masterId })
+  }, [])
+
   const handleElementMouseDown = useCallback(
     (masterId: string, e: React.MouseEvent) => {
       const master = document?.mastersById[masterId]
@@ -132,52 +141,59 @@ export function SlideCanvas(): React.JSX.Element {
   }
 
   return (
-    <div ref={outerRef} className={styles.outer}>
-      {slide != null && document != null && (
-        <div
-          data-testid="slide"
-          className={styles.inner}
-          style={{
-            width: SLIDE_WIDTH,
-            height: SLIDE_HEIGHT,
-            backgroundColor: slide.background.color ?? '#ffffff',
-            transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
-            userSelect: draggingMasterId != null ? 'none' : undefined
-          }}
-        >
-          {appearances.map((appearance) => {
-            const master = document.mastersById[appearance.masterId]
-            if (!master) return null
-            const liveMaster = getLiveMaster(master)
-            const isDraggingThis = draggingMasterId === master.id
-            const { x, y, width, height } = liveMaster.transform
-            return (
-              <React.Fragment key={appearance.id}>
-                {liveMaster.type === 'shape' && (
-                  <ShapeView master={liveMaster} appearance={appearance} />
-                )}
-                {liveMaster.type === 'text' && (
-                  <TextView master={liveMaster} appearance={appearance} />
-                )}
-                {liveMaster.type === 'image' && (
-                  <ImageView master={liveMaster} appearance={appearance} />
-                )}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: x,
-                    top: y,
-                    width,
-                    height,
-                    cursor: isDraggingThis ? 'grabbing' : 'grab'
-                  }}
-                  onMouseDown={(e) => handleElementMouseDown(master.id, e)}
-                />
-              </React.Fragment>
-            )
-          })}
-        </div>
+    <>
+      <div ref={outerRef} className={styles.outer}>
+        {slide != null && document != null && (
+          <div
+            data-testid="slide"
+            className={styles.inner}
+            style={{
+              width: SLIDE_WIDTH,
+              height: SLIDE_HEIGHT,
+              backgroundColor: slide.background.color ?? '#ffffff',
+              transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
+              userSelect: draggingMasterId != null ? 'none' : undefined
+            }}
+          >
+            {appearances.map((appearance) => {
+              const master = document.mastersById[appearance.masterId]
+              if (!master) return null
+              const liveMaster = getLiveMaster(master)
+              const isDraggingThis = draggingMasterId === master.id
+              const { x, y, width, height } = liveMaster.transform
+              return (
+                <React.Fragment key={appearance.id}>
+                  {liveMaster.type === 'shape' && (
+                    <ShapeView master={liveMaster} appearance={appearance} />
+                  )}
+                  {liveMaster.type === 'text' && (
+                    <TextView master={liveMaster} appearance={appearance} />
+                  )}
+                  {liveMaster.type === 'image' && (
+                    <ImageView master={liveMaster} appearance={appearance} />
+                  )}
+                  <div
+                    data-testid="element-hitbox"
+                    style={{
+                      position: 'absolute',
+                      left: x,
+                      top: y,
+                      width,
+                      height,
+                      cursor: isDraggingThis ? 'grabbing' : 'grab'
+                    }}
+                    onMouseDown={(e) => handleElementMouseDown(master.id, e)}
+                    onContextMenu={(e) => handleElementContextMenu(master.id, e)}
+                  />
+                </React.Fragment>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      {contextMenu && (
+        <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
       )}
-    </div>
+    </>
   )
 }

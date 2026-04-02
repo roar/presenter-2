@@ -1,4 +1,5 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
 import {
@@ -46,7 +47,7 @@ function makePresentation(): Presentation {
 
 function mockStore(selectedSlideId: string | null, document: Presentation | null): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
-    return selector({ document, ui: { selectedSlideId } })
+    return selector({ document, ui: { selectedSlideId }, moveElement: vi.fn() })
   })
 }
 
@@ -92,5 +93,27 @@ describe('SlideCanvas', () => {
     mockStore(slideId, pres)
     const { container } = render(<SlideCanvas />)
     expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('shows context menu when right-clicking an element', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    mockStore(slideId, pres)
+    render(<SlideCanvas />)
+    const hitbox = screen.getByTestId('element-hitbox')
+    await userEvent.pointer({ keys: '[MouseRight]', target: hitbox })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('dismisses context menu when pressing Escape', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    mockStore(slideId, pres)
+    render(<SlideCanvas />)
+    const hitbox = screen.getByTestId('element-hitbox')
+    await userEvent.pointer({ keys: '[MouseRight]', target: hitbox })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })
