@@ -55,7 +55,11 @@ describe('SlideRenderer', () => {
             id: 'tc',
             kind: 'transition' as const,
             trigger: 'on-click' as const,
-            slideTransition: { kind: 'fade' as const, duration: 1, easing: 'linear' as const }
+            slideTransition: {
+              kind: 'fade-through-color' as const,
+              duration: 1,
+              easing: 'linear' as const
+            }
           }
         ]
       },

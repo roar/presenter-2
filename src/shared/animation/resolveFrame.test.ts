@@ -105,7 +105,7 @@ function transitionCue(
     id,
     kind: 'transition',
     trigger,
-    slideTransition: { kind: 'fade', duration, easing: 'linear' }
+    slideTransition: { kind: 'fade-through-color', duration, easing: 'linear' }
   }
 }
 

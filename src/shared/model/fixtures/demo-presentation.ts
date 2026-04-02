@@ -163,7 +163,7 @@ export const demoPresentationDocument: Document = {
           id: 'demo-s1-cue2',
           kind: 'transition',
           trigger: 'on-click',
-          slideTransition: { kind: 'fade', duration: 0.6, easing: 'ease-in-out' }
+          slideTransition: { kind: 'fade-through-color', duration: 0.6, easing: 'ease-in-out' }
         }
       ]
     },
@@ -504,7 +504,7 @@ export const demoPresentationDocument: Document = {
           id: 'demo-s3-cue3',
           kind: 'transition',
           trigger: 'on-click',
-          slideTransition: { kind: 'fade', duration: 0.6, easing: 'ease-in-out' }
+          slideTransition: { kind: 'fade-through-color', duration: 0.6, easing: 'ease-in-out' }
         }
       ]
     },
@@ -720,7 +720,7 @@ export const demoPresentationDocument: Document = {
           id: 'demo-s4-cue2',
           kind: 'transition',
           trigger: 'on-click',
-          slideTransition: { kind: 'fade', duration: 0.6, easing: 'ease-in-out' }
+          slideTransition: { kind: 'fade-through-color', duration: 0.6, easing: 'ease-in-out' }
         }
       ]
     },
@@ -890,7 +890,7 @@ export const demoPresentationDocument: Document = {
           id: 'demo-s5-cue3',
           kind: 'transition',
           trigger: 'on-click',
-          slideTransition: { kind: 'fade', duration: 0.6, easing: 'ease-in-out' }
+          slideTransition: { kind: 'fade-through-color', duration: 0.6, easing: 'ease-in-out' }
         }
       ]
     },

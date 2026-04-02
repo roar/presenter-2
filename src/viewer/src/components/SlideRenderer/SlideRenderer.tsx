@@ -43,7 +43,11 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
   const { front, behind, transition, msoElements } = frame
 
   const frontOpacity =
-    transition?.kind === 'fade' ? transition.progress : transition?.kind === 'push' ? 1 : 1
+    transition?.kind === 'fade-through-color'
+      ? transition.progress
+      : transition?.kind === 'push'
+        ? 1
+        : 1
 
   const frontTranslateX = transition?.kind === 'push' ? `${(1 - transition.progress) * 100}%` : '0'
 

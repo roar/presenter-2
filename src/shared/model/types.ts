@@ -212,7 +212,7 @@ export type Easing =
 export type LoopConfig = { kind: 'none' } | { kind: 'finite'; count: number } | { kind: 'infinite' }
 
 export interface SlideTransition {
-  kind: 'cut' | 'fade' | 'push'
+  kind: 'cut' | 'fade-through-color' | 'dissolve' | 'push'
   duration: number // seconds
   easing: Easing
 }

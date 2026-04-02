@@ -27,7 +27,7 @@ function transCue(id: string, trigger: TransitionCue['trigger'], durationSec = 0
     id,
     kind: 'transition',
     trigger,
-    slideTransition: { kind: 'fade', duration: durationSec, easing: 'linear' }
+    slideTransition: { kind: 'fade-through-color', duration: durationSec, easing: 'linear' }
   }
 }
 
