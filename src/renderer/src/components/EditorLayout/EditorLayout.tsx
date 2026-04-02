@@ -1,18 +1,26 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { buildTimeline } from '@shared/animation/buildTimeline'
 import { createSlide } from '../../../../shared/model/factories'
 import type { Presentation, TargetedAnimation } from '@shared/model/types'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
 } from '@shared/animation/computeSlideEntryStates'
+import { resolveFrame } from '@shared/animation/resolveFrame'
 import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
 import { AnimationCard } from '../AnimationCard/AnimationCard'
 import { Button } from '../Button/Button'
 import { Panel, PanelSection } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
+import { SlideTimeline } from '../SlideTimeline/SlideTimeline'
+import {
+  buildPresentationPlaybackPlan,
+  buildTriggerTimesForSlideTime
+} from '../SlideTimeline/slideTimelineModel'
 import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
 import { Toolbar } from '../Toolbar/Toolbar'
 import { getMasterDisplayName } from '../../utils/getMasterDisplayName'
+import { SlideRenderer } from '../../../../viewer/src/components/SlideRenderer/SlideRenderer'
 import styles from './EditorLayout.module.css'
 
 interface LayoutPanelProps {
@@ -69,6 +77,12 @@ export function EditorLayout(): React.JSX.Element {
   const updateAnimationEasing = useDocumentStore((s) => s.updateAnimationEasing)
   const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
+  const [timelineState, setTimelineState] = useState<{
+    slideId: string | null
+    time: number
+    isPlaying: boolean
+  }>({ slideId: null, time: 0, isPlaying: false })
+  const timelineTimeRef = useRef(0)
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
@@ -112,15 +126,107 @@ export function EditorLayout(): React.JSX.Element {
 
   const slideOrder = document?.slideOrder ?? []
   const selectedSlide = selectedSlideId ? document?.slidesById[selectedSlideId] : null
+  const playbackPlan = useMemo(
+    () => (patchedPresentation ? buildPresentationPlaybackPlan(patchedPresentation) : null),
+    [patchedPresentation]
+  )
+  const selectedSlideTimeline =
+    selectedSlideId && playbackPlan ? playbackPlan.slideTimelinesById[selectedSlideId] : null
+  const timelineTime = timelineState.slideId === selectedSlideId ? timelineState.time : 0
+  const isTimelinePlaying =
+    timelineState.slideId === selectedSlideId ? timelineState.isPlaying : false
   const selectedSlideAnimations =
     selectedSlide != null && document != null
       ? selectedSlide.animationOrder
           .map((animationId) => document.animationsById[animationId])
           .filter(Boolean)
       : []
+  const isTimelinePreviewing =
+    selectedSlideId != null &&
+    selectedSlideTimeline != null &&
+    (isTimelinePlaying || timelineTime > 0)
+
+  useEffect(() => {
+    timelineTimeRef.current = timelineTime
+  }, [timelineTime])
+
+  useEffect(() => {
+    if (!isTimelinePlaying || !selectedSlideTimeline) return
+
+    const initialTime = Math.min(timelineTimeRef.current, selectedSlideTimeline.totalDuration)
+    let frameId = 0
+    let startTime: number | null = null
+
+    const tick = (now: number): void => {
+      if (startTime === null) {
+        startTime = now - initialTime * 1000
+      }
+
+      const nextTime = Math.min(
+        (now - startTime) / 1000,
+        Math.max(selectedSlideTimeline.totalDuration, 0)
+      )
+      timelineTimeRef.current = nextTime
+      setTimelineState((current) => ({
+        slideId: selectedSlideId,
+        time: nextTime,
+        isPlaying: current.isPlaying
+      }))
+
+      if (nextTime >= selectedSlideTimeline.totalDuration) {
+        setTimelineState({
+          slideId: selectedSlideId,
+          time: nextTime,
+          isPlaying: false
+        })
+        return
+      }
+
+      frameId = requestAnimationFrame(tick)
+    }
+
+    frameId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frameId)
+  }, [isTimelinePlaying, selectedSlideId, selectedSlideTimeline])
+
+  const timelinePreviewFrame = useMemo(() => {
+    if (!playbackPlan || !selectedSlideId || !isTimelinePreviewing) return null
+
+    const { absoluteTime, triggerTimes } = buildTriggerTimesForSlideTime(
+      playbackPlan,
+      selectedSlideId,
+      timelineTime
+    )
+
+    return resolveFrame(buildTimeline(playbackPlan.presentation, triggerTimes), absoluteTime)
+  }, [isTimelinePreviewing, playbackPlan, selectedSlideId, timelineTime])
 
   function handleNewSlide() {
     addSlide(createSlide())
+  }
+
+  function handleTimelineTimeChange(nextTime: number): void {
+    setTimelineState({
+      slideId: selectedSlideId,
+      time: nextTime,
+      isPlaying: false
+    })
+    timelineTimeRef.current = nextTime
+  }
+
+  function handleTimelinePlayToggle(nextPlaying: boolean): void {
+    if (!selectedSlideTimeline) return
+
+    const nextTime =
+      nextPlaying && timelineTimeRef.current >= selectedSlideTimeline.totalDuration
+        ? 0
+        : timelineTimeRef.current
+    timelineTimeRef.current = nextTime
+    setTimelineState({
+      slideId: selectedSlideId,
+      time: nextTime,
+      isPlaying: nextPlaying
+    })
   }
 
   return (
@@ -137,17 +243,20 @@ export function EditorLayout(): React.JSX.Element {
               </Button>
             </div>
             <div className={styles.slideList}>
-              {slideOrder.map((id, idx) => (
-                <ThumbnailCard
-                  key={id}
-                  slideNumber={idx + 1}
-                  isSelected={selectedSlideId === id}
-                  renderedSlide={
-                    allEntryStates[idx] ?? { slide: document!.slidesById[id], appearances: [] }
-                  }
-                  onClick={() => selectSlide(id)}
-                />
-              ))}
+              {slideOrder.map((id, idx) => {
+                const slide = document?.slidesById[id]
+                if (!slide) return null
+
+                return (
+                  <ThumbnailCard
+                    key={id}
+                    slideNumber={idx + 1}
+                    isSelected={selectedSlideId === id}
+                    renderedSlide={allEntryStates[idx] ?? { slide, appearances: [] }}
+                    onClick={() => selectSlide(id)}
+                  />
+                )
+              })}
             </div>
           </LayoutPanel>
           <LayoutPanel title="Animation" className={styles.sidebarPanel} testId="animation-panel">
@@ -175,7 +284,11 @@ export function EditorLayout(): React.JSX.Element {
               selectedSlideId={selectedSlideId}
             >
               <div className={styles.slideCanvasContainer}>
-                <SlideCanvas />
+                {timelinePreviewFrame ? (
+                  <SlideRenderer frame={timelinePreviewFrame} />
+                ) : (
+                  <SlideCanvas />
+                )}
               </div>
             </LayoutPanel>
             <div className={styles.centralLowerRow}>
@@ -189,7 +302,17 @@ export function EditorLayout(): React.JSX.Element {
             testId="properties-panel"
           />
         </div>
-        <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel" />
+        <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel">
+          {selectedSlideTimeline ? (
+            <SlideTimeline
+              timeline={selectedSlideTimeline}
+              currentTime={timelineTime}
+              isPlaying={isTimelinePlaying}
+              onTimeChange={handleTimelineTimeChange}
+              onPlayToggle={handleTimelinePlayToggle}
+            />
+          ) : null}
+        </LayoutPanel>
       </div>
     </div>
   )

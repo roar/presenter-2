@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
@@ -21,6 +21,18 @@ vi.mock('../../store/documentStore', async () => {
 vi.mock('../Toolbar/Toolbar', () => ({ Toolbar: () => <div data-testid="toolbar" /> }))
 vi.mock('../SlideCanvas/SlideCanvas', () => ({
   SlideCanvas: () => <div data-testid="canvas" />
+}))
+vi.mock('../../../../viewer/src/components/SlideRenderer/SlideRenderer', () => ({
+  SlideRenderer: ({
+    frame
+  }: {
+    frame: { front: { slide: { id: string }; appearances: Array<{ transform: string }> } }
+  }) => (
+    <div data-testid="slide-renderer">
+      {frame.front.slide.id}:
+      {frame.front.appearances.map((appearance) => appearance.transform).join('|')}
+    </div>
+  )
 }))
 
 beforeAll(() => {
@@ -53,7 +65,13 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       selectSlide,
       setPreviewPatch: vi.fn(),
       copyElement: vi.fn(),
-      pasteElement: vi.fn()
+      pasteElement: vi.fn(),
+      updateAnimationTrigger: vi.fn(),
+      updateAnimationOffset: vi.fn(),
+      updateAnimationDuration: vi.fn(),
+      updateAnimationEasing: vi.fn(),
+      updateAnimationNumericTo: vi.fn(),
+      updateAnimationMoveDelta: vi.fn()
     })
   })
 }
@@ -175,7 +193,120 @@ describe('EditorLayout', () => {
 
     render(<EditorLayout />)
 
-    expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
+    expect(screen.getAllByText('Move: Airplane')).not.toHaveLength(0)
     expect(screen.getByText('On click')).toBeInTheDocument()
+  })
+
+  it('renders the single-slide timeline for the selected slide', () => {
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.name = 'Airplane'
+    const appearance = createAppearance(master.id, slide.id)
+    const animation: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+
+    slide.appearanceIds = [appearance.id]
+    slide.animationOrder = [animation.id]
+
+    const document = {
+      ...makePresentation(slide),
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation.id]: animation }
+    }
+
+    mockStore(document, slide.id)
+    render(<EditorLayout />)
+
+    expect(screen.getByRole('button', { name: 'Play timeline' })).toBeInTheDocument()
+    expect(screen.getByText('Autoplay')).toBeInTheDocument()
+    expect(screen.getByLabelText('Move: Airplane')).toBeInTheDocument()
+  })
+
+  it('swaps the timeline contents when the selected slide changes', () => {
+    const slide1 = createSlide()
+    const slide2 = createSlide()
+    const master = createMsoMaster('shape')
+    master.name = 'Airplane'
+    const appearance = createAppearance(master.id, slide1.id)
+    const animation: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+
+    slide1.appearanceIds = [appearance.id]
+    slide1.animationOrder = [animation.id]
+
+    const document = {
+      ...makePresentation(slide1, slide2),
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation.id]: animation }
+    }
+
+    mockStore(document, slide1.id)
+    const { rerender } = render(<EditorLayout />)
+
+    expect(screen.getByText('Autoplay')).toBeInTheDocument()
+
+    mockStore(document, slide2.id)
+    rerender(<EditorLayout />)
+
+    expect(screen.queryByText('Autoplay')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Move: Airplane')).not.toBeInTheDocument()
+  })
+
+  it('updates the slide editor preview when the timeline is scrubbed', () => {
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.name = 'Airplane'
+    const appearance = createAppearance(master.id, slide.id)
+    const animation: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+
+    slide.appearanceIds = [appearance.id]
+    slide.animationOrder = [animation.id]
+
+    const document = {
+      ...makePresentation(slide),
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation.id]: animation }
+    }
+
+    mockStore(document, slide.id)
+    render(<EditorLayout />)
+
+    expect(screen.getByTestId('canvas')).toBeInTheDocument()
+    expect(screen.queryByTestId('slide-renderer')).not.toBeInTheDocument()
+
+    fireEvent.input(screen.getByRole('slider', { name: 'Timeline scrubber' }), {
+      target: { value: '1.4' }
+    })
+
+    expect(screen.queryByTestId('canvas')).not.toBeInTheDocument()
+    expect(screen.getByTestId('slide-renderer')).toHaveTextContent(/translate\(99\.9+px, 0px\)/)
   })
 })
