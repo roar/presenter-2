@@ -111,18 +111,7 @@ export function SlideTimeline({
           {formatTime(clampedTime)} / {formatTime(timeline.totalDuration)}
         </div>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={timeline.totalDuration}
-        step={0.01}
-        value={clampedTime}
-        aria-label="Timeline scrubber"
-        className={styles.scrubber}
-        onInput={(event) => onTimeChange(Number(event.currentTarget.value))}
-      />
       <div className={styles.trackSummary}>
-        {timeline.transition ? <span className={styles.summaryLabel}>Transition</span> : null}
         {timeline.buckets
           .filter((bucket) => !bucket.triggerId)
           .map((bucket) => (

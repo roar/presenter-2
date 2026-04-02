@@ -77,7 +77,7 @@ describe('SlideTimeline', () => {
       />
     )
 
-    expect(screen.getByText('Transition')).toBeInTheDocument()
+    expect(screen.queryByText('Transition')).not.toBeInTheDocument()
     expect(screen.getByText('Autoplay')).toBeInTheDocument()
     expect(screen.getByText('Click 1')).toBeInTheDocument()
     expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
@@ -242,23 +242,17 @@ describe('SlideTimeline', () => {
     expect(onTimeChange).not.toHaveBeenCalled()
   })
 
-  it('reports scrubber changes', () => {
-    const onTimeChange = vi.fn()
-
+  it('does not render the old top progress scrubber', () => {
     render(
       <SlideTimeline
         timeline={makeTimeline()}
         currentTime={0}
         isPlaying={false}
-        onTimeChange={onTimeChange}
+        onTimeChange={vi.fn()}
         onPlayToggle={vi.fn()}
       />
     )
 
-    fireEvent.input(screen.getByRole('slider', { name: 'Timeline scrubber' }), {
-      target: { value: '1.5' }
-    })
-
-    expect(onTimeChange).toHaveBeenCalledWith(1.5)
+    expect(screen.queryByRole('slider', { name: 'Timeline scrubber' })).not.toBeInTheDocument()
   })
 })

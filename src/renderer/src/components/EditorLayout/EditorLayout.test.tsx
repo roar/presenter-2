@@ -270,7 +270,8 @@ describe('EditorLayout', () => {
     expect(screen.queryByLabelText('Move: Airplane')).not.toBeInTheDocument()
   })
 
-  it('updates the slide editor preview when the timeline is scrubbed', () => {
+  it('updates the slide editor preview when the timeline is scrubbed', async () => {
+    const user = userEvent.setup()
     const slide = createSlide()
     const master = createMsoMaster('shape')
     master.name = 'Airplane'
@@ -302,11 +303,28 @@ describe('EditorLayout', () => {
     expect(screen.getByTestId('canvas')).toBeInTheDocument()
     expect(screen.queryByTestId('slide-renderer')).not.toBeInTheDocument()
 
-    fireEvent.input(screen.getByRole('slider', { name: 'Timeline scrubber' }), {
-      target: { value: '1.4' }
+    const timelineRoot = screen.getByTestId('timeline-root')
+    Object.defineProperty(timelineRoot, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 0,
+        width: 300,
+        height: 80,
+        top: 0,
+        left: 100,
+        right: 400,
+        bottom: 80,
+        toJSON: () => ({})
+      })
     })
 
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    fireEvent.mouseMove(timelineRoot, { clientX: 400, clientY: 40 })
+
     expect(screen.queryByTestId('canvas')).not.toBeInTheDocument()
-    expect(screen.getByTestId('slide-renderer')).toHaveTextContent(/translate\(99\.9+px, 0px\)/)
+    expect(screen.getByTestId('slide-renderer')).toHaveTextContent(
+      /translate\(100px, 0px\)|translate\(99\.9+px, 0px\)/
+    )
   })
 })

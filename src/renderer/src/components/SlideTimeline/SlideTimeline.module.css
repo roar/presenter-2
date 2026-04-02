@@ -74,8 +74,8 @@
   top: 0;
   bottom: 0;
   height: auto;
-  background: color-mix(in srgb, var(--text-dim) 20%, transparent);
-  border-color: var(--border-strong);
+  background: rgba(255, 220, 120, 0.28);
+  border-color: rgba(224, 180, 64, 0.8);
   z-index: 0;
 }
 
