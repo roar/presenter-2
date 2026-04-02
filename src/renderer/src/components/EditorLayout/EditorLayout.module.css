@@ -26,6 +26,12 @@
   border: none;
 }
 
+.newSlideRow {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 .canvasPanel {
   flex: 1;
   border: none;

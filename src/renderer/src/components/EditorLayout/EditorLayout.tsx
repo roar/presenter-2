@@ -1,5 +1,7 @@
 import React from 'react'
+import { createSlide } from '../../../../shared/model/factories'
 import { useDocumentStore } from '../../store/documentStore'
+import { Button } from '../Button/Button'
 import { Panel } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
 import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
@@ -10,6 +12,11 @@ export function EditorLayout(): React.JSX.Element {
   const slideOrder = useDocumentStore((s) => s.document?.slideOrder) ?? []
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectSlide = useDocumentStore((s) => s.selectSlide)
+  const addSlide = useDocumentStore((s) => s.addSlide)
+
+  function handleNewSlide() {
+    addSlide(createSlide())
+  }
 
   return (
     <div className={styles.layout}>
@@ -18,6 +25,11 @@ export function EditorLayout(): React.JSX.Element {
       </Panel>
       <div className={styles.body}>
         <Panel className={styles.thumbnailPanel}>
+          <div className={styles.newSlideRow}>
+            <Button variant="secondary" onClick={handleNewSlide}>
+              New Slide
+            </Button>
+          </div>
           {slideOrder.map((id, idx) => (
             <ThumbnailCard
               key={id}
