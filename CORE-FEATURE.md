@@ -149,7 +149,7 @@ Each member animation in a group specifies:
 
 Each slide may have a transition that plays when the slide is entered.
 
-- Transitions support the same trigger types as animations (`onClick`, `afterPrevious`), with optional delay.
+- Transitions support `onClick` and `afterPrevious` triggers, with optional delay.
 - Transitions have duration and easing.
 - A transition always completes before the slide's local animations begin.
 
