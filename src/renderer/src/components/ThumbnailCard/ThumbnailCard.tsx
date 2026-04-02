@@ -1,5 +1,6 @@
 import React from 'react'
 import type { RenderedSlide } from '@shared/animation/types'
+import { InfoCard } from '../InfoCard/InfoCard'
 import { SlideThumbnail } from '../SlideThumbnail/SlideThumbnail'
 import styles from './ThumbnailCard.module.css'
 
@@ -17,15 +18,10 @@ export function ThumbnailCard({
   onClick
 }: ThumbnailCardProps): React.JSX.Element {
   return (
-    <button
-      className={[styles.card, isSelected ? styles.selected : null].filter(Boolean).join(' ')}
-      aria-current={isSelected ? true : undefined}
-      onClick={onClick}
-    >
+    <InfoCard header={slideNumber} isSelected={isSelected} onClick={onClick}>
       <div className={styles.thumbnail}>
         <SlideThumbnail renderedSlide={renderedSlide} />
       </div>
-      <span className={styles.label}>{slideNumber}</span>
-    </button>
+    </InfoCard>
   )
 }

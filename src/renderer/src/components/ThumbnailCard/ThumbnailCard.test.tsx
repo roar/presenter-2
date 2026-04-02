@@ -32,6 +32,19 @@ describe('ThumbnailCard', () => {
     expect(screen.getByText('3')).toBeInTheDocument()
   })
 
+  it('renders the thumbnail inside a card with a header line', () => {
+    render(
+      <ThumbnailCard
+        slideNumber={2}
+        isSelected={false}
+        renderedSlide={makeRenderedSlide()}
+        onClick={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button')).toHaveTextContent('2')
+  })
+
   it('marks as current when selected', () => {
     render(
       <ThumbnailCard
