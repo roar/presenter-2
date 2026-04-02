@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useDocumentStore } from './documentStore'
-import { createMsoMaster } from '../../../shared/model/factories'
+import { createAppearance, createMsoMaster } from '../../../shared/model/factories'
 import type { Presentation, Slide } from '../../../shared/model/types'
 
 function makePresentation(overrides?: Partial<Presentation>): Presentation {
@@ -30,7 +30,7 @@ function makeSlide(id: string): Slide {
 beforeEach(() => {
   useDocumentStore.setState({
     document: null,
-    ui: { selectedSlideId: null, selectedElementIds: [], zoom: 1 },
+    ui: { selectedSlideId: null, selectedElementIds: [], zoom: 1, clipboard: null },
     history: [],
     historyIndex: -1,
     isDirty: false
@@ -270,6 +270,140 @@ describe('documentStore', () => {
       useDocumentStore.getState().moveElement('nonexistent-id', 100, 100)
 
       expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
+
+  describe('copyElement / pasteElement', () => {
+    function makeDocWithElement() {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      master.transform = { x: 100, y: 200, width: 50, height: 60, rotation: 0 }
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+      const pres = makePresentation({
+        slideOrder: ['s-1'],
+        slidesById: { 's-1': slide },
+        mastersById: { [master.id]: master },
+        appearancesById: { [appearance.id]: appearance }
+      })
+      return { pres, master, slide, appearance }
+    }
+
+    describe('copyElement', () => {
+      it('stores a deep copy of the master in clipboard', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+
+        useDocumentStore.getState().copyElement(master.id)
+
+        const { clipboard } = useDocumentStore.getState().ui
+        expect(clipboard).not.toBeNull()
+        expect(clipboard?.id).toBe(master.id)
+        expect(clipboard?.transform).toEqual(master.transform)
+      })
+
+      it('clipboard is a deep copy — mutating the original does not affect it', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        useDocumentStore.getState().copyElement(master.id)
+
+        useDocumentStore.getState().moveElement(master.id, 9999, 9999)
+
+        const { clipboard } = useDocumentStore.getState().ui
+        expect(clipboard?.transform.x).toBe(100)
+      })
+
+      it('does not push history', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        const historyLengthBefore = useDocumentStore.getState().history.length
+
+        useDocumentStore.getState().copyElement(master.id)
+
+        expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+      })
+
+      it('does nothing when masterId does not exist', () => {
+        const { pres } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+
+        useDocumentStore.getState().copyElement('nonexistent')
+
+        expect(useDocumentStore.getState().ui.clipboard).toBeNull()
+      })
+    })
+
+    describe('pasteElement', () => {
+      it('creates a new master offset by +16px x and +16px y', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        useDocumentStore.getState().copyElement(master.id)
+
+        useDocumentStore.getState().pasteElement('s-1')
+
+        const masters = Object.values(useDocumentStore.getState().document?.mastersById ?? {})
+        const pasted = masters.find((m) => m.id !== master.id)
+        expect(pasted).toBeDefined()
+        expect(pasted?.transform.x).toBe(116)
+        expect(pasted?.transform.y).toBe(216)
+      })
+
+      it('adds a new appearance to slide.appearanceIds', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        useDocumentStore.getState().copyElement(master.id)
+
+        useDocumentStore.getState().pasteElement('s-1')
+
+        const slide = useDocumentStore.getState().document?.slidesById['s-1']
+        expect(slide?.appearanceIds).toHaveLength(2)
+      })
+
+      it('gives the pasted master a different id than the original', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        useDocumentStore.getState().copyElement(master.id)
+
+        useDocumentStore.getState().pasteElement('s-1')
+
+        const masters = Object.values(useDocumentStore.getState().document?.mastersById ?? {})
+        const ids = masters.map((m) => m.id)
+        expect(new Set(ids).size).toBe(ids.length)
+      })
+
+      it('pushes history and marks document dirty', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        useDocumentStore.getState().copyElement(master.id)
+        const historyLengthBefore = useDocumentStore.getState().history.length
+
+        useDocumentStore.getState().pasteElement('s-1')
+
+        const state = useDocumentStore.getState()
+        expect(state.isDirty).toBe(true)
+        expect(state.history.length).toBe(historyLengthBefore + 1)
+      })
+
+      it('is a no-op when clipboard is null', () => {
+        const { pres } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        const historyLengthBefore = useDocumentStore.getState().history.length
+
+        useDocumentStore.getState().pasteElement('s-1')
+
+        expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+      })
+
+      it('is a no-op when slideId does not exist', () => {
+        const { pres, master } = makeDocWithElement()
+        useDocumentStore.getState().setDocument(pres)
+        useDocumentStore.getState().copyElement(master.id)
+        const historyLengthBefore = useDocumentStore.getState().history.length
+
+        useDocumentStore.getState().pasteElement('nonexistent-slide')
+
+        expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+      })
     })
   })
 })

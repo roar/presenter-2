@@ -45,9 +45,18 @@ function makePresentation(): Presentation {
   return pres
 }
 
-function mockStore(selectedSlideId: string | null, document: Presentation | null): void {
+function mockStore(
+  selectedSlideId: string | null,
+  document: Presentation | null,
+  selectedElementIds: string[] = []
+): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
-    return selector({ document, ui: { selectedSlideId }, moveElement: vi.fn() })
+    return selector({
+      document,
+      ui: { selectedSlideId, selectedElementIds },
+      moveElement: vi.fn(),
+      selectElements: vi.fn()
+    })
   })
 }
 
@@ -115,5 +124,22 @@ describe('SlideCanvas', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('shows selection indicator when element is selected', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const masterId = Object.keys(pres.mastersById)[0]
+    mockStore(slideId, pres, [masterId])
+    render(<SlideCanvas />)
+    expect(screen.getByTestId('selection-indicator')).toBeInTheDocument()
+  })
+
+  it('does not show selection indicator when element is not selected', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    mockStore(slideId, pres, [])
+    render(<SlideCanvas />)
+    expect(screen.queryByTestId('selection-indicator')).not.toBeInTheDocument()
   })
 })

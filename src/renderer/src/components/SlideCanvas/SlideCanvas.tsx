@@ -19,7 +19,9 @@ interface DragData {
 export function SlideCanvas(): React.JSX.Element {
   const document = useDocumentStore((s) => s.document)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
+  const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const moveElement = useDocumentStore((s) => s.moveElement)
+  const selectElements = useDocumentStore((s) => s.selectElements)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -104,6 +106,8 @@ export function SlideCanvas(): React.JSX.Element {
       const master = document?.mastersById[masterId]
       if (!master) return
       e.preventDefault()
+      e.stopPropagation()
+      selectElements([masterId])
       dragRef.current = {
         masterId,
         startClientX: e.clientX,
@@ -115,7 +119,7 @@ export function SlideCanvas(): React.JSX.Element {
       setDragStartPos({ x: master.transform.x, y: master.transform.y })
       setLiveDelta({ x: 0, y: 0 })
     },
-    [document]
+    [document, selectElements]
   )
 
   const slide = selectedSlideId != null ? document?.slidesById[selectedSlideId] : null
@@ -154,6 +158,7 @@ export function SlideCanvas(): React.JSX.Element {
               transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
               userSelect: draggingMasterId != null ? 'none' : undefined
             }}
+            onClick={() => selectElements([])}
           >
             {appearances.map((appearance) => {
               const master = document.mastersById[appearance.masterId]
@@ -172,6 +177,22 @@ export function SlideCanvas(): React.JSX.Element {
                   {liveMaster.type === 'image' && (
                     <ImageView master={liveMaster} appearance={appearance} />
                   )}
+                  {selectedElementIds.includes(master.id) && (
+                    <div
+                      data-testid="selection-indicator"
+                      style={{
+                        position: 'absolute',
+                        left: x,
+                        top: y,
+                        width,
+                        height,
+                        outline: '2px solid var(--accent)',
+                        outlineOffset: 2,
+                        pointerEvents: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  )}
                   <div
                     data-testid="element-hitbox"
                     style={{
@@ -183,6 +204,7 @@ export function SlideCanvas(): React.JSX.Element {
                       cursor: isDraggingThis ? 'grabbing' : 'grab'
                     }}
                     onMouseDown={(e) => handleElementMouseDown(master.id, e)}
+                    onClick={(e) => e.stopPropagation()}
                     onContextMenu={(e) => handleElementContextMenu(master.id, e)}
                   />
                 </React.Fragment>

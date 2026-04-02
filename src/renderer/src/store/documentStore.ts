@@ -12,6 +12,7 @@ interface UiState {
   selectedSlideId: SlideId | null
   selectedElementIds: string[]
   zoom: number
+  clipboard: MsoMaster | null
 }
 
 // ── History entry for undo/redo ───────────────────────────────────────────────
@@ -42,6 +43,8 @@ interface DocumentState {
   insertElement(slideId: SlideId, master: MsoMaster): void
   moveElement(masterId: string, x: number, y: number): void
   moveSlide(fromIndex: number, toIndex: number): void
+  copyElement(masterId: string): void
+  pasteElement(slideId: SlideId): void
   undo(): void
   redo(): void
 }
@@ -68,7 +71,8 @@ export const useDocumentStore = create<DocumentState>()(
     ui: {
       selectedSlideId: null,
       selectedElementIds: [],
-      zoom: 1
+      zoom: 1,
+      clipboard: null
     },
     history: [],
     historyIndex: -1,
@@ -193,6 +197,38 @@ export const useDocumentStore = create<DocumentState>()(
         const order = state.document.slideOrder
         const [id] = order.splice(fromIndex, 1)
         order.splice(toIndex, 0, id)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    copyElement(masterId) {
+      set((state) => {
+        if (!state.document) return
+        const master = state.document.mastersById[masterId]
+        if (!master) return
+        state.ui.clipboard = JSON.parse(JSON.stringify(master)) as MsoMaster
+      })
+    },
+
+    pasteElement(slideId) {
+      set((state) => {
+        if (!state.document || !state.ui.clipboard) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        const newMaster: MsoMaster = {
+          ...(JSON.parse(JSON.stringify(state.ui.clipboard)) as MsoMaster),
+          id: crypto.randomUUID(),
+          transform: {
+            ...state.ui.clipboard.transform,
+            x: state.ui.clipboard.transform.x + 16,
+            y: state.ui.clipboard.transform.y + 16
+          }
+        }
+        const appearance = createAppearance(newMaster.id, slideId)
+        state.document.mastersById[newMaster.id] = newMaster
+        state.document.appearancesById[appearance.id] = appearance
+        slide.appearanceIds.push(appearance.id)
         pushHistory(state, state.document)
         state.isDirty = true
       })
