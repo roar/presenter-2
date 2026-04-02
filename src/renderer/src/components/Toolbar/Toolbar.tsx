@@ -1,16 +1,22 @@
 import React, { useState } from 'react'
+import { nullAuthContext } from '../../../../shared/auth/types'
 import { createMsoMaster } from '../../../../shared/model/factories'
 import type { ShapeLibraryEntry } from '../../../../shared/shapes/types'
+import { JsonFileRepository } from '../../repository/JsonFileRepository'
 import { useDocumentStore } from '../../store/documentStore'
 import { Button } from '../Button/Button'
+import { OpenPresentationPopup } from '../OpenPresentationPopup/OpenPresentationPopup'
 import { ShapePickerPopup } from '../ShapePickerPopup/ShapePickerPopup'
 import styles from './Toolbar.module.css'
 
 export function Toolbar(): React.JSX.Element {
   const [shapePickerOpen, setShapePickerOpen] = useState(false)
+  const [openPresentationPopupOpen, setOpenPresentationPopupOpen] = useState(false)
   const newPresentation = useDocumentStore((s) => s.newPresentation)
+  const loadDocument = useDocumentStore((s) => s.loadDocument)
   const insertElement = useDocumentStore((s) => s.insertElement)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
+  const repository = new JsonFileRepository()
 
   function handleInsertShape(entry: ShapeLibraryEntry): void {
     if (!selectedSlideId) return
@@ -40,6 +46,10 @@ export function Toolbar(): React.JSX.Element {
     insertElement(selectedSlideId, master)
   }
 
+  function handleOpenPresentation(id: string): void {
+    void loadDocument(repository, id, nullAuthContext)
+  }
+
   return (
     <>
       <div className={styles.toolbar}>
@@ -47,11 +57,21 @@ export function Toolbar(): React.JSX.Element {
           <Button variant="secondary" onClick={newPresentation}>
             New Presentation
           </Button>
+          <Button variant="ghost" onClick={() => setOpenPresentationPopupOpen(true)}>
+            Open
+          </Button>
           <Button variant="ghost" onClick={() => setShapePickerOpen(true)}>
             Insert Shape
           </Button>
         </div>
       </div>
+      {openPresentationPopupOpen && (
+        <OpenPresentationPopup
+          presentations={repository.list(nullAuthContext)}
+          onClose={() => setOpenPresentationPopupOpen(false)}
+          onOpen={handleOpenPresentation}
+        />
+      )}
       {shapePickerOpen && (
         <ShapePickerPopup
           onClose={() => setShapePickerOpen(false)}
