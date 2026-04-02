@@ -175,7 +175,7 @@ The timeline is compiled from the document — it is never stored. For each slid
 - Parallel animations displayed in parallel lanes (greedy interval partitioning).
 - Animation group instances rendered as a single collapsible bar, expandable to show member animations.
 
-Click bucket 0 contains animations that play automatically after the transition. Each subsequent user click advances to the next bucket.
+Click bucket 0 contains animations that play after the transition ~ either automatically or after click. Each subsequent user click advances to the next bucket.
 
 For timeline display purposes, `onClick` delays are rendered as a configurable constant duration.
 
