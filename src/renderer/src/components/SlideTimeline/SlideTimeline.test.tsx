@@ -83,9 +83,10 @@ describe('SlideTimeline', () => {
     expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
     expect(screen.getByText('Move: Balloon')).toBeInTheDocument()
     expect(screen.getByText('Scale: Balloon')).toBeInTheDocument()
+    expect(screen.getByTestId('timeline-track')).toBeInTheDocument()
   })
 
-  it('exposes lane information on animation bars', () => {
+  it('renders a single shared track with click markers and stacks overlapping bars vertically', () => {
     render(
       <SlideTimeline
         timeline={makeTimeline()}
@@ -96,6 +97,8 @@ describe('SlideTimeline', () => {
       />
     )
 
+    expect(screen.getAllByTestId('timeline-track')).toHaveLength(1)
+    expect(screen.getAllByLabelText('Click marker: Click 1').length).toBeGreaterThan(0)
     expect(screen.getByLabelText('Move: Balloon')).toHaveAttribute('data-lane', '0')
     expect(screen.getByLabelText('Scale: Balloon')).toHaveAttribute('data-lane', '1')
   })

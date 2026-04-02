@@ -23,22 +23,13 @@
   margin: 0;
 }
 
-.rows {
+.trackSummary {
   display: flex;
-  flex-direction: column;
   gap: var(--space-sm);
-  min-height: 0;
+  flex-wrap: wrap;
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: var(--space-sm);
-  align-items: start;
-}
-
-.rowLabel {
-  padding-top: 2px;
+.summaryLabel {
   font-size: var(--text-sm);
   color: var(--text-dim);
   text-transform: uppercase;
@@ -66,6 +57,7 @@
 
 .bar {
   position: absolute;
+  top: 0;
   height: var(--space-lg);
   padding: 0 var(--space-sm);
   border-radius: var(--radius-sm);
@@ -75,11 +67,43 @@
   display: flex;
   align-items: center;
   min-width: 1px;
+  z-index: 2;
 }
 
 .transitionBar {
+  top: 0;
+  bottom: 0;
+  height: auto;
   background: color-mix(in srgb, var(--text-dim) 20%, transparent);
   border-color: var(--border-strong);
+  z-index: 0;
+}
+
+.clickLabels {
+  position: relative;
+  height: var(--space-lg);
+}
+
+.clickMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+  transform: translateX(-0.5px);
+  z-index: 1;
+}
+
+.clickLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .barText {

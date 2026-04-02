@@ -57,6 +57,9 @@ export function SlideTimeline({
   const playheadStyle = {
     left: `${(clampedTime / Math.max(timeline.totalDuration, 1)) * 100}%`
   }
+  const clickBuckets = timeline.buckets.filter((bucket) => bucket.triggerId)
+  const allBars = timeline.buckets.flatMap((bucket) => bucket.bars)
+  const laneCount = Math.max(1, ...timeline.buckets.map((bucket) => Math.max(bucket.laneCount, 1)))
 
   return (
     <div className={styles.root}>
@@ -83,40 +86,62 @@ export function SlideTimeline({
         className={styles.scrubber}
         onInput={(event) => onTimeChange(Number(event.currentTarget.value))}
       />
-      <div className={styles.rows}>
-        {timeline.transition ? (
-          <div className={styles.row}>
-            <div className={styles.rowLabel}>Transition</div>
-            <div className={styles.track}>
-              <div className={styles.playhead} style={playheadStyle} />
-              <div
-                className={[styles.bar, styles.transitionBar].join(' ')}
-                style={getBarStyle(
-                  timeline.transition.startTime,
-                  timeline.transition.endTime,
-                  0,
-                  timeline.totalDuration
-                )}
-              >
-                <span className={styles.barText}>{timeline.transition.kind}</span>
-              </div>
-            </div>
-          </div>
-        ) : null}
-        {timeline.buckets.map((bucket) => (
-          <div key={bucket.label} className={styles.row}>
-            <div className={styles.rowLabel}>{bucket.label}</div>
-            <div
-              className={styles.track}
-              style={{
-                height: `calc(${Math.max(bucket.laneCount, 1)} * (var(--space-lg) + var(--space-xs)))`
-              }}
-            >
-              <div className={styles.playhead} style={playheadStyle} />
-              {bucket.bars.map((bar) => renderBar(bar, timeline.totalDuration))}
-            </div>
+      <div className={styles.trackSummary}>
+        {timeline.transition ? <span className={styles.summaryLabel}>Transition</span> : null}
+        {timeline.buckets
+          .filter((bucket) => !bucket.triggerId)
+          .map((bucket) => (
+            <span key={bucket.label} className={styles.summaryLabel}>
+              {bucket.label}
+            </span>
+          ))}
+      </div>
+      <div className={styles.clickLabels} aria-hidden="true">
+        {clickBuckets.map((bucket) => (
+          <div
+            key={bucket.label}
+            className={styles.clickLabel}
+            style={{
+              left: `${(bucket.startTime / Math.max(timeline.totalDuration, 1)) * 100}%`
+            }}
+          >
+            {bucket.label}
           </div>
         ))}
+      </div>
+      <div
+        className={styles.track}
+        data-testid="timeline-track"
+        style={{
+          minHeight: `calc(${laneCount} * (var(--space-lg) + var(--space-xs)))`
+        }}
+      >
+        <div className={styles.playhead} style={playheadStyle} />
+        {clickBuckets.map((bucket) => (
+          <div
+            key={bucket.label}
+            className={styles.clickMarker}
+            style={{
+              left: `${(bucket.startTime / Math.max(timeline.totalDuration, 1)) * 100}%`
+            }}
+            aria-label={`Click marker: ${bucket.label}`}
+            title={bucket.label}
+          />
+        ))}
+        {timeline.transition ? (
+          <div
+            className={[styles.bar, styles.transitionBar].join(' ')}
+            style={getBarStyle(
+              timeline.transition.startTime,
+              timeline.transition.endTime,
+              0,
+              timeline.totalDuration
+            )}
+          >
+            <span className={styles.barText}>{timeline.transition.kind}</span>
+          </div>
+        ) : null}
+        {allBars.map((bar) => renderBar(bar, timeline.totalDuration))}
       </div>
     </div>
   )
