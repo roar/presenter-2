@@ -61,7 +61,7 @@ function hasEnterAnimation(elementId: string, slide: LegacySlide): boolean {
   for (const cue of slide.cues) {
     if (cue.kind !== 'animation') continue
     for (const anim of cue.animations) {
-      if (anim.targetId === elementId && anim.effect.kind === 'enter') return true
+      if (anim.targetId === elementId && anim.effect.kind === 'build-in') return true
     }
   }
   return false
@@ -74,7 +74,7 @@ function hasLineDraw(elementId: string, slide: LegacySlide): boolean {
       const { effect } = anim
       if (
         anim.targetId === elementId &&
-        (effect.kind === 'enter' || effect.kind === 'exit' || effect.kind === 'property') &&
+        (effect.kind === 'build-in' || effect.kind === 'build-out' || effect.kind === 'action') &&
         effect.animation.type === 'line-draw'
       )
         return true
@@ -117,7 +117,7 @@ function resolveElementState(
     const completed = rawProgress >= 1
     const effect = animation.effect
 
-    if (effect.kind === 'enter') {
+    if (effect.kind === 'build-in') {
       visible = true
       if (effect.animation.type === 'fade') {
         opacity = lerp(opacity, effect.animation.to, progress)
@@ -138,7 +138,7 @@ function resolveElementState(
         strokeDashoffset = lerp(1, 0, progress)
         if (completed) strokeDashoffset = 0
       }
-    } else if (effect.kind === 'exit') {
+    } else if (effect.kind === 'build-out') {
       if (effect.animation.type === 'fade') {
         opacity = lerp(opacity, effect.animation.to, progress)
         if (completed) {
@@ -146,7 +146,7 @@ function resolveElementState(
           visible = false
         }
       }
-    } else if (effect.kind === 'property') {
+    } else if (effect.kind === 'action') {
       if (effect.animation.type === 'text-shadow') {
         const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
         const to = effect.animation.to

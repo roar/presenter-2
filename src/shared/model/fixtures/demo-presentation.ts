@@ -82,7 +82,7 @@ const fadeIn = (id: string, targetId: string, offset: number, duration = 0.5) =>
   offset,
   duration,
   easing: 'ease-out' as const,
-  effect: { kind: 'enter' as const, animation: { type: 'fade' as const, from: 0, to: 1 } }
+  effect: { kind: 'build-in' as const, animation: { type: 'fade' as const, from: 0, to: 1 } }
 })
 
 export const demoPresentationDocument: Document = {
@@ -478,7 +478,7 @@ export const demoPresentationDocument: Document = {
               duration: 0.6,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: 0, y: 410 } }
               }
             },
@@ -489,7 +489,7 @@ export const demoPresentationDocument: Document = {
               offset: 0,
               duration: 0.6,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'scale', to: 1 } }
+              effect: { kind: 'build-in', animation: { type: 'scale', to: 1 } }
             }
           ]
         },
@@ -677,7 +677,7 @@ export const demoPresentationDocument: Document = {
               duration: 1.8,
               easing: 'linear',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             },
@@ -688,7 +688,7 @@ export const demoPresentationDocument: Document = {
               duration: 1.8,
               easing: 'ease-in',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             },
@@ -699,7 +699,7 @@ export const demoPresentationDocument: Document = {
               duration: 1.8,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             },
@@ -710,7 +710,7 @@ export const demoPresentationDocument: Document = {
               duration: 1.8,
               easing: 'ease-in-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             }
@@ -851,7 +851,7 @@ export const demoPresentationDocument: Document = {
               duration: 1.2,
               easing: 'ease-out',
               effect: {
-                kind: 'property',
+                kind: 'action',
                 animation: {
                   type: 'text-shadow',
                   to: { offsetX: 0, offsetY: 6, blur: 32, color: 'rgba(10,132,255,0.8)' }
@@ -873,7 +873,7 @@ export const demoPresentationDocument: Document = {
               offset: 0,
               duration: 1.0,
               easing: 'ease-in-out',
-              effect: { kind: 'property', animation: { type: 'line-draw' } }
+              effect: { kind: 'action', animation: { type: 'line-draw' } }
             },
             {
               id: 'demo-s5-a3',
@@ -881,7 +881,7 @@ export const demoPresentationDocument: Document = {
               offset: 0.4,
               duration: 1.4,
               easing: 'ease-out',
-              effect: { kind: 'property', animation: { type: 'line-draw' } }
+              effect: { kind: 'action', animation: { type: 'line-draw' } }
             }
           ]
         },

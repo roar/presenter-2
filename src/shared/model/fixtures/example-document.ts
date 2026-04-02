@@ -73,7 +73,7 @@ export const exampleDocument: Document = {
               duration: 0.6,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'fade', to: 1 }
               }
             },
@@ -85,7 +85,7 @@ export const exampleDocument: Document = {
               duration: 0.5,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'fade', to: 1 }
               }
             }
@@ -179,7 +179,7 @@ export const exampleDocument: Document = {
               duration: 0.4,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: 0, y: 180 } }
               }
             },
@@ -190,7 +190,7 @@ export const exampleDocument: Document = {
               duration: 0.4,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'fade', to: 1 }
               }
             }

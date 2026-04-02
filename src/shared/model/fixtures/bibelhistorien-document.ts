@@ -89,7 +89,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'fade', to: 1 } }
+              effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
             },
             {
               id: 'anim-b2',
@@ -98,7 +98,7 @@ export const bibelhistorienDocument: Document = {
               duration: 3,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
               }
             },
@@ -109,7 +109,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'fade', to: 1 } }
+              effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
             },
             {
               id: 'anim-b4',
@@ -118,7 +118,7 @@ export const bibelhistorienDocument: Document = {
               duration: 3,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
               }
             },
@@ -129,7 +129,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'line-draw' } }
+              effect: { kind: 'build-in', animation: { type: 'line-draw' } }
             },
             {
               id: 'anim-b6',
@@ -138,7 +138,7 @@ export const bibelhistorienDocument: Document = {
               duration: 3,
               easing: 'ease-out',
               effect: {
-                kind: 'enter',
+                kind: 'build-in',
                 animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
               }
             }

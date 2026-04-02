@@ -64,7 +64,7 @@ function fadeEnterCue(
         offset: 0,
         duration,
         easing: 'linear',
-        effect: { kind: 'enter', animation: { type: 'fade', to: 1 } }
+        effect: { kind: 'build-in', animation: { type: 'fade', to: 1 } }
       }
     ]
   }
@@ -88,7 +88,7 @@ function moveEnterCue(
         duration: 1,
         easing: 'linear',
         effect: {
-          kind: 'enter',
+          kind: 'build-in',
           animation: { type: 'move', fromOffset: { x: 0, y: 100 } }
         }
       }
@@ -254,7 +254,7 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'enter', animation: { type: 'line-draw' } }
+            effect: { kind: 'build-in', animation: { type: 'line-draw' } }
           }
         ]
       }
@@ -315,7 +315,7 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'enter', animation: { type: 'scale', to: 1 } }
+            effect: { kind: 'build-in', animation: { type: 'scale', to: 1 } }
           }
         ]
       }
@@ -343,7 +343,7 @@ describe('resolveFrame', () => {
     })
   })
 
-  describe('property animation (text-shadow)', () => {
+  describe('action animation (text-shadow)', () => {
     function textShadowCue(
       id: string,
       trigger: AnimationCue['trigger'],
@@ -363,7 +363,7 @@ describe('resolveFrame', () => {
             duration,
             easing: 'linear',
             effect: {
-              kind: 'property',
+              kind: 'action',
               animation: {
                 type: 'text-shadow',
                 to: { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
@@ -381,7 +381,7 @@ describe('resolveFrame', () => {
       expect(frame.front.elements[0].textShadow).toBeNull()
     })
 
-    it('element is visible before cue triggers (property — not an enter)', () => {
+    it('element is visible before cue triggers (action — not a build-in)', () => {
       const s = slide('s1', [textEl('el')], [textShadowCue('c1', 'on-click', 'el')])
       const timeline = timelineFromSlides([s])
       const frame = resolveFrame(timeline, 0)
@@ -408,7 +408,7 @@ describe('resolveFrame', () => {
     })
   })
 
-  describe('property animation (line-draw)', () => {
+  describe('action animation (line-draw)', () => {
     function lineDrawPropertyCue(
       id: string,
       trigger: AnimationCue['trigger'],
@@ -427,13 +427,13 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'property', animation: { type: 'line-draw' } }
+            effect: { kind: 'action', animation: { type: 'line-draw' } }
           }
         ]
       }
     }
 
-    it('element is visible before cue triggers (property — not an enter)', () => {
+    it('element is visible before cue triggers (action — not a build-in)', () => {
       const s = slide('s1', [shapeEl('line')], [lineDrawPropertyCue('c1', 'on-click', 'line')])
       const timeline = timelineFromSlides([s])
       const frame = resolveFrame(timeline, 0)

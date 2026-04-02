@@ -348,9 +348,9 @@ export interface ScheduledAnimation {
 }
 
 export type AnimationEffect =
-  | { kind: 'enter'; animation: VisualEffect }
-  | { kind: 'exit'; animation: VisualEffect }
-  | { kind: 'property'; animation: VisualEffect }
+  | { kind: 'build-in'; animation: VisualEffect }
+  | { kind: 'build-out'; animation: VisualEffect }
+  | { kind: 'action'; animation: VisualEffect }
 
 export type VisualEffect =
   | { type: 'fade'; to: number }
