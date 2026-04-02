@@ -104,7 +104,7 @@ Animations can target:
 | Transform             | `Partial<Transform>`               | Moves, scales, or rotates the target.                        |
 | Decoration Progress   | `number` (0–1)                     | Animates a text decoration (e.g. underline draw).            |
 | Text Reveal           | `number` (0–1), mode: chars/words/lines | Reveals text progressively.                             |
-| State Change          | from state name, to state name     | Transitions the object between two named style states (§3).  |
+| State Change          | style state name     | Transitions the object between the object's current style state and another specified named state defined on the onject's style (§3).  |
 
 ---
 
