@@ -95,4 +95,83 @@ describe('applyEasing', () => {
       expect(typeof mid).toBe('number')
     })
   })
+
+  describe('curve', () => {
+    // Linear bezier: P0=(0,0), P1=(1/3,1/3), P2=(2/3,2/3), P3=(1,1)
+    // Achieved by setting outHandle=(1/3,1/3) on the first point and
+    // inHandle=(-1/3,-1/3) on the last point.
+    const linearCurve = {
+      kind: 'curve' as const,
+      points: [
+        { x: 0, y: 0, kind: 'corner' as const, outHandle: { dx: 1 / 3, dy: 1 / 3 } },
+        { x: 1, y: 1, kind: 'corner' as const, inHandle: { dx: -1 / 3, dy: -1 / 3 } }
+      ]
+    }
+
+    it('returns 0 at progress 0', () => {
+      expect(applyEasing(linearCurve, 0)).toBeCloseTo(0)
+    })
+
+    it('returns 1 at progress 1', () => {
+      expect(applyEasing(linearCurve, 1)).toBeCloseTo(1)
+    })
+
+    it('evaluates a linear curve at midpoint', () => {
+      expect(applyEasing(linearCurve, 0.5)).toBeCloseTo(0.5, 3)
+    })
+
+    it('evaluates a linear curve at quarter points', () => {
+      expect(applyEasing(linearCurve, 0.25)).toBeCloseTo(0.25, 3)
+      expect(applyEasing(linearCurve, 0.75)).toBeCloseTo(0.75, 3)
+    })
+
+    it('evaluates the correct segment of a multi-segment curve', () => {
+      // Two-segment linear curve via a midpoint anchor at (0.5, 0.5)
+      const twoSegment = {
+        kind: 'curve' as const,
+        points: [
+          { x: 0, y: 0, kind: 'corner' as const, outHandle: { dx: 1 / 6, dy: 1 / 6 } },
+          {
+            x: 0.5,
+            y: 0.5,
+            kind: 'corner' as const,
+            inHandle: { dx: -1 / 6, dy: -1 / 6 },
+            outHandle: { dx: 1 / 6, dy: 1 / 6 }
+          },
+          { x: 1, y: 1, kind: 'corner' as const, inHandle: { dx: -1 / 6, dy: -1 / 6 } }
+        ]
+      }
+      expect(applyEasing(twoSegment, 0.25)).toBeCloseTo(0.25, 3)
+      expect(applyEasing(twoSegment, 0.5)).toBeCloseTo(0.5, 3)
+      expect(applyEasing(twoSegment, 0.75)).toBeCloseTo(0.75, 3)
+    })
+
+    it('supports overshoot when handles push y beyond 1', () => {
+      // outHandle pushes the curve well above y=1 at the midpoint
+      const overshoot = {
+        kind: 'curve' as const,
+        points: [
+          { x: 0, y: 0, kind: 'corner' as const, outHandle: { dx: 0.3, dy: 2.0 } },
+          { x: 1, y: 1, kind: 'corner' as const, inHandle: { dx: -0.3, dy: -0.5 } }
+        ]
+      }
+      const mid = applyEasing(overshoot, 0.5)
+      expect(mid).toBeGreaterThan(1)
+    })
+
+    it('handles missing handles (zero-length defaults to cubic ease-in-out shape)', () => {
+      const noHandles = {
+        kind: 'curve' as const,
+        points: [
+          { x: 0, y: 0, kind: 'corner' as const },
+          { x: 1, y: 1, kind: 'corner' as const }
+        ]
+      }
+      // No handles → P0=P1=(0,0), P2=P3=(1,1) → symmetric 3t²-2t³
+      expect(applyEasing(noHandles, 0)).toBeCloseTo(0)
+      expect(applyEasing(noHandles, 1)).toBeCloseTo(1)
+      // Symmetric: f(t) + f(1-t) ≈ 1
+      expect(applyEasing(noHandles, 0.25) + applyEasing(noHandles, 0.75)).toBeCloseTo(1, 3)
+    })
+  })
 })

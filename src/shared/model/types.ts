@@ -175,6 +175,28 @@ export interface TextDecoration {
 // Named presets map directly to CSS equivalents.
 // cubic-bezier matches CSS cubic-bezier(x1, y1, x2, y2).
 // spring is evaluated as a damped oscillation bounded by durationMs.
+// curve is a piecewise cubic bezier spline authored in the easing editor.
+
+// Handle constraint enforced by the UI when editing; stored unconditionally
+// so serialised form is self-contained.
+export type SplinePointKind = 'corner' | 'smooth' | 'balanced'
+
+// Offset from the anchor point in the easing graph ([0,1] × ℝ space).
+export interface SplineHandle {
+  dx: number
+  dy: number
+}
+
+// One anchor on the piecewise cubic bezier curve.
+// x must be in [0,1]; y may exceed [0,1] for overshoot.
+// Anchor x values across the points array must be strictly increasing.
+export interface SplinePoint {
+  x: number
+  y: number
+  kind: SplinePointKind
+  inHandle?: SplineHandle // absent on the first point
+  outHandle?: SplineHandle // absent on the last point
+}
 
 export type Easing =
   | 'linear'
@@ -183,6 +205,8 @@ export type Easing =
   | 'ease-in-out'
   | { kind: 'cubic-bezier'; x1: number; y1: number; x2: number; y2: number }
   | { kind: 'spring'; mass: number; stiffness: number; damping: number; initialVelocity: number }
+  // points.length >= 2; points[0].x === 0, points[last].x === 1
+  | { kind: 'curve'; points: SplinePoint[] }
 
 // ─── Common types ─────────────────────────────────────────────────────────────
 
