@@ -45,6 +45,8 @@ interface DocumentState {
   moveSlide(fromIndex: number, toIndex: number): void
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
+  convertToMultiSlideObject(masterId: string): void
+  convertToSingleAppearance(appearanceId: string): void
   undo(): void
   redo(): void
 }
@@ -216,19 +218,55 @@ export const useDocumentStore = create<DocumentState>()(
         if (!state.document || !state.ui.clipboard) return
         const slide = state.document.slidesById[slideId]
         if (!slide) return
-        const newMaster: MsoMaster = {
-          ...(JSON.parse(JSON.stringify(state.ui.clipboard)) as MsoMaster),
-          id: crypto.randomUUID(),
-          transform: {
-            ...state.ui.clipboard.transform,
-            x: state.ui.clipboard.transform.x + 16,
-            y: state.ui.clipboard.transform.y + 16
+        if (state.ui.clipboard.isMultiSlideObject) {
+          // MSO paste: new Appearance pointing to the same master
+          const appearance = createAppearance(state.ui.clipboard.id, slideId)
+          state.document.appearancesById[appearance.id] = appearance
+          slide.appearanceIds.push(appearance.id)
+        } else {
+          // Regular paste: clone the master with a new id and offset position
+          const newMaster: MsoMaster = {
+            ...(JSON.parse(JSON.stringify(state.ui.clipboard)) as MsoMaster),
+            id: crypto.randomUUID(),
+            transform: {
+              ...state.ui.clipboard.transform,
+              x: state.ui.clipboard.transform.x + 16,
+              y: state.ui.clipboard.transform.y + 16
+            }
           }
+          const appearance = createAppearance(newMaster.id, slideId)
+          state.document.mastersById[newMaster.id] = newMaster
+          state.document.appearancesById[appearance.id] = appearance
+          slide.appearanceIds.push(appearance.id)
         }
-        const appearance = createAppearance(newMaster.id, slideId)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    convertToMultiSlideObject(masterId) {
+      set((state) => {
+        if (!state.document) return
+        const master = state.document.mastersById[masterId]
+        if (!master) return
+        master.isMultiSlideObject = true
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    convertToSingleAppearance(appearanceId) {
+      set((state) => {
+        if (!state.document) return
+        const appearance = state.document.appearancesById[appearanceId]
+        if (!appearance) return
+        const originalMaster = state.document.mastersById[appearance.masterId]
+        if (!originalMaster) return
+        const cloned = JSON.parse(JSON.stringify(originalMaster)) as MsoMaster
+        delete cloned.isMultiSlideObject
+        const newMaster: MsoMaster = { ...cloned, id: crypto.randomUUID() }
         state.document.mastersById[newMaster.id] = newMaster
-        state.document.appearancesById[appearance.id] = appearance
-        slide.appearanceIds.push(appearance.id)
+        appearance.masterId = newMaster.id
         pushHistory(state, state.document)
         state.isDirty = true
       })

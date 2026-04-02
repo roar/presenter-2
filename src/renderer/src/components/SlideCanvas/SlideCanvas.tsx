@@ -3,6 +3,8 @@ import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { MsoMaster } from '@shared/model/types'
 import { useDocumentStore } from '../../store/documentStore'
 import { ContextMenu } from '../ContextMenu/ContextMenu'
+import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
+import { MsoIndicator } from './MsoIndicator'
 import { ImageView } from './ImageView'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
@@ -22,6 +24,8 @@ export function SlideCanvas(): React.JSX.Element {
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const moveElement = useDocumentStore((s) => s.moveElement)
   const selectElements = useDocumentStore((s) => s.selectElements)
+  const convertToMultiSlideObject = useDocumentStore((s) => s.convertToMultiSlideObject)
+  const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
 
   const outerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -42,9 +46,12 @@ export function SlideCanvas(): React.JSX.Element {
   }, [moveElement])
 
   // Render-visible drag state (separate from the ref so JSX can react to it)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; masterId: string } | null>(
-    null
-  )
+  const [contextMenu, setContextMenu] = useState<{
+    x: number
+    y: number
+    masterId: string
+    appearanceId: string
+  } | null>(null)
   const [draggingMasterId, setDraggingMasterId] = useState<string | null>(null)
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
   const [liveDelta, setLiveDelta] = useState<{ x: number; y: number } | null>(null)
@@ -96,10 +103,25 @@ export function SlideCanvas(): React.JSX.Element {
     }
   }, [])
 
-  const handleElementContextMenu = useCallback((masterId: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, masterId })
-  }, [])
+  const handleElementContextMenu = useCallback(
+    (masterId: string, appearanceId: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      setContextMenu({ x: e.clientX, y: e.clientY, masterId, appearanceId })
+    },
+    []
+  )
+
+  const handleConvertToMso = useCallback(() => {
+    if (!contextMenu) return
+    convertToMultiSlideObject(contextMenu.masterId)
+    setContextMenu(null)
+  }, [contextMenu, convertToMultiSlideObject])
+
+  const handleConvertToSingle = useCallback(() => {
+    if (!contextMenu) return
+    convertToSingleAppearance(contextMenu.appearanceId)
+    setContextMenu(null)
+  }, [contextMenu, convertToSingleAppearance])
 
   const handleElementMouseDown = useCallback(
     (masterId: string, e: React.MouseEvent) => {
@@ -177,6 +199,7 @@ export function SlideCanvas(): React.JSX.Element {
                   {liveMaster.type === 'image' && (
                     <ImageView master={liveMaster} appearance={appearance} />
                   )}
+                  {liveMaster.isMultiSlideObject && <MsoIndicator x={x} y={y} width={width} />}
                   {selectedElementIds.includes(master.id) && (
                     <div
                       data-testid="selection-indicator"
@@ -205,7 +228,7 @@ export function SlideCanvas(): React.JSX.Element {
                     }}
                     onMouseDown={(e) => handleElementMouseDown(master.id, e)}
                     onClick={(e) => e.stopPropagation()}
-                    onContextMenu={(e) => handleElementContextMenu(master.id, e)}
+                    onContextMenu={(e) => handleElementContextMenu(master.id, appearance.id, e)}
                   />
                 </React.Fragment>
               )
@@ -214,7 +237,17 @@ export function SlideCanvas(): React.JSX.Element {
         )}
       </div>
       {contextMenu && (
-        <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} />
+        <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
+          {document?.mastersById[contextMenu.masterId]?.isMultiSlideObject ? (
+            <ContextMenuItem onClick={handleConvertToSingle}>
+              Convert to Single Appearance
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={handleConvertToMso}>
+              Convert to Multi Slide Object
+            </ContextMenuItem>
+          )}
+        </ContextMenu>
       )}
     </>
   )

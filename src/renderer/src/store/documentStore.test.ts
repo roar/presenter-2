@@ -406,4 +406,198 @@ describe('documentStore', () => {
       })
     })
   })
+
+  describe('convertToMultiSlideObject', () => {
+    it('sets isMultiSlideObject to true on the master', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, 's-1')
+      slide.appearanceIds = [appearance.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1'],
+          slidesById: { 's-1': slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().convertToMultiSlideObject(master.id)
+
+      expect(useDocumentStore.getState().document?.mastersById[master.id].isMultiSlideObject).toBe(
+        true
+      )
+    })
+
+    it('does not create any new appearances', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, 's-1')
+      slide.appearanceIds = [appearance.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1', 's-2'],
+          slidesById: { 's-1': slide, 's-2': makeSlide('s-2') },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().convertToMultiSlideObject(master.id)
+
+      expect(Object.keys(useDocumentStore.getState().document?.appearancesById ?? {})).toHaveLength(
+        1
+      )
+    })
+
+    it('pushes history and marks document dirty', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, 's-1')
+      slide.appearanceIds = [appearance.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1'],
+          slidesById: { 's-1': slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().convertToMultiSlideObject(master.id)
+
+      const state = useDocumentStore.getState()
+      expect(state.isDirty).toBe(true)
+      expect(state.history.length).toBe(historyLengthBefore + 1)
+    })
+
+    it('is a no-op when masterId does not exist', () => {
+      useDocumentStore.getState().setDocument(makePresentation())
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().convertToMultiSlideObject('nonexistent')
+
+      expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
+
+  describe('pasteElement (MSO)', () => {
+    it('creates a new Appearance for the same master when clipboard is an MSO', () => {
+      const slide1 = makeSlide('s-1')
+      const slide2 = makeSlide('s-2')
+      const master = createMsoMaster('shape')
+      master.isMultiSlideObject = true
+      const appearance = createAppearance(master.id, 's-1')
+      slide1.appearanceIds = [appearance.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1', 's-2'],
+          slidesById: { 's-1': slide1, 's-2': slide2 },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+      useDocumentStore.getState().copyElement(master.id)
+
+      useDocumentStore.getState().pasteElement('s-2')
+
+      const state = useDocumentStore.getState()
+      // No new master should have been created
+      expect(Object.keys(state.document?.mastersById ?? {})).toHaveLength(1)
+      // A new appearance on slide2 pointing to the same master
+      const slide2Appearances = state.document?.slidesById['s-2'].appearanceIds ?? []
+      expect(slide2Appearances).toHaveLength(1)
+      const newAppearance = state.document?.appearancesById[slide2Appearances[0]]
+      expect(newAppearance?.masterId).toBe(master.id)
+    })
+  })
+
+  describe('convertToSingleAppearance', () => {
+    function makeDocWithMso() {
+      const slide1 = makeSlide('s-1')
+      const slide2 = makeSlide('s-2')
+      const master = createMsoMaster('shape')
+      master.isMultiSlideObject = true
+      const app1 = createAppearance(master.id, 's-1')
+      const app2 = createAppearance(master.id, 's-2')
+      slide1.appearanceIds = [app1.id]
+      slide2.appearanceIds = [app2.id]
+      const pres = makePresentation({
+        slideOrder: ['s-1', 's-2'],
+        slidesById: { 's-1': slide1, 's-2': slide2 },
+        mastersById: { [master.id]: master },
+        appearancesById: { [app1.id]: app1, [app2.id]: app2 }
+      })
+      return { pres, master, app1, app2 }
+    }
+
+    it('creates a new master with a different id', () => {
+      const { pres, master, app1 } = makeDocWithMso()
+      useDocumentStore.getState().setDocument(pres)
+
+      useDocumentStore.getState().convertToSingleAppearance(app1.id)
+
+      const state = useDocumentStore.getState()
+      const masterIds = Object.keys(state.document?.mastersById ?? {})
+      expect(masterIds).toHaveLength(2)
+      expect(masterIds).toContain(master.id)
+      const newMasterId = masterIds.find((id) => id !== master.id)
+      expect(newMasterId).toBeDefined()
+    })
+
+    it('re-points the converted appearance at the new master', () => {
+      const { pres, master, app1 } = makeDocWithMso()
+      useDocumentStore.getState().setDocument(pres)
+
+      useDocumentStore.getState().convertToSingleAppearance(app1.id)
+
+      const state = useDocumentStore.getState()
+      const updatedAppearance = state.document?.appearancesById[app1.id]
+      expect(updatedAppearance?.masterId).not.toBe(master.id)
+    })
+
+    it('does not affect the other appearance of the original master', () => {
+      const { pres, master, app1, app2 } = makeDocWithMso()
+      useDocumentStore.getState().setDocument(pres)
+
+      useDocumentStore.getState().convertToSingleAppearance(app1.id)
+
+      const state = useDocumentStore.getState()
+      expect(state.document?.appearancesById[app2.id].masterId).toBe(master.id)
+    })
+
+    it('the new master does not have isMultiSlideObject set', () => {
+      const { pres, master, app1 } = makeDocWithMso()
+      useDocumentStore.getState().setDocument(pres)
+
+      useDocumentStore.getState().convertToSingleAppearance(app1.id)
+
+      const state = useDocumentStore.getState()
+      const masterIds = Object.keys(state.document?.mastersById ?? {})
+      const newMasterId = masterIds.find((id) => id !== master.id) ?? ''
+      expect(state.document?.mastersById[newMasterId]?.isMultiSlideObject).toBeFalsy()
+    })
+
+    it('pushes history and marks document dirty', () => {
+      const { pres, app1 } = makeDocWithMso()
+      useDocumentStore.getState().setDocument(pres)
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().convertToSingleAppearance(app1.id)
+
+      const state = useDocumentStore.getState()
+      expect(state.isDirty).toBe(true)
+      expect(state.history.length).toBe(historyLengthBefore + 1)
+    })
+
+    it('is a no-op when appearanceId does not exist', () => {
+      useDocumentStore.getState().setDocument(makePresentation())
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().convertToSingleAppearance('nonexistent')
+
+      expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
 })

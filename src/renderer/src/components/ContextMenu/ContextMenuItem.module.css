@@ -1,0 +1,17 @@
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.item:hover {
+  background: var(--bg-hover);
+}
