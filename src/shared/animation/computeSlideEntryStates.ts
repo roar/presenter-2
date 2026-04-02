@@ -29,6 +29,11 @@ function hasEffect(
   )
 }
 
+function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>) {
+  if ('delta' in effect) return effect.delta
+  return effect.fromOffset
+}
+
 /**
  * Initial propagated state for the first appearance of a master (or non-MSO).
  * Uses initialVisibility and checks for build-in / line-draw animations.
@@ -117,7 +122,11 @@ function computeAppearanceExitState(
         state.visible = false
       }
     } else if (effect.kind === 'action') {
-      if (effect.type === 'text-shadow') {
+      if (effect.type === 'move') {
+        const delta = getMoveDelta(effect)
+        state.translateX += delta.x
+        state.translateY += delta.y
+      } else if (effect.type === 'text-shadow') {
         state.textShadow = effect.to
       } else if (effect.type === 'line-draw') {
         state.strokeDashoffset = 0

@@ -180,6 +180,27 @@ describe('computeMsoExitStateChains', () => {
     expect(exitState!.visible).toBe(false)
   })
 
+  it('supports legacy move animations stored with fromOffset', () => {
+    const m = shapeMaster('m1')
+    const app1 = makeAppearance(m.id, '')
+    const app2 = makeAppearance(m.id, '')
+    const anim = makeAnim('a1', app1.id, {
+      kind: 'action',
+      type: 'move',
+      fromOffset: { x: 12, y: 34 }
+    } as TargetedAnimation['effect'])
+
+    const pres = buildPresentation([
+      { appearances: [app1], masters: [m], animations: [anim] },
+      { appearances: [app2], masters: [] }
+    ])
+
+    const chains = computeMsoExitStateChains(pres)
+    const exitState = chains[1].get(m.id)
+    expect(exitState?.translateX).toBe(12)
+    expect(exitState?.translateY).toBe(34)
+  })
+
   it('is independent of master transform — changing x/y does not affect exit state', () => {
     const m1 = shapeMaster('m1', { x: 100, y: 200 })
     const m2 = { ...shapeMaster('m1', { x: 999, y: 888 }) }

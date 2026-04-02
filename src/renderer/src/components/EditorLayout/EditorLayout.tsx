@@ -50,6 +50,8 @@ export function EditorLayout(): React.JSX.Element {
   const updateAnimationOffset = useDocumentStore((s) => s.updateAnimationOffset)
   const updateAnimationDuration = useDocumentStore((s) => s.updateAnimationDuration)
   const updateAnimationEasing = useDocumentStore((s) => s.updateAnimationEasing)
+  const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
+  const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
@@ -141,6 +143,8 @@ export function EditorLayout(): React.JSX.Element {
                 onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}
                 onDurationChange={(duration) => updateAnimationDuration(animation.id, duration)}
                 onEasingChange={(easing) => updateAnimationEasing(animation.id, easing)}
+                onNumericToChange={(value) => updateAnimationNumericTo(animation.id, value)}
+                onMoveDeltaChange={(delta) => updateAnimationMoveDelta(animation.id, delta)}
               />
             ))}
           </LayoutPanel>

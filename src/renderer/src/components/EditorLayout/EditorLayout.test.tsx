@@ -143,7 +143,7 @@ describe('EditorLayout', () => {
       duration: 1,
       easing: { kind: 'cubic-bezier' as const, x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
       loop: { kind: 'none' as const },
-      effect: { kind: 'action' as const, type: 'move' as const, fromOffset: { x: 0, y: 100 } },
+      effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 0, y: 100 } },
       target: { kind: 'appearance' as const, appearanceId: appearance.id }
     }
 

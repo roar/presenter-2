@@ -72,6 +72,94 @@ describe('documentStore', () => {
     })
   })
 
+  describe('updateAnimationNumericTo', () => {
+    it('updates a scale animation target value and marks the document dirty', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          animationsById: {
+            'anim-1': {
+              id: 'anim-1',
+              trigger: 'on-click',
+              offset: 0,
+              duration: 1,
+              easing: 'linear',
+              loop: { kind: 'none' },
+              effect: { kind: 'action', type: 'scale', to: 1 },
+              target: { kind: 'appearance', appearanceId: 'appearance-1' }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationNumericTo('anim-1', 1.5)
+
+      const state = useDocumentStore.getState()
+      const animation = state.document?.animationsById['anim-1']
+      if (!animation || animation.effect.type !== 'scale') {
+        throw new Error('Expected scale animation')
+      }
+      expect(animation.effect.to).toBe(1.5)
+      expect(state.isDirty).toBe(true)
+    })
+
+    it('updates a fade animation target value', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          animationsById: {
+            'anim-1': {
+              id: 'anim-1',
+              trigger: 'on-click',
+              offset: 0,
+              duration: 1,
+              easing: 'linear',
+              loop: { kind: 'none' },
+              effect: { kind: 'build-in', type: 'fade', to: 0.5 },
+              target: { kind: 'appearance', appearanceId: 'appearance-1' }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationNumericTo('anim-1', 0.75)
+
+      const animation = useDocumentStore.getState().document?.animationsById['anim-1']
+      if (!animation || animation.effect.type !== 'fade') {
+        throw new Error('Expected fade animation')
+      }
+      expect(animation.effect.to).toBe(0.75)
+    })
+  })
+
+  describe('updateAnimationMoveDelta', () => {
+    it('updates the stored move delta values', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          animationsById: {
+            'anim-1': {
+              id: 'anim-1',
+              trigger: 'on-click',
+              offset: 0,
+              duration: 1,
+              easing: 'linear',
+              loop: { kind: 'none' },
+              effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
+              target: { kind: 'appearance', appearanceId: 'appearance-1' }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationMoveDelta('anim-1', { x: 24, y: 48 })
+
+      const animation = useDocumentStore.getState().document?.animationsById['anim-1']
+      if (!animation || animation.effect.type !== 'move') {
+        throw new Error('Expected move animation')
+      }
+      expect(animation.effect.delta).toEqual({ x: 24, y: 48 })
+      expect(useDocumentStore.getState().isDirty).toBe(true)
+    })
+  })
+
   describe('addSlide / removeSlide', () => {
     it('adds a slide to the document', () => {
       useDocumentStore.getState().setDocument(makePresentation())
@@ -324,7 +412,7 @@ describe('documentStore', () => {
         duration: 1,
         easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
         loop: { kind: 'none' },
-        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
         target: { kind: 'appearance', appearanceId: appearance.id }
       })
       expect(state.document?.appearancesById[appearance.id].animationIds).toEqual([animationId])
@@ -343,7 +431,7 @@ describe('documentStore', () => {
         duration: 1,
         easing: 'linear',
         loop: { kind: 'none' },
-        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
         target: { kind: 'appearance', appearanceId: appearance.id }
       }
 
@@ -380,7 +468,7 @@ describe('documentStore', () => {
         duration: 1,
         easing: 'linear',
         loop: { kind: 'none' },
-        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
         target: { kind: 'appearance', appearanceId: appearance.id }
       }
 
@@ -417,7 +505,7 @@ describe('documentStore', () => {
         duration: 1,
         easing: 'linear',
         loop: { kind: 'none' },
-        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
         target: { kind: 'appearance', appearanceId: appearance.id }
       }
 
@@ -454,7 +542,7 @@ describe('documentStore', () => {
         duration: 1,
         easing: 'linear',
         loop: { kind: 'none' },
-        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
         target: { kind: 'appearance', appearanceId: appearance.id }
       }
 

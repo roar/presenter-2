@@ -10,7 +10,8 @@ import type {
   TargetedAnimation,
   AnimationId,
   AnimationTrigger,
-  Easing
+  Easing,
+  Position
 } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
@@ -71,6 +72,8 @@ interface DocumentState {
   updateAnimationOffset(animationId: AnimationId, offset: number): void
   updateAnimationDuration(animationId: AnimationId, duration: number): void
   updateAnimationEasing(animationId: AnimationId, easing: Easing): void
+  updateAnimationNumericTo(animationId: AnimationId, value: number): void
+  updateAnimationMoveDelta(animationId: AnimationId, delta: Position): void
   convertToMultiSlideObject(masterId: string): void
   convertToSingleAppearance(appearanceId: string): void
   undo(): void
@@ -350,7 +353,7 @@ export const useDocumentStore = create<DocumentState>()(
           duration: 1,
           easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
           loop: { kind: 'none' },
-          effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+          effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
           target: { kind: 'appearance', appearanceId }
         }
 
@@ -401,6 +404,29 @@ export const useDocumentStore = create<DocumentState>()(
         const animation = state.document.animationsById[animationId]
         if (!animation) return
         animation.easing = easing
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationNumericTo(animationId, value) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation) return
+        if (animation.effect.type !== 'fade' && animation.effect.type !== 'scale') return
+        animation.effect.to = value
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationMoveDelta(animationId, delta) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation || animation.effect.type !== 'move') return
+        animation.effect.delta = delta
         pushHistory(state, state.document)
         state.isDirty = true
       })

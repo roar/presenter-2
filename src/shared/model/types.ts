@@ -281,9 +281,10 @@ export type AnimationKind = 'build-in' | 'build-out' | 'action'
 
 export type Animation =
   | { kind: AnimationKind; type: 'fade'; to: number }
-  // fromOffset is the displacement from the element's natural position where the animation starts.
-  // The implicit destination is always the natural position (zero offset).
-  | { kind: AnimationKind; type: 'move'; fromOffset: Position }
+  // delta is the total movement applied by the animation.
+  // build-in move animations interpolate from delta to zero.
+  // action move animations interpolate from the current offset to current + delta.
+  | { kind: AnimationKind; type: 'move'; delta: Position }
   | { kind: AnimationKind; type: 'scale'; to: number }
   | { kind: AnimationKind; type: 'text-shadow'; to: TextShadow }
   | { kind: AnimationKind; type: 'line-draw' }

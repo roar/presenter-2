@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Easing, TargetedAnimation } from '@shared/model/types'
+import type { Easing, Position, TargetedAnimation } from '@shared/model/types'
 import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
 import { InfoCard } from '../InfoCard/InfoCard'
 import { NumberInput } from '../NumberInput/NumberInput'
@@ -13,11 +13,35 @@ interface AnimationCardProps {
   onOffsetChange?: (offset: number) => void
   onDurationChange?: (duration: number) => void
   onEasingChange?: (easing: Easing) => void
+  onNumericToChange?: (value: number) => void
+  onMoveDeltaChange?: (delta: Position) => void
 }
 
 function formatEffectType(animation: TargetedAnimation): string {
   const effectType = animation.effect.type
   return effectType.charAt(0).toUpperCase() + effectType.slice(1)
+}
+
+function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>): Position {
+  if ('delta' in effect) return effect.delta
+  return effect.fromOffset
+}
+
+function formatAnimationToValue(animation: TargetedAnimation): string {
+  const { effect } = animation
+
+  switch (effect.type) {
+    case 'fade':
+      return `Opacity: ${effect.to}`
+    case 'move':
+      return `X: ${getMoveDelta(effect).x}, Y: ${getMoveDelta(effect).y}`
+    case 'scale':
+      return `Scale: ${effect.to}`
+    case 'text-shadow':
+      return `X: ${effect.to.offsetX}, Y: ${effect.to.offsetY}, Blur: ${effect.to.blur}`
+    case 'line-draw':
+      return 'Complete'
+  }
 }
 
 type EasingOptionValue = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'custom'
@@ -50,8 +74,45 @@ export function AnimationCard({
   onTriggerChange,
   onOffsetChange,
   onDurationChange,
-  onEasingChange
+  onEasingChange,
+  onNumericToChange,
+  onMoveDeltaChange
 }: AnimationCardProps): React.JSX.Element {
+  const moveDelta = animation.effect.type === 'move' ? getMoveDelta(animation.effect) : null
+
+  const toField =
+    animation.effect.type === 'fade' || animation.effect.type === 'scale' ? (
+      <NumberInput
+        aria-label="To value"
+        value={animation.effect.to}
+        decimals={2}
+        onCommit={(value) => onNumericToChange?.(value)}
+      />
+    ) : animation.effect.type === 'move' ? (
+      <div className={styles.moveDeltaFields}>
+        <div className={styles.moveDeltaField}>
+          <span className={styles.subLabel}>X</span>
+          <NumberInput
+            aria-label="Move delta X"
+            value={moveDelta!.x}
+            decimals={2}
+            onCommit={(x) => onMoveDeltaChange?.({ x, y: moveDelta!.y })}
+          />
+        </div>
+        <div className={styles.moveDeltaField}>
+          <span className={styles.subLabel}>Y</span>
+          <NumberInput
+            aria-label="Move delta Y"
+            value={moveDelta!.y}
+            decimals={2}
+            onCommit={(y) => onMoveDeltaChange?.({ x: moveDelta!.x, y })}
+          />
+        </div>
+      </div>
+    ) : (
+      <span className={styles.value}>{formatAnimationToValue(animation)}</span>
+    )
+
   return (
     <InfoCard header={formatEffectType(animation)} isSelected={isSelected} onClick={onClick}>
       <div className={styles.details}>
@@ -98,6 +159,10 @@ export function AnimationCard({
             ]}
             onChange={(value) => onEasingChange?.(mapEasingOptionValue(value, animation.easing))}
           />
+        </div>
+        <div className={styles.detail}>
+          <span className={styles.label}>To</span>
+          {toField}
         </div>
       </div>
     </InfoCard>

@@ -30,6 +30,11 @@ function lerpColor(a: string, b: string, t: number): string {
   return `rgba(${r}, ${g}, ${bl}, ${al.toFixed(4)})`
 }
 
+function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>) {
+  if ('delta' in effect) return effect.delta
+  return effect.fromOffset
+}
+
 // ─── Appearance state resolution ──────────────────────────────────────────────
 
 function hasEffect(
@@ -85,8 +90,9 @@ function resolveAppearanceState(
         opacity = lerp(opacity, effect.to, progress)
         if (completed) opacity = effect.to
       } else if (effect.type === 'move') {
-        translateX = lerp(effect.fromOffset.x, 0, progress)
-        translateY = lerp(effect.fromOffset.y, 0, progress)
+        const delta = getMoveDelta(effect)
+        translateX = lerp(delta.x, 0, progress)
+        translateY = lerp(delta.y, 0, progress)
         if (completed) {
           translateX = 0
           translateY = 0
@@ -108,7 +114,17 @@ function resolveAppearanceState(
         }
       }
     } else if (effect.kind === 'action') {
-      if (effect.type === 'text-shadow') {
+      if (effect.type === 'move') {
+        const delta = getMoveDelta(effect)
+        const fromX = translateX
+        const fromY = translateY
+        translateX = lerp(fromX, fromX + delta.x, progress)
+        translateY = lerp(fromY, fromY + delta.y, progress)
+        if (completed) {
+          translateX = fromX + delta.x
+          translateY = fromY + delta.y
+        }
+      } else if (effect.type === 'text-shadow') {
         const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
         textShadow = {
           offsetX: lerp(from.offsetX, effect.to.offsetX, progress),

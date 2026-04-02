@@ -153,7 +153,7 @@ describe('resolveFrame', () => {
       const anim = makeAnim('a1', app.id, 'on-click', {
         kind: 'build-in',
         type: 'move',
-        fromOffset: { x: 0, y: 100 }
+        delta: { x: 0, y: 100 }
       })
       const pres = singleSlidePresentation(app, master, [anim])
       const frame = resolveFrame(timeline(pres), 0)
@@ -167,7 +167,7 @@ describe('resolveFrame', () => {
         'a1',
         app.id,
         'on-click',
-        { kind: 'build-in', type: 'move', fromOffset: { x: 0, y: 100 } },
+        { kind: 'build-in', type: 'move', delta: { x: 0, y: 100 } },
         1
       )
       const pres = singleSlidePresentation(app, master, [anim])
@@ -182,7 +182,7 @@ describe('resolveFrame', () => {
         'a1',
         app.id,
         'on-click',
-        { kind: 'build-in', type: 'move', fromOffset: { x: 0, y: 100 } },
+        { kind: 'build-in', type: 'move', delta: { x: 0, y: 100 } },
         1
       )
       const pres = singleSlidePresentation(app, master, [anim])
@@ -217,6 +217,57 @@ describe('resolveFrame', () => {
       const pres = singleSlidePresentation(app, master, [anim])
       const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
       expect(frame.front.appearances[0].transform).toContain('scale(1)')
+    })
+  })
+
+  describe('action (move)', () => {
+    it('interpolates toward the stored delta during the animation', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('translate(20px, 40px)')
+    })
+
+    it('retains the delta after the animation completes', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].transform).toContain('translate(40px, 80px)')
+    })
+
+    it('supports legacy move animations stored with fromOffset', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        {
+          kind: 'action',
+          type: 'move',
+          fromOffset: { x: 40, y: 80 }
+        } as TargetedAnimation['effect'],
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].transform).toContain('translate(40px, 80px)')
     })
   })
 

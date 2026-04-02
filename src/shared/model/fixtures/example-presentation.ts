@@ -64,7 +64,7 @@ const animations: TargetedAnimation[] = [
     duration: 0.4,
     easing: 'ease-out',
     loop: { kind: 'none' },
-    effect: { kind: 'build-in', type: 'move', fromOffset: { x: 0, y: 180 } },
+    effect: { kind: 'build-in', type: 'move', delta: { x: 0, y: 180 } },
     target: { kind: 'appearance', appearanceId: APP_S2_CARD }
   },
   {
