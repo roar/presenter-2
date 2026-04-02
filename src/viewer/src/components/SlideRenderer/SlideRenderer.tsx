@@ -35,14 +35,10 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
 
   const { front, behind, transition, msoAppearances } = frame
   const frameBackground = front.slide.background.color ?? front.slide.background.image ?? '#ffffff'
-
-  const frontOpacity =
-    transition?.kind === 'fade-through-color'
-      ? transition.progress
-      : transition?.kind === 'push'
-        ? 1
-        : 1
-
+  const isDissolve = transition?.kind === 'dissolve'
+  const isFadeTransition = transition?.kind === 'fade-through-color' || isDissolve
+  const behindOpacity = isDissolve && transition ? 1 - transition.progress : 1
+  const frontOpacity = isFadeTransition && transition ? transition.progress : 1
   const frontTranslateX = transition?.kind === 'push' ? `${(1 - transition.progress) * 100}%` : '0'
 
   return (
@@ -56,7 +52,7 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
         }}
       >
         {/* Behind slide — visible during transition */}
-        {behind && <SlideLayer renderedSlide={behind} style={{ opacity: 1 }} />}
+        {behind && <SlideLayer renderedSlide={behind} style={{ opacity: behindOpacity }} />}
 
         {/* Front (current/incoming) slide */}
         <SlideLayer

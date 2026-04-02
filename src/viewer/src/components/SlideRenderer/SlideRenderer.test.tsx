@@ -98,6 +98,45 @@ describe('SlideRenderer', () => {
     expect(screen.getByText('Slide two')).toBeDefined()
   })
 
+  it('crossfades slides during a dissolve transition', () => {
+    const pres = createPresentation()
+
+    const m1 = textMaster('m1', 'Slide one')
+    const app1 = createAppearance(m1.id, 's1')
+    const slide1 = createSlide()
+    slide1.id = 's1'
+    app1.slideId = 's1'
+    slide1.appearanceIds = [app1.id]
+    slide1.transitionTriggerId = 'trans'
+    slide1.transition = { kind: 'dissolve', duration: 1, easing: 'linear' }
+
+    const m2 = textMaster('m2', 'Slide two')
+    const app2 = createAppearance(m2.id, 's2')
+    const slide2 = createSlide()
+    slide2.id = 's2'
+    app2.slideId = 's2'
+    slide2.appearanceIds = [app2.id]
+
+    pres.slideOrder = [slide1.id, slide2.id]
+    pres.slidesById[slide1.id] = slide1
+    pres.slidesById[slide2.id] = slide2
+    pres.mastersById[m1.id] = m1
+    pres.mastersById[m2.id] = m2
+    pres.appearancesById[app1.id] = app1
+    pres.appearancesById[app2.id] = app2
+
+    const frame = resolveFrame(buildTimeline(pres, new Map([['trans', 0]])), 0.25)
+    const { container } = render(<SlideRenderer frame={frame} />)
+    const opacityValues = Array.from(container.querySelectorAll<HTMLElement>('div'))
+      .map((element) => Number(element.style.opacity))
+      .filter(Boolean)
+
+    expect(screen.getByText('Slide one')).toBeDefined()
+    expect(screen.getByText('Slide two')).toBeDefined()
+    expect(opacityValues.some((value) => Math.abs(value - 0.75) < 0.001)).toBe(true)
+    expect(opacityValues.some((value) => Math.abs(value - 0.25) < 0.001)).toBe(true)
+  })
+
   it('renders MSO appearances (shared master across slides)', () => {
     const pres = createPresentation()
     const sharedMaster = textMaster('shared-m', 'Logo')
