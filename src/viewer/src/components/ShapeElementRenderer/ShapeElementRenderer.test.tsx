@@ -12,7 +12,12 @@ function makeMaster(): MsoMaster {
     defaultState: { fill: '#0a84ff', stroke: '#ffffff', strokeWidth: 2 },
     namedStates: {}
   }
-  m.geometry = { type: 'path', pathData: 'M 0 0 L 200 0 L 200 100 L 0 100 Z' }
+  m.geometry = {
+    type: 'path',
+    pathData: 'M 0 0 L 200 0 L 200 100 L 0 100 Z',
+    baseWidth: 200,
+    baseHeight: 100
+  }
   return m
 }
 
@@ -41,6 +46,12 @@ describe('ShapeElementRenderer', () => {
     const { container } = render(<ShapeElementRenderer rendered={makeRendered()} />)
     const path = container.querySelector('path')!
     expect(path.getAttribute('d')).toBe('M 0 0 L 200 0 L 200 100 L 0 100 Z')
+  })
+
+  it('uses the geometry base size as the SVG viewBox', () => {
+    const { container } = render(<ShapeElementRenderer rendered={makeRendered()} />)
+    const svg = container.querySelector('svg')!
+    expect(svg.getAttribute('viewBox')).toBe('0 0 200 100')
   })
 
   it('is hidden when visible is false', () => {

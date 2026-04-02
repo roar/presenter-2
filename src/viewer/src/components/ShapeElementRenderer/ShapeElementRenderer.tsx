@@ -9,6 +9,10 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
   const { transform: t, objectStyle, geometry } = master
   const style = objectStyle.defaultState
   const pathData = geometry?.pathData ?? ''
+  const viewBox =
+    geometry?.type === 'path' && geometry.baseWidth && geometry.baseHeight
+      ? `0 0 ${geometry.baseWidth} ${geometry.baseHeight}`
+      : undefined
 
   return (
     <svg
@@ -23,6 +27,7 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
         opacity,
         visibility: visible ? 'visible' : 'hidden'
       }}
+      viewBox={viewBox}
     >
       <path
         d={pathData}

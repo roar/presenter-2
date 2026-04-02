@@ -5,7 +5,3 @@
   overflow: hidden;
   background: var(--bg-elevated);
 }
-
-[aria-current='true'] .thumbnail {
-  border-color: var(--accent);
-}
