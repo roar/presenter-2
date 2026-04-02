@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { Presentation, Slide, SlideId } from '../../../shared/model/types'
+import type { Presentation, Slide, SlideId, MsoMaster } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
+import { createAppearance } from '../../../shared/model/factories'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
 
@@ -37,6 +38,7 @@ interface DocumentState {
   setZoom(zoom: number): void
   addSlide(slide: Slide): void
   removeSlide(id: SlideId): void
+  insertElement(slideId: SlideId, master: MsoMaster): void
   moveSlide(fromIndex: number, toIndex: number): void
   undo(): void
   redo(): void
@@ -137,6 +139,20 @@ export const useDocumentStore = create<DocumentState>()(
         if (state.ui.selectedSlideId === id) {
           state.ui.selectedSlideId = state.document.slideOrder[0] ?? null
         }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    insertElement(slideId, master) {
+      set((state) => {
+        if (!state.document) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        const appearance = createAppearance(master.id, slideId)
+        state.document.mastersById[master.id] = master
+        state.document.appearancesById[appearance.id] = appearance
+        slide.appearanceIds.push(appearance.id)
         pushHistory(state, state.document)
         state.isDirty = true
       })

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useDocumentStore } from './documentStore'
+import { createMsoMaster } from '../../../shared/model/factories'
 import type { Presentation, Slide } from '../../../shared/model/types'
 
 function makePresentation(overrides?: Partial<Presentation>): Presentation {
@@ -22,7 +23,7 @@ function makePresentation(overrides?: Partial<Presentation>): Presentation {
 }
 
 function makeSlide(id: string): Slide {
-  return { id, appearanceIds: [], background: {} }
+  return { id, appearanceIds: [], animationOrder: [], background: {} }
 }
 
 beforeEach(() => {
@@ -115,6 +116,52 @@ describe('documentStore', () => {
       useDocumentStore.getState().undo() // should be a no-op
 
       expect(useDocumentStore.getState().document).not.toBeNull()
+    })
+  })
+
+  describe('insertElement', () => {
+    it('adds the master and appearance to the document', () => {
+      const slide = makeSlide('s-1')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ slideOrder: ['s-1'], slidesById: { 's-1': slide } }))
+
+      const master = createMsoMaster('shape')
+      useDocumentStore.getState().insertElement('s-1', master)
+
+      const state = useDocumentStore.getState()
+      expect(state.document?.mastersById[master.id]).toBeDefined()
+      const appearances = Object.values(state.document?.appearancesById ?? {})
+      expect(appearances).toHaveLength(1)
+      expect(appearances[0].masterId).toBe(master.id)
+      expect(appearances[0].slideId).toBe('s-1')
+    })
+
+    it('pushes the appearance id onto the slide', () => {
+      const slide = makeSlide('s-1')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ slideOrder: ['s-1'], slidesById: { 's-1': slide } }))
+
+      const master = createMsoMaster('shape')
+      useDocumentStore.getState().insertElement('s-1', master)
+
+      const state = useDocumentStore.getState()
+      expect(state.document?.slidesById['s-1'].appearanceIds).toHaveLength(1)
+    })
+
+    it('marks the document dirty and pushes history', () => {
+      const slide = makeSlide('s-1')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ slideOrder: ['s-1'], slidesById: { 's-1': slide } }))
+
+      const historyLengthBefore = useDocumentStore.getState().history.length
+      useDocumentStore.getState().insertElement('s-1', createMsoMaster('shape'))
+
+      const state = useDocumentStore.getState()
+      expect(state.isDirty).toBe(true)
+      expect(state.history.length).toBe(historyLengthBefore + 1)
     })
   })
 
