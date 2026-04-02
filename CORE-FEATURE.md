@@ -34,17 +34,19 @@ Propagation is **downstream only**: animations on a later appearance do not affe
 
 ### 3.1 Definition
 
-Every object has a **default style state** — its base set of visual properties (fill, stroke, opacity, font size, font weight, text shadow, etc.).
+The user may define any number of **named styles**. There are two types: **text styles^^ and **object styles**.
 
-The user may define any number of **named states** on an object. Each named state specifies one or more property overrides relative to the default. A named state resolves to the default style with its overrides applied on top; unspecified properties retain their default values.
+Every style has a **default state** — its base set of visual properties (fill, stroke, opacity, font size, font weight, text shadow, etc.), defined by the user.
 
-Named states are authored on the object master and are therefore shared across all appearances of that MSO.
+The user may add additional states. Each named state specifies one or more property overrides relative to the default. A named state resolves to the default style with its overrides applied on top; unspecified properties retain their default values.
 
-**Example:** An object with default fill `white` and opacity `1.0` might have a named state `"highlighted"` that overrides fill to `yellow`, and a named state `"muted"` that overrides opacity to `0.3`.
+The user may assign a named style to an object. Named syles are assigned to the object master and are therefore shared across all appearances of that MSO.
+
+**Example:** A style with default fill `white` and opacity `1.0` might have a named state `"highlighted"` that overrides fill to `yellow`, and a named state `"muted"` that overrides opacity to `0.3`.
 
 ### 3.2 State Change Animation
 
-The **State Change** animation type transitions an object from one style state to another.
+The **State Change** animation type transitions an object's style from one state to another.
 
 - **From state** — the starting state (may be the default state or a named state).
 - **To state** — the target state (may be the default state or a named state).
