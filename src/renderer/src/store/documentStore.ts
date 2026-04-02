@@ -58,6 +58,7 @@ interface DocumentState {
   selectSlide(id: SlideId | null): void
   selectElements(ids: string[]): void
   setZoom(zoom: number): void
+  updatePresentationTitle(title: string): void
   addSlide(slide: Slide): void
   removeSlide(id: SlideId): void
   insertElement(slideId: SlideId, master: MsoMaster): void
@@ -222,6 +223,15 @@ export const useDocumentStore = create<DocumentState>()(
     setZoom(zoom) {
       set((state) => {
         state.ui.zoom = zoom
+      })
+    },
+
+    updatePresentationTitle(title) {
+      set((state) => {
+        if (!state.document) return
+        state.document.title = title
+        pushHistory(state, state.document)
+        state.isDirty = true
       })
     },
 

@@ -50,6 +50,28 @@ describe('documentStore', () => {
     })
   })
 
+  describe('updatePresentationTitle', () => {
+    it('updates the document title and marks it dirty', () => {
+      useDocumentStore.getState().setDocument(makePresentation({ title: 'Old title' }))
+      useDocumentStore.getState().updatePresentationTitle('New title')
+
+      const state = useDocumentStore.getState()
+      expect(state.document?.title).toBe('New title')
+      expect(state.isDirty).toBe(true)
+    })
+
+    it('pushes a history entry for undo', () => {
+      useDocumentStore.getState().setDocument(makePresentation({ title: 'Old title' }))
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().updatePresentationTitle('New title')
+
+      expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore + 1)
+      useDocumentStore.getState().undo()
+      expect(useDocumentStore.getState().document?.title).toBe('Old title')
+    })
+  })
+
   describe('addSlide / removeSlide', () => {
     it('adds a slide to the document', () => {
       useDocumentStore.getState().setDocument(makePresentation())
@@ -173,7 +195,7 @@ describe('documentStore', () => {
 
       const { document } = useDocumentStore.getState()
       expect(document?.slideOrder).toHaveLength(1)
-      const slideId = document!.slideOrder[0]
+      const slideId = document?.slideOrder[0]
       expect(document?.slidesById[slideId]).toBeDefined()
     })
 

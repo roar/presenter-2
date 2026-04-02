@@ -1,6 +1,7 @@
 .toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   height: 100%;
   padding: 0 var(--space-md);
   gap: var(--space-sm);
@@ -10,4 +11,46 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.titleButton,
+.titleInput {
+  min-width: 12rem;
+  max-width: 24rem;
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.titleButton {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.titleButton:hover,
+.titleButton:focus-visible {
+  border-color: var(--border);
+  background: var(--bg-panel);
+  outline: none;
+}
+
+.titleInput {
+  border-color: var(--border);
+  background: var(--bg-panel);
+  outline: none;
+}
+
+.titleInput:focus {
+  border-color: var(--accent);
 }

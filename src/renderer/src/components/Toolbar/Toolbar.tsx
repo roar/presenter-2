@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { nullAuthContext } from '../../../../shared/auth/types'
 import { createMsoMaster } from '../../../../shared/model/factories'
 import type { ShapeLibraryEntry } from '../../../../shared/shapes/types'
+import type { DocumentMeta } from '../../repository/DocumentRepository'
 import { JsonFileRepository } from '../../repository/JsonFileRepository'
 import { useDocumentStore } from '../../store/documentStore'
 import { Button } from '../Button/Button'
@@ -12,11 +13,26 @@ import styles from './Toolbar.module.css'
 export function Toolbar(): React.JSX.Element {
   const [shapePickerOpen, setShapePickerOpen] = useState(false)
   const [openPresentationPopupOpen, setOpenPresentationPopupOpen] = useState(false)
+  const [presentationsPromise, setPresentationsPromise] = useState<Promise<DocumentMeta[]> | null>(
+    null
+  )
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [draftTitle, setDraftTitle] = useState('')
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
+  const repositoryRef = useRef(new JsonFileRepository())
+  const repository = repositoryRef.current
+  const document = useDocumentStore((s) => s.document)
   const newPresentation = useDocumentStore((s) => s.newPresentation)
   const loadDocument = useDocumentStore((s) => s.loadDocument)
+  const updatePresentationTitle = useDocumentStore((s) => s.updatePresentationTitle)
   const insertElement = useDocumentStore((s) => s.insertElement)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
-  const repository = new JsonFileRepository()
+
+  useEffect(() => {
+    if (!isEditingTitle) return
+    titleInputRef.current?.focus()
+    titleInputRef.current?.select()
+  }, [isEditingTitle])
 
   function handleInsertShape(entry: ShapeLibraryEntry): void {
     if (!selectedSlideId) return
@@ -50,6 +66,22 @@ export function Toolbar(): React.JSX.Element {
     void loadDocument(repository, id, nullAuthContext)
   }
 
+  function handleOpenPresentationPopup(): void {
+    setPresentationsPromise(repository.list(nullAuthContext))
+    setOpenPresentationPopupOpen(true)
+  }
+
+  function handleTitleBlur(): void {
+    const nextTitle = draftTitle.trim()
+    setIsEditingTitle(false)
+    if (!document) return
+    if (!nextTitle || nextTitle === document.title) {
+      setDraftTitle(document.title)
+      return
+    }
+    updatePresentationTitle(nextTitle)
+  }
+
   return (
     <>
       <div className={styles.toolbar}>
@@ -57,18 +89,44 @@ export function Toolbar(): React.JSX.Element {
           <Button variant="secondary" onClick={newPresentation}>
             New Presentation
           </Button>
-          <Button variant="ghost" onClick={() => setOpenPresentationPopupOpen(true)}>
+          <Button variant="ghost" onClick={handleOpenPresentationPopup}>
             Open
           </Button>
           <Button variant="ghost" onClick={() => setShapePickerOpen(true)}>
             Insert Shape
           </Button>
         </div>
+        <div className={styles.titleGroup}>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              aria-label="Presentation title"
+              className={styles.titleInput}
+              value={draftTitle}
+              onChange={(event) => setDraftTitle(event.target.value)}
+              onBlur={handleTitleBlur}
+            />
+          ) : (
+            <button
+              className={styles.titleButton}
+              type="button"
+              onClick={() => {
+                setDraftTitle(document?.title ?? '')
+                setIsEditingTitle(true)
+              }}
+            >
+              {document?.title ?? 'Untitled Presentation'}
+            </button>
+          )}
+        </div>
       </div>
-      {openPresentationPopupOpen && (
+      {openPresentationPopupOpen && presentationsPromise && (
         <OpenPresentationPopup
-          presentations={repository.list(nullAuthContext)}
-          onClose={() => setOpenPresentationPopupOpen(false)}
+          presentations={presentationsPromise}
+          onClose={() => {
+            setOpenPresentationPopupOpen(false)
+            setPresentationsPromise(null)
+          }}
           onOpen={handleOpenPresentation}
         />
       )}
