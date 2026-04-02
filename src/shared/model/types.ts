@@ -26,7 +26,7 @@ export interface Presentation {
   slidesById: Record<SlideId, Slide>
   mastersById: Record<MasterId, MsoMaster>
   appearancesById: Record<AppearanceId, Appearance>
-  animationsById: Record<AnimationId, ScheduledAnimation>
+  animationsById: Record<AnimationId, TargetedAnimation>
   animationGroupTemplatesById: Record<AnimationGroupTemplateId, AnimationGroupTemplate>
   textDecorationsById: Record<TextDecorationId, TextDecoration>
   revision: number
@@ -357,9 +357,9 @@ export type AnimationTarget =
   | { kind: 'text-range'; appearanceId: AppearanceId; anchor: TextRangeAnchor }
   | { kind: 'text-decoration'; decorationId: TextDecorationId }
 
+// Pure animation spec — no target; reusable in group templates
 export interface ScheduledAnimation {
   id: AnimationId
-  target: AnimationTarget
   trigger: AnimationTrigger
   offset: number // seconds of delay from trigger point
   duration: number // seconds
@@ -367,6 +367,9 @@ export interface ScheduledAnimation {
   loop: LoopConfig
   effect: Animation
 }
+
+// Concrete animation bound to a specific presentation element
+export type TargetedAnimation = ScheduledAnimation & { target: AnimationTarget }
 
 export type AnimationKind = 'build-in' | 'build-out' | 'action'
 
@@ -381,65 +384,15 @@ export type Animation =
 
 // ─── Animation group templates ────────────────────────────────────────────────
 // A named, reusable set of animations applied as a single unit.
-// All members share the target of the AnimationGroupInstance they are applied through.
+// When instantiated, each member's slotName is resolved to a concrete AnimationTarget.
 
-export type GroupMemberTrigger =
-  | { type: 'withPrevious'; delayMs: number }
-  | { type: 'afterPrevious'; delayMs: number }
-
-export type AnimationGroupMember =
-  | {
-      id: AnimationId
-      kind: 'opacity'
-      trigger: GroupMemberTrigger
-      durationMs: number
-      easing: Easing
-      to: number
-    }
-  | {
-      id: AnimationId
-      kind: 'color'
-      trigger: GroupMemberTrigger
-      durationMs: number
-      easing: Easing
-      to: Color
-    }
-  | {
-      id: AnimationId
-      kind: 'transform'
-      trigger: GroupMemberTrigger
-      durationMs: number
-      easing: Easing
-      to: Partial<Transform>
-    }
-  | {
-      id: AnimationId
-      kind: 'decorationProgress'
-      trigger: GroupMemberTrigger
-      durationMs: number
-      easing: Easing
-      to: number
-    }
-  | {
-      id: AnimationId
-      kind: 'textReveal'
-      trigger: GroupMemberTrigger
-      durationMs: number
-      easing: Easing
-      to: number
-      mode: 'chars' | 'words' | 'lines'
-    }
-  | {
-      id: AnimationId
-      kind: 'stateChange'
-      trigger: GroupMemberTrigger
-      durationMs: number
-      easing: Easing
-      toState: string | 'default'
-    }
+// A group member is a scheduled animation spec bound to a named slot.
+// The slot is resolved to a concrete target when the template is instantiated.
+export type AnimationGroupMember = ScheduledAnimation & { slotName: string }
 
 export interface AnimationGroupTemplate {
   id: AnimationGroupTemplateId
   name: string
+  slots: string[] // declared slot names e.g. ['object', 'highlight text']
   members: AnimationGroupMember[]
 }
