@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useDocumentStore } from './documentStore'
+import { useDocumentStore, selectPatchedPresentation } from './documentStore'
 import { createAppearance, createMsoMaster } from '../../../shared/model/factories'
 import type { Presentation, Slide } from '../../../shared/model/types'
 
@@ -33,7 +33,8 @@ beforeEach(() => {
     ui: { selectedSlideId: null, selectedElementIds: [], zoom: 1, clipboard: null },
     history: [],
     historyIndex: -1,
-    isDirty: false
+    isDirty: false,
+    previewPatch: null
   })
 })
 
@@ -513,6 +514,112 @@ describe('documentStore', () => {
     })
   })
 
+  describe('previewPatch / selectPatchedPresentation', () => {
+    function makeDocWithMaster() {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      master.transform = { x: 100, y: 200, width: 50, height: 60, rotation: 0 }
+      const appearance = createAppearance(master.id, 's-1')
+      slide.appearanceIds = [appearance.id]
+      const pres = makePresentation({
+        slideOrder: ['s-1'],
+        slidesById: { 's-1': slide },
+        mastersById: { [master.id]: master },
+        appearancesById: { [appearance.id]: appearance }
+      })
+      return { pres, master }
+    }
+
+    it('selectPatchedPresentation returns null when document is null', () => {
+      expect(selectPatchedPresentation(useDocumentStore.getState())).toBeNull()
+    })
+
+    it('selectPatchedPresentation returns document unchanged when no patch is set', () => {
+      const { pres } = makeDocWithMaster()
+      useDocumentStore.getState().setDocument(pres)
+      const result = selectPatchedPresentation(useDocumentStore.getState())
+      expect(result).toBe(useDocumentStore.getState().document)
+    })
+
+    it('setPreviewPatch causes selectPatchedPresentation to return updated master transform', () => {
+      const { pres, master } = makeDocWithMaster()
+      useDocumentStore.getState().setDocument(pres)
+
+      const newTransform = { x: 500, y: 600, width: 50, height: 60, rotation: 0 }
+      useDocumentStore.getState().setPreviewPatch({ masterId: master.id, transform: newTransform })
+
+      const result = selectPatchedPresentation(useDocumentStore.getState())
+      expect(result?.mastersById[master.id].transform).toEqual(newTransform)
+    })
+
+    it('patch does not mutate the original document', () => {
+      const { pres, master } = makeDocWithMaster()
+      useDocumentStore.getState().setDocument(pres)
+
+      useDocumentStore.getState().setPreviewPatch({
+        masterId: master.id,
+        transform: { x: 999, y: 999, width: 50, height: 60, rotation: 0 }
+      })
+
+      // Original document should be untouched
+      expect(useDocumentStore.getState().document?.mastersById[master.id].transform.x).toBe(100)
+    })
+
+    it('setPreviewPatch(null) clears the patch and returns the original document', () => {
+      const { pres, master } = makeDocWithMaster()
+      useDocumentStore.getState().setDocument(pres)
+      useDocumentStore.getState().setPreviewPatch({
+        masterId: master.id,
+        transform: { x: 500, y: 600, width: 50, height: 60, rotation: 0 }
+      })
+
+      useDocumentStore.getState().setPreviewPatch(null)
+
+      const result = selectPatchedPresentation(useDocumentStore.getState())
+      expect(result?.mastersById[master.id].transform.x).toBe(100)
+    })
+
+    it('patch only affects the specified master — other masters are unchanged', () => {
+      const slide = makeSlide('s-1')
+      const master1 = createMsoMaster('shape')
+      master1.transform = { x: 10, y: 20, width: 30, height: 40, rotation: 0 }
+      const master2 = createMsoMaster('shape')
+      master2.transform = { x: 50, y: 60, width: 70, height: 80, rotation: 0 }
+      const app1 = createAppearance(master1.id, 's-1')
+      const app2 = createAppearance(master2.id, 's-1')
+      slide.appearanceIds = [app1.id, app2.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1'],
+          slidesById: { 's-1': slide },
+          mastersById: { [master1.id]: master1, [master2.id]: master2 },
+          appearancesById: { [app1.id]: app1, [app2.id]: app2 }
+        })
+      )
+
+      useDocumentStore.getState().setPreviewPatch({
+        masterId: master1.id,
+        transform: { x: 999, y: 999, width: 30, height: 40, rotation: 0 }
+      })
+
+      const result = selectPatchedPresentation(useDocumentStore.getState())
+      expect(result?.mastersById[master2.id].transform.x).toBe(50)
+    })
+
+    it('patch does not push history or mark document dirty', () => {
+      const { pres, master } = makeDocWithMaster()
+      useDocumentStore.getState().setDocument(pres)
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().setPreviewPatch({
+        masterId: master.id,
+        transform: { x: 500, y: 600, width: 50, height: 60, rotation: 0 }
+      })
+
+      expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
+
   describe('convertToSingleAppearance', () => {
     function makeDocWithMso() {
       const slide1 = makeSlide('s-1')
@@ -598,6 +705,32 @@ describe('documentStore', () => {
       useDocumentStore.getState().convertToSingleAppearance('nonexistent')
 
       expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
+
+  describe('selectPatchedPresentation', () => {
+    it('returns the same snapshot for repeated reads of the same patched state', () => {
+      const master = createMsoMaster('shape')
+      master.transform = { x: 100, y: 200, width: 50, height: 50, rotation: 0 }
+
+      const document = makePresentation({ mastersById: { [master.id]: master } })
+      const previewPatch = {
+        masterId: master.id,
+        transform: { ...master.transform, x: 300, y: 400 }
+      }
+
+      const state = {
+        ...useDocumentStore.getState(),
+        document,
+        previewPatch
+      }
+
+      const first = selectPatchedPresentation(state)
+      const second = selectPatchedPresentation(state)
+
+      expect(first).toBe(second)
+      expect(first?.mastersById[master.id].transform.x).toBe(300)
+      expect(first?.mastersById[master.id].transform.y).toBe(400)
     })
   })
 })

@@ -1,6 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { createSlide } from '../../../../shared/model/factories'
-import { useDocumentStore } from '../../store/documentStore'
+import {
+  computeMsoExitStateChains,
+  renderAllSlideEntryStates
+} from '@shared/animation/computeSlideEntryStates'
+import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
 import { Button } from '../Button/Button'
 import { Panel } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
@@ -9,7 +13,8 @@ import { Toolbar } from '../Toolbar/Toolbar'
 import styles from './EditorLayout.module.css'
 
 export function EditorLayout(): React.JSX.Element {
-  const slideOrder = useDocumentStore((s) => s.document?.slideOrder) ?? []
+  const document = useDocumentStore((s) => s.document)
+  const patchedPresentation = useDocumentStore(selectPatchedPresentation)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const selectSlide = useDocumentStore((s) => s.selectSlide)
@@ -38,6 +43,27 @@ export function EditorLayout(): React.JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedElementIds, selectedSlideId, copyElement, pasteElement])
 
+  // Tier 1 — expensive, infrequent.
+  // Recomputes when animation structure, slide order, or appearance structure changes.
+  // Does NOT recompute during drag (drag only patches master transforms, not document).
+  const msoExitStatesBySlide = useMemo(
+    () => (document ? computeMsoExitStateChains(document) : []),
+    [document]
+  )
+
+  // Tier 2 — cheap, frequent.
+  // Recomputes on every drag event (patchedPresentation changes) and on document mutations.
+  // Reads master transforms from patchedPresentation so drag position is reflected immediately.
+  const allEntryStates = useMemo(
+    () =>
+      patchedPresentation
+        ? renderAllSlideEntryStates(patchedPresentation, msoExitStatesBySlide)
+        : [],
+    [patchedPresentation, msoExitStatesBySlide]
+  )
+
+  const slideOrder = document?.slideOrder ?? []
+
   function handleNewSlide() {
     addSlide(createSlide())
   }
@@ -59,6 +85,9 @@ export function EditorLayout(): React.JSX.Element {
               key={id}
               slideNumber={idx + 1}
               isSelected={selectedSlideId === id}
+              renderedSlide={
+                allEntryStates[idx] ?? { slide: document!.slidesById[id], appearances: [] }
+              }
               onClick={() => selectSlide(id)}
             />
           ))}

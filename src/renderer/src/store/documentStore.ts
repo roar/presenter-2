@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { Presentation, Slide, SlideId, MsoMaster } from '../../../shared/model/types'
+import type {
+  Presentation,
+  Slide,
+  SlideId,
+  MsoMaster,
+  Transform
+} from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
@@ -15,6 +21,13 @@ interface UiState {
   clipboard: MsoMaster | null
 }
 
+// ── Preview patch ─────────────────────────────────────────────────────────────
+
+export interface PreviewPatch {
+  masterId: string
+  transform: Transform
+}
+
 // ── History entry for undo/redo ───────────────────────────────────────────────
 
 interface HistoryEntry {
@@ -25,12 +38,14 @@ interface HistoryEntry {
 
 interface DocumentState {
   document: Presentation | null
+  previewPatch: PreviewPatch | null
   ui: UiState
   history: HistoryEntry[]
   historyIndex: number // points to current position in history
   isDirty: boolean // unsaved changes
 
   // Actions
+  setPreviewPatch(patch: PreviewPatch | null): void
   newPresentation(): void
   loadDocument(repo: DocumentRepository, id: string, auth?: AuthContext): Promise<void>
   saveDocument(repo: DocumentRepository, auth?: AuthContext): Promise<void>
@@ -67,9 +82,59 @@ function pushHistory(state: DocumentState, doc: Presentation): void {
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
+// ── Selector ──────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the document with the previewPatch master transform applied (O(1) structural sharing).
+ * Returns null if there is no document. Returns the document unchanged if there is no patch.
+ *
+ * Use this for all rendering — canvas and thumbnails — so both see the same state during drag.
+ */
+export function selectPatchedPresentation(state: DocumentState): Presentation | null {
+  const { document, previewPatch } = state
+  if (!document) return null
+  if (!previewPatch) return document
+  const master = document.mastersById[previewPatch.masterId]
+  if (!master) return document
+
+  if (
+    patchedPresentationCache.document === document &&
+    patchedPresentationCache.previewPatch === previewPatch
+  ) {
+    return patchedPresentationCache.result
+  }
+
+  const result = {
+    ...document,
+    mastersById: {
+      ...document.mastersById,
+      [previewPatch.masterId]: { ...master, transform: previewPatch.transform }
+    }
+  }
+
+  patchedPresentationCache.document = document
+  patchedPresentationCache.previewPatch = previewPatch
+  patchedPresentationCache.result = result
+
+  return result
+}
+
+const patchedPresentationCache: {
+  document: Presentation | null
+  previewPatch: PreviewPatch | null
+  result: Presentation | null
+} = {
+  document: null,
+  previewPatch: null,
+  result: null
+}
+
+// ── Store ─────────────────────────────────────────────────────────────────────
+
 export const useDocumentStore = create<DocumentState>()(
   immer((set, get) => ({
     document: null,
+    previewPatch: null,
     ui: {
       selectedSlideId: null,
       selectedElementIds: [],
@@ -79,6 +144,12 @@ export const useDocumentStore = create<DocumentState>()(
     history: [],
     historyIndex: -1,
     isDirty: false,
+
+    setPreviewPatch(patch) {
+      set((state) => {
+        state.previewPatch = patch
+      })
+    },
 
     newPresentation() {
       set((state) => {

@@ -11,7 +11,10 @@ import {
 import type { Presentation } from '@shared/model/types'
 import { SlideCanvas } from './SlideCanvas'
 
-vi.mock('../../store/documentStore')
+vi.mock('../../store/documentStore', async () => {
+  const actual = await vi.importActual('../../store/documentStore')
+  return { ...actual, useDocumentStore: vi.fn() }
+})
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -53,9 +56,13 @@ function mockStore(
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
     return selector({
       document,
+      previewPatch: null,
       ui: { selectedSlideId, selectedElementIds },
       moveElement: vi.fn(),
-      selectElements: vi.fn()
+      selectElements: vi.fn(),
+      setPreviewPatch: vi.fn(),
+      convertToMultiSlideObject: vi.fn(),
+      convertToSingleAppearance: vi.fn()
     })
   })
 }

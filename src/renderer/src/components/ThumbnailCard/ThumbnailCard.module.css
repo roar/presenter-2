@@ -12,10 +12,10 @@
 
 .thumbnail {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-elevated);
 }
 
 .selected .thumbnail {

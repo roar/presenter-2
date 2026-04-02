@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
-import type { MsoMaster } from '@shared/model/types'
-import { useDocumentStore } from '../../store/documentStore'
+import type { Transform } from '@shared/model/types'
+import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
 import { ContextMenu } from '../ContextMenu/ContextMenu'
 import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
 import { MsoIndicator } from './MsoIndicator'
@@ -14,16 +14,17 @@ interface DragData {
   masterId: string
   startClientX: number
   startClientY: number
-  startX: number
-  startY: number
+  originalTransform: Transform
 }
 
 export function SlideCanvas(): React.JSX.Element {
   const document = useDocumentStore((s) => s.document)
+  const patchedPresentation = useDocumentStore(selectPatchedPresentation)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const moveElement = useDocumentStore((s) => s.moveElement)
   const selectElements = useDocumentStore((s) => s.selectElements)
+  const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
   const convertToMultiSlideObject = useDocumentStore((s) => s.convertToMultiSlideObject)
   const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
 
@@ -32,10 +33,11 @@ export function SlideCanvas(): React.JSX.Element {
   const [offsetX, setOffsetX] = useState(0)
   const [offsetY, setOffsetY] = useState(0)
 
-  // Stable refs so event handlers never go stale — synced via effects, never read in render
+  // Stable refs so event handlers never go stale
   const dragRef = useRef<DragData | null>(null)
   const scaleRef = useRef(scale)
   const moveElementRef = useRef(moveElement)
+  const setPreviewPatchRef = useRef(setPreviewPatch)
 
   useEffect(() => {
     scaleRef.current = scale
@@ -45,7 +47,10 @@ export function SlideCanvas(): React.JSX.Element {
     moveElementRef.current = moveElement
   }, [moveElement])
 
-  // Render-visible drag state (separate from the ref so JSX can react to it)
+  useEffect(() => {
+    setPreviewPatchRef.current = setPreviewPatch
+  }, [setPreviewPatch])
+
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -53,8 +58,6 @@ export function SlideCanvas(): React.JSX.Element {
     appearanceId: string
   } | null>(null)
   const [draggingMasterId, setDraggingMasterId] = useState<string | null>(null)
-  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null)
-  const [liveDelta, setLiveDelta] = useState<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     const el = outerRef.current
@@ -77,9 +80,15 @@ export function SlideCanvas(): React.JSX.Element {
     function onMouseMove(e: MouseEvent): void {
       const drag = dragRef.current
       if (!drag) return
-      setLiveDelta({
-        x: (e.clientX - drag.startClientX) / scaleRef.current,
-        y: (e.clientY - drag.startClientY) / scaleRef.current
+      const dx = (e.clientX - drag.startClientX) / scaleRef.current
+      const dy = (e.clientY - drag.startClientY) / scaleRef.current
+      setPreviewPatchRef.current({
+        masterId: drag.masterId,
+        transform: {
+          ...drag.originalTransform,
+          x: drag.originalTransform.x + dx,
+          y: drag.originalTransform.y + dy
+        }
       })
     }
 
@@ -88,11 +97,14 @@ export function SlideCanvas(): React.JSX.Element {
       if (!drag) return
       const dx = (e.clientX - drag.startClientX) / scaleRef.current
       const dy = (e.clientY - drag.startClientY) / scaleRef.current
-      moveElementRef.current(drag.masterId, drag.startX + dx, drag.startY + dy)
+      moveElementRef.current(
+        drag.masterId,
+        drag.originalTransform.x + dx,
+        drag.originalTransform.y + dy
+      )
+      setPreviewPatchRef.current(null)
       dragRef.current = null
       setDraggingMasterId(null)
-      setDragStartPos(null)
-      setLiveDelta(null)
     }
 
     window.addEventListener('mousemove', onMouseMove)
@@ -125,6 +137,7 @@ export function SlideCanvas(): React.JSX.Element {
 
   const handleElementMouseDown = useCallback(
     (masterId: string, e: React.MouseEvent) => {
+      // Read the original (unpatched) transform as the drag start position
       const master = document?.mastersById[masterId]
       if (!master) return
       e.preventDefault()
@@ -134,42 +147,27 @@ export function SlideCanvas(): React.JSX.Element {
         masterId,
         startClientX: e.clientX,
         startClientY: e.clientY,
-        startX: master.transform.x,
-        startY: master.transform.y
+        originalTransform: { ...master.transform }
       }
       setDraggingMasterId(masterId)
-      setDragStartPos({ x: master.transform.x, y: master.transform.y })
-      setLiveDelta({ x: 0, y: 0 })
     },
     [document, selectElements]
   )
 
-  const slide = selectedSlideId != null ? document?.slidesById[selectedSlideId] : null
+  const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
 
   const appearances =
-    slide != null && document != null
+    slide != null && patchedPresentation != null
       ? slide.appearanceIds
-          .map((id) => document.appearancesById[id])
+          .map((id) => patchedPresentation.appearancesById[id])
           .filter(Boolean)
           .sort((a, b) => a.zIndex - b.zIndex)
       : []
 
-  function getLiveMaster(master: MsoMaster): MsoMaster {
-    if (!liveDelta || !dragStartPos || draggingMasterId !== master.id) return master
-    return {
-      ...master,
-      transform: {
-        ...master.transform,
-        x: dragStartPos.x + liveDelta.x,
-        y: dragStartPos.y + liveDelta.y
-      }
-    }
-  }
-
   return (
     <>
       <div ref={outerRef} className={styles.outer}>
-        {slide != null && document != null && (
+        {slide != null && patchedPresentation != null && (
           <div
             data-testid="slide"
             className={styles.inner}
@@ -183,23 +181,16 @@ export function SlideCanvas(): React.JSX.Element {
             onClick={() => selectElements([])}
           >
             {appearances.map((appearance) => {
-              const master = document.mastersById[appearance.masterId]
+              const master = patchedPresentation.mastersById[appearance.masterId]
               if (!master) return null
-              const liveMaster = getLiveMaster(master)
               const isDraggingThis = draggingMasterId === master.id
-              const { x, y, width, height } = liveMaster.transform
+              const { x, y, width, height } = master.transform
               return (
                 <React.Fragment key={appearance.id}>
-                  {liveMaster.type === 'shape' && (
-                    <ShapeView master={liveMaster} appearance={appearance} />
-                  )}
-                  {liveMaster.type === 'text' && (
-                    <TextView master={liveMaster} appearance={appearance} />
-                  )}
-                  {liveMaster.type === 'image' && (
-                    <ImageView master={liveMaster} appearance={appearance} />
-                  )}
-                  {liveMaster.isMultiSlideObject && <MsoIndicator x={x} y={y} width={width} />}
+                  {master.type === 'shape' && <ShapeView master={master} appearance={appearance} />}
+                  {master.type === 'text' && <TextView master={master} appearance={appearance} />}
+                  {master.type === 'image' && <ImageView master={master} appearance={appearance} />}
+                  {master.isMultiSlideObject && <MsoIndicator x={x} y={y} width={width} />}
                   {selectedElementIds.includes(master.id) && (
                     <div
                       data-testid="selection-indicator"

@@ -1,17 +1,30 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
 import { createPresentation, createSlide } from '@shared/model/factories'
 import type { Presentation, Slide } from '@shared/model/types'
 import { EditorLayout } from './EditorLayout'
 
-vi.mock('../../store/documentStore')
+// Keep selectPatchedPresentation as the real function so the two-tier memoization works.
+// Only mock the hook itself.
+vi.mock('../../store/documentStore', async () => {
+  const actual = await vi.importActual('../../store/documentStore')
+  return { ...actual, useDocumentStore: vi.fn() }
+})
 
 vi.mock('../Toolbar/Toolbar', () => ({ Toolbar: () => <div data-testid="toolbar" /> }))
 vi.mock('../SlideCanvas/SlideCanvas', () => ({
   SlideCanvas: () => <div data-testid="canvas" />
 }))
+
+beforeAll(() => {
+  global.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+})
 
 function makePresentation(...slides: Slide[]): Presentation {
   const pres = createPresentation()
@@ -27,7 +40,16 @@ const selectSlide = vi.fn()
 
 function mockStore(document: Presentation | null, selectedSlideId: string | null = null): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
-    return selector({ document, ui: { selectedSlideId }, addSlide, selectSlide })
+    return selector({
+      document,
+      previewPatch: null,
+      ui: { selectedSlideId, selectedElementIds: [] },
+      addSlide,
+      selectSlide,
+      setPreviewPatch: vi.fn(),
+      copyElement: vi.fn(),
+      pasteElement: vi.fn()
+    })
   })
 }
 
