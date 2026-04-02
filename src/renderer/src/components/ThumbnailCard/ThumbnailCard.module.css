@@ -1,7 +1,11 @@
-.root {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+.thumbnailButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
 }
 
 .thumbnail {

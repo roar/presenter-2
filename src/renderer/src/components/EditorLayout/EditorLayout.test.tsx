@@ -108,7 +108,10 @@ describe('EditorLayout', () => {
 
     render(<EditorLayout />)
 
-    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: '1' }) })
+    await user.pointer({
+      keys: '[MouseRight]',
+      target: screen.getByRole('button', { name: '1' })
+    })
     await user.click(screen.getByRole('menuitem', { name: 'Delete slide' }))
 
     expect(removeSlide).toHaveBeenCalledWith(slide.id)

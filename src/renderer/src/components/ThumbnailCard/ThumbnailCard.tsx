@@ -36,34 +36,36 @@ export function ThumbnailCard({
   onTransitionKindChange
 }: ThumbnailCardProps): React.JSX.Element {
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null)
+  const handleContextMenu = onDelete
+    ? (event: React.MouseEvent<HTMLElement>) => {
+        event.preventDefault()
+        setContextMenu({ x: event.clientX, y: event.clientY })
+      }
+    : undefined
 
   return (
-    <div className={styles.root}>
-      <InfoCard
-        header={slideNumber}
-        isSelected={isSelected}
-        onClick={onClick}
-        onContextMenu={
-          onDelete
-            ? (event) => {
-                event.preventDefault()
-                setContextMenu({ x: event.clientX, y: event.clientY })
-              }
-            : undefined
-        }
-      >
-        <div className={styles.thumbnail}>
-          <SlideThumbnail renderedSlide={renderedSlide} />
-        </div>
+    <>
+      <InfoCard header={slideNumber} isSelected={isSelected} onContextMenu={handleContextMenu}>
+        <button
+          type="button"
+          className={styles.thumbnailButton}
+          aria-label={String(slideNumber)}
+          onClick={onClick}
+          onContextMenu={handleContextMenu}
+        >
+          <div className={styles.thumbnail}>
+            <SlideThumbnail renderedSlide={renderedSlide} />
+          </div>
+        </button>
+        <SlideTransitionCard
+          trigger={transitionTrigger}
+          transition={transition}
+          onTriggerChange={onTransitionTriggerChange}
+          onDurationChange={onTransitionDurationChange}
+          onEasingChange={onTransitionEasingChange}
+          onKindChange={onTransitionKindChange}
+        />
       </InfoCard>
-      <SlideTransitionCard
-        trigger={transitionTrigger}
-        transition={transition}
-        onTriggerChange={onTransitionTriggerChange}
-        onDurationChange={onTransitionDurationChange}
-        onEasingChange={onTransitionEasingChange}
-        onKindChange={onTransitionKindChange}
-      />
       {contextMenu ? (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
           <ContextMenuItem
@@ -76,6 +78,6 @@ export function ThumbnailCard({
           </ContextMenuItem>
         </ContextMenu>
       ) : null}
-    </div>
+    </>
   )
 }

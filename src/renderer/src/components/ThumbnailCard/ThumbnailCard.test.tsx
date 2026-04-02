@@ -44,7 +44,8 @@ describe('ThumbnailCard', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: '2' })).toHaveTextContent('2')
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument()
   })
 
   it('marks as current when selected', () => {
@@ -57,7 +58,10 @@ describe('ThumbnailCard', () => {
         onClick={vi.fn()}
       />
     )
-    expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe('true')
+    expect(screen.getByText('1').closest('[data-selected="true"]')).toHaveAttribute(
+      'data-selected',
+      'true'
+    )
   })
 
   it('does not mark as current when not selected', () => {
@@ -70,7 +74,7 @@ describe('ThumbnailCard', () => {
         onClick={vi.fn()}
       />
     )
-    expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBeNull()
+    expect(screen.getByText('1').closest('[data-selected="true"]')).toBeNull()
   })
 
   it('calls onClick when clicked', async () => {
