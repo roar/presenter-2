@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
@@ -112,9 +112,10 @@ describe('EditorLayout', () => {
 
     render(<EditorLayout />)
 
+    const slidesPanel = screen.getByTestId('slides-panel')
     await user.pointer({
       keys: '[MouseRight]',
-      target: screen.getByText('1')
+      target: within(slidesPanel).getAllByText('1')[0]
     })
     await user.click(screen.getByRole('menuitem', { name: 'Delete slide' }))
 
@@ -126,7 +127,7 @@ describe('EditorLayout', () => {
     const s2 = createSlide()
     mockStore(makePresentation(s1, s2))
     render(<EditorLayout />)
-    expect(screen.getAllByText(/^\d+$/)).toHaveLength(2)
+    expect(within(screen.getByTestId('slides-panel')).getAllByText(/^\d+$/)).toHaveLength(2)
   })
 
   it('renders the requested panel layout', () => {
@@ -144,14 +145,16 @@ describe('EditorLayout', () => {
     const propertiesPanel = screen.getByTestId('properties-panel')
     const timelinePanel = screen.getByTestId('timeline-panel')
 
-    expect(screen.getByText('Slides')).toBeInTheDocument()
-    expect(screen.getByText('Animation')).toBeInTheDocument()
-    expect(screen.getByText('Objects')).toBeInTheDocument()
-    expect(screen.getByText('SlideEditor')).toBeInTheDocument()
-    expect(screen.getByText('Notes')).toBeInTheDocument()
-    expect(screen.getByText('Video')).toBeInTheDocument()
-    expect(screen.getByText('Properties')).toBeInTheDocument()
-    expect(screen.getByText('Timeline')).toBeInTheDocument()
+    expect(within(slidesPanel).getByRole('heading', { name: 'Slides' })).toBeInTheDocument()
+    expect(within(animationPanel).getByRole('heading', { name: 'Animation' })).toBeInTheDocument()
+    expect(within(objectsPanel).getByRole('heading', { name: 'Objects' })).toBeInTheDocument()
+    expect(
+      within(slideEditorPanel).getByRole('heading', { name: 'SlideEditor' })
+    ).toBeInTheDocument()
+    expect(within(notesPanel).getByRole('heading', { name: 'Notes' })).toBeInTheDocument()
+    expect(within(videoPanel).getByRole('heading', { name: 'Video' })).toBeInTheDocument()
+    expect(within(propertiesPanel).getByRole('heading', { name: 'Properties' })).toBeInTheDocument()
+    expect(within(timelinePanel).getByRole('heading', { name: 'Timeline' })).toBeInTheDocument()
     expect(slideEditorPanel).toHaveAttribute('data-selected-slide-id', slide.id)
     expect(slidesPanel).toHaveAttribute('data-scrollable', 'true')
     expect(animationPanel).toHaveAttribute('data-scrollable', 'true')

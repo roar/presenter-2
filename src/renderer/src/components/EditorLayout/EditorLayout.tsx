@@ -12,6 +12,7 @@ import { AnimationCard } from '../AnimationCard/AnimationCard'
 import { Button } from '../Button/Button'
 import { ObjectCard } from '../ObjectCard/ObjectCard'
 import { Panel, PanelSection } from '../Panel/Panel'
+import { PropertiesPanel } from '../PropertiesPanel/PropertiesPanel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
 import { SlideTimeline } from '../SlideTimeline/SlideTimeline'
 import {
@@ -179,6 +180,17 @@ export function EditorLayout(): React.JSX.Element {
           .map((animationId) => document.animationsById[animationId])
           .filter(Boolean)
       : []
+  const selectedAnimation =
+    selectedAnimationId != null && document != null
+      ? (document.animationsById[selectedAnimationId] ?? null)
+      : null
+  const selectedMaster =
+    selectedElementIds[0] != null && document != null
+      ? (document.mastersById[selectedElementIds[0]] ?? null)
+      : null
+  const selectedAnimationObjectName = selectedAnimation
+    ? getAnimationObjectName(selectedAnimation, document)
+    : 'Object'
   const selectedSlideObjects =
     selectedRenderedSlide?.appearances
       .slice()
@@ -384,7 +396,26 @@ export function EditorLayout(): React.JSX.Element {
             className={styles.sidebarPanel}
             testId="properties-panel"
             scrollable={true}
-          />
+          >
+            <PropertiesPanel
+              document={document}
+              selectedSlide={selectedSlide}
+              selectedSlideIndex={selectedSlideIndex}
+              selectedMaster={selectedMaster}
+              selectedAnimation={selectedAnimation}
+              selectedAnimationObjectName={selectedAnimationObjectName}
+              onAnimationTriggerChange={updateAnimationTrigger}
+              onAnimationOffsetChange={updateAnimationOffset}
+              onAnimationDurationChange={updateAnimationDuration}
+              onAnimationEasingChange={updateAnimationEasing}
+              onAnimationNumericToChange={updateAnimationNumericTo}
+              onAnimationMoveDeltaChange={updateAnimationMoveDelta}
+              onSlideTransitionTriggerChange={updateSlideTransitionTrigger}
+              onSlideTransitionDurationChange={updateSlideTransitionDuration}
+              onSlideTransitionEasingChange={updateSlideTransitionEasing}
+              onSlideTransitionKindChange={updateSlideTransitionKind}
+            />
+          </LayoutPanel>
         </div>
         <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel">
           {timelineViewModel ? (

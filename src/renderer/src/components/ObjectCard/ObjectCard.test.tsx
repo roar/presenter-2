@@ -53,7 +53,7 @@ describe('ObjectCard', () => {
       />
     )
 
-    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('img', { name: 'Airplane preview' }))
 
     expect(onClick).toHaveBeenCalledOnce()
   })

@@ -12,6 +12,12 @@
   gap: var(--space-md);
 }
 
+.controlButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .timeReadout {
   font-size: var(--text-sm);
   color: var(--text-dim);
