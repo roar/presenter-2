@@ -118,14 +118,13 @@ An **animation group** is a named, reusable set of animations that can be applie
 
 ### 5.2 Parameter Slots
 
-A group declares zero or more **named parameter slots**. Each slot represents an object or text range that one or more animations in the group will target.
+A group declares one or more **named parameter slots**. Each slot represents an object or text range that one or more animations in the group will target.
 
-- When a group has **no parameters**, the group is self-contained and has no external targets.
-- When a group has **one or more parameters**, the user binds actual objects or text ranges to each slot at the time the group is added to a slide.
+- The user binds actual objects or text ranges to each slot at the time the group is added to a slide.
 
-Each animation within the group references exactly one parameter slot by name as its target. A slot may be referenced by multiple animations.
+Each animation within the group references exactly one parameter slot by name as its target. A slot may be referenced by multiple animations in the grouø.
 
-**Example:** A group `"Highlight with Underline"` declares two slots — `object` and `decoration`. One animation fades `object` from `muted` to `default` state; another animates the progress of `decoration` from 0 to 1.
+**Example:** A group `"Highlight with Underline"` declares two slots — `object` and `highlight text`. One animation fades in `object; another animates highlighting of `highlight text.
 
 ### 5.3 Timing
 
