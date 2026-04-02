@@ -5,6 +5,7 @@ import { SlideLayer } from '../SlideLayer/SlideLayer'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
 import { ShapeElementRenderer } from '../ShapeElementRenderer/ShapeElementRenderer'
+import { getTransitionLayerStyles } from './transitionRenderers'
 import styles from './SlideRenderer.module.css'
 
 interface SlideRendererProps {
@@ -35,11 +36,7 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
 
   const { front, behind, transition, msoAppearances } = frame
   const frameBackground = front.slide.background.color ?? front.slide.background.image ?? '#ffffff'
-  const isDissolve = transition?.kind === 'dissolve'
-  const isFadeTransition = transition?.kind === 'fade-through-color' || isDissolve
-  const behindOpacity = isDissolve && transition ? 1 - transition.progress : 1
-  const frontOpacity = isFadeTransition && transition ? transition.progress : 1
-  const frontTranslateX = transition?.kind === 'push' ? `${(1 - transition.progress) * 100}%` : '0'
+  const { behindOpacity, frontOpacity, frontTranslateX } = getTransitionLayerStyles(transition)
 
   return (
     <div ref={outerRef} className={styles.outer} style={{ background: frameBackground }}>
