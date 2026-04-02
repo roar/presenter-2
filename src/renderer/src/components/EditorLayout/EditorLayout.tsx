@@ -6,7 +6,7 @@ import {
 } from '@shared/animation/computeSlideEntryStates'
 import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
 import { Button } from '../Button/Button'
-import { Panel } from '../Panel/Panel'
+import { Panel, PanelSection } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
 import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
 import { Toolbar } from '../Toolbar/Toolbar'
@@ -91,6 +91,11 @@ export function EditorLayout(): React.JSX.Element {
               onClick={() => selectSlide(id)}
             />
           ))}
+        </Panel>
+        <Panel className={styles.animationPanel}>
+          <div data-selected-slide-id={selectedSlideId ?? undefined}>
+            <PanelSection title="Animations">{null}</PanelSection>
+          </div>
         </Panel>
         <Panel className={styles.canvasPanel}>
           <SlideCanvas />

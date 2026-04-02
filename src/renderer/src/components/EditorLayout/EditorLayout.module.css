@@ -37,3 +37,9 @@
   border: none;
   background: var(--canvas);
 }
+
+.animationPanel {
+  width: var(--panel-right-width);
+  flex-shrink: 0;
+  border: none;
+}

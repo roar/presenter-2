@@ -79,4 +79,16 @@ describe('EditorLayout', () => {
     render(<EditorLayout />)
     expect(screen.getAllByRole('button', { name: /^\d+$/ })).toHaveLength(2)
   })
+
+  it('renders the animation panel for the selected slide', () => {
+    const slide = createSlide()
+    mockStore(makePresentation(slide), slide.id)
+
+    render(<EditorLayout />)
+
+    expect(screen.getByText('Animations').closest('[data-selected-slide-id]')).toHaveAttribute(
+      'data-selected-slide-id',
+      slide.id
+    )
+  })
 })
