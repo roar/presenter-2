@@ -274,6 +274,41 @@ describe('documentStore', () => {
     })
   })
 
+  describe('addMoveAnimation', () => {
+    it('creates a move animation for the selected appearance', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().addMoveAnimation(appearance.id)
+
+      const state = useDocumentStore.getState()
+      const animationId = state.document?.slidesById[slide.id].animationOrder[0]
+      const animation = animationId ? state.document?.animationsById[animationId] : null
+
+      expect(animation).toMatchObject({
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      })
+      expect(state.document?.appearancesById[appearance.id].animationIds).toEqual([animationId])
+    })
+  })
+
   describe('copyElement / pasteElement', () => {
     function makeDocWithElement() {
       const slide = makeSlide('s-1')

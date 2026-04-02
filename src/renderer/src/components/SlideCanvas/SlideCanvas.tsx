@@ -25,6 +25,7 @@ export function SlideCanvas(): React.JSX.Element {
   const moveElement = useDocumentStore((s) => s.moveElement)
   const selectElements = useDocumentStore((s) => s.selectElements)
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
+  const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
   const convertToMultiSlideObject = useDocumentStore((s) => s.convertToMultiSlideObject)
   const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
 
@@ -135,6 +136,12 @@ export function SlideCanvas(): React.JSX.Element {
     setContextMenu(null)
   }, [contextMenu, convertToSingleAppearance])
 
+  const handleAddMoveAnimation = useCallback(() => {
+    if (!contextMenu) return
+    addMoveAnimation(contextMenu.appearanceId)
+    setContextMenu(null)
+  }, [addMoveAnimation, contextMenu])
+
   const handleElementMouseDown = useCallback(
     (masterId: string, e: React.MouseEvent) => {
       // Read the original (unpatched) transform as the drag start position
@@ -232,7 +239,7 @@ export function SlideCanvas(): React.JSX.Element {
           <ContextMenuItem
             submenu={
               <>
-                <ContextMenuItem disabled>Move</ContextMenuItem>
+                <ContextMenuItem onClick={handleAddMoveAnimation}>Move</ContextMenuItem>
                 <ContextMenuItem disabled>Scale</ContextMenuItem>
                 <ContextMenuItem disabled>Rotate</ContextMenuItem>
               </>

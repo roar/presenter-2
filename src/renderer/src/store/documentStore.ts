@@ -5,7 +5,9 @@ import type {
   Slide,
   SlideId,
   MsoMaster,
-  Transform
+  Transform,
+  AppearanceId,
+  TargetedAnimation
 } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
@@ -60,6 +62,7 @@ interface DocumentState {
   moveSlide(fromIndex: number, toIndex: number): void
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
+  addMoveAnimation(appearanceId: AppearanceId): void
   convertToMultiSlideObject(masterId: string): void
   convertToSingleAppearance(appearanceId: string): void
   undo(): void
@@ -310,6 +313,33 @@ export const useDocumentStore = create<DocumentState>()(
           state.document.appearancesById[appearance.id] = appearance
           slide.appearanceIds.push(appearance.id)
         }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    addMoveAnimation(appearanceId) {
+      set((state) => {
+        if (!state.document) return
+        const appearance = state.document.appearancesById[appearanceId]
+        if (!appearance) return
+        const slide = state.document.slidesById[appearance.slideId]
+        if (!slide) return
+
+        const animation: TargetedAnimation = {
+          id: crypto.randomUUID(),
+          trigger: 'on-click',
+          offset: 0,
+          duration: 1,
+          easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+          loop: { kind: 'none' },
+          effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+          target: { kind: 'appearance', appearanceId }
+        }
+
+        state.document.animationsById[animation.id] = animation
+        appearance.animationIds.push(animation.id)
+        slide.animationOrder.push(animation.id)
         pushHistory(state, state.document)
         state.isDirty = true
       })

@@ -2,8 +2,13 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
-import { createPresentation, createSlide } from '@shared/model/factories'
-import type { Presentation, Slide } from '@shared/model/types'
+import {
+  createAppearance,
+  createMsoMaster,
+  createPresentation,
+  createSlide
+} from '@shared/model/factories'
+import type { Presentation, Slide, TargetedAnimation } from '@shared/model/types'
 import { EditorLayout } from './EditorLayout'
 
 // Keep selectPatchedPresentation as the real function so the two-tier memoization works.
@@ -125,5 +130,51 @@ describe('EditorLayout', () => {
     expect(
       propertiesPanel.compareDocumentPosition(timelinePanel) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('renders animation cards for the selected slide', () => {
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    const appearance = createAppearance(master.id, slide.id)
+    const animation: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'on-click' as const,
+      offset: 0,
+      duration: 1,
+      easing: { kind: 'cubic-bezier' as const, x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+      loop: { kind: 'none' as const },
+      effect: { kind: 'action' as const, type: 'move' as const, fromOffset: { x: 0, y: 100 } },
+      target: { kind: 'appearance' as const, appearanceId: appearance.id }
+    }
+
+    slide.appearanceIds = [appearance.id]
+    slide.animationOrder = [animation.id]
+
+    const document = {
+      ...makePresentation(slide),
+      slideOrder: [slide.id],
+      slidesById: { [slide.id]: slide },
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation.id]: animation }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document,
+        previewPatch: null,
+        ui: { selectedSlideId: slide.id, selectedElementIds: [] },
+        addSlide,
+        selectSlide,
+        setPreviewPatch: vi.fn(),
+        copyElement: vi.fn(),
+        pasteElement: vi.fn()
+      })
+    })
+
+    render(<EditorLayout />)
+
+    expect(screen.getByText('Move')).toBeInTheDocument()
+    expect(screen.getByText('On click')).toBeInTheDocument()
   })
 })

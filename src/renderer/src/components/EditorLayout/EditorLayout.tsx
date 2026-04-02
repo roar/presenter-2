@@ -5,6 +5,7 @@ import {
   renderAllSlideEntryStates
 } from '@shared/animation/computeSlideEntryStates'
 import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
+import { AnimationCard } from '../AnimationCard/AnimationCard'
 import { Button } from '../Button/Button'
 import { Panel, PanelSection } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
@@ -87,6 +88,13 @@ export function EditorLayout(): React.JSX.Element {
   )
 
   const slideOrder = document?.slideOrder ?? []
+  const selectedSlide = selectedSlideId ? document?.slidesById[selectedSlideId] : null
+  const selectedSlideAnimations =
+    selectedSlide != null && document != null
+      ? selectedSlide.animationOrder
+          .map((animationId) => document.animationsById[animationId])
+          .filter(Boolean)
+      : []
 
   function handleNewSlide() {
     addSlide(createSlide())
@@ -119,7 +127,16 @@ export function EditorLayout(): React.JSX.Element {
               ))}
             </div>
           </LayoutPanel>
-          <LayoutPanel title="Animation" className={styles.sidebarPanel} testId="animation-panel" />
+          <LayoutPanel title="Animation" className={styles.sidebarPanel} testId="animation-panel">
+            {selectedSlideAnimations.map((animation) => (
+              <AnimationCard
+                key={animation.id}
+                animation={animation}
+                isSelected={false}
+                onClick={() => {}}
+              />
+            ))}
+          </LayoutPanel>
           <LayoutPanel title="Objects" className={styles.sidebarPanel} testId="objects-panel" />
           <div className={styles.centralColumn}>
             <LayoutPanel

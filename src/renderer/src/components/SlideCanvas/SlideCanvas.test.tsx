@@ -61,6 +61,7 @@ function mockStore(
       moveElement: vi.fn(),
       selectElements: vi.fn(),
       setPreviewPatch: vi.fn(),
+      addMoveAnimation: vi.fn(),
       convertToMultiSlideObject: vi.fn(),
       convertToSingleAppearance: vi.fn()
     })
@@ -144,9 +145,38 @@ describe('SlideCanvas', () => {
     await userEvent.pointer({ keys: '[MouseRight]', target: hitbox })
     await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
 
-    expect(screen.getByRole('menuitem', { name: 'Move' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Move' })).not.toBeDisabled()
     expect(screen.getByRole('menuitem', { name: 'Scale' })).toBeDisabled()
     expect(screen.getByRole('menuitem', { name: 'Rotate' })).toBeDisabled()
+  })
+
+  it('adds a move animation from the context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const addMoveAnimation = vi.fn()
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [] },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        addMoveAnimation,
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByTestId('element-hitbox') })
+    await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
+
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    expect(addMoveAnimation).toHaveBeenCalledWith(appearanceId)
   })
 
   it('shows selection indicator when element is selected', () => {
