@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest'
+import { render } from '@testing-library/react'
+import { createAppearance, createMsoMaster } from '@shared/model/factories'
+import type { Appearance, MsoMaster } from '@shared/model/types'
+import { ShapeView } from './ShapeView'
+
+function makeMaster(overrides: Partial<MsoMaster> = {}): MsoMaster {
+  const m = createMsoMaster('shape')
+  m.transform = { x: 50, y: 50, width: 200, height: 100, rotation: 0 }
+  m.objectStyle = {
+    defaultState: { fill: '#ff0000', stroke: '#000000', strokeWidth: 2, opacity: 1 },
+    namedStates: {}
+  }
+  m.geometry = { type: 'path', pathData: 'M 0 0 L 200 0 L 200 100 L 0 100 Z' }
+  return { ...m, ...overrides }
+}
+
+function makeAppearance(masterId: string, overrides: Partial<Appearance> = {}): Appearance {
+  return { ...createAppearance(masterId, 'slide-1'), ...overrides }
+}
+
+describe('ShapeView', () => {
+  it('renders an SVG element', () => {
+    const master = makeMaster()
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('renders a path for path geometry', () => {
+    const master = makeMaster()
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    const path = container.querySelector('path')
+    expect(path).not.toBeNull()
+    expect(path!.getAttribute('d')).toBe('M 0 0 L 200 0 L 200 100 L 0 100 Z')
+  })
+
+  it('renders a rect for rect geometry', () => {
+    const master = makeMaster({ geometry: { type: 'rect' } })
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    expect(container.querySelector('rect')).not.toBeNull()
+    expect(container.querySelector('path')).toBeNull()
+  })
+
+  it('renders an ellipse for ellipse geometry', () => {
+    const master = makeMaster({ geometry: { type: 'ellipse' } })
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    expect(container.querySelector('ellipse')).not.toBeNull()
+    expect(container.querySelector('path')).toBeNull()
+  })
+
+  it('applies fill and stroke from objectStyle', () => {
+    const master = makeMaster()
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    const path = container.querySelector('path')!
+    expect(path.getAttribute('fill')).toBe('#ff0000')
+    expect(path.getAttribute('stroke')).toBe('#000000')
+  })
+
+  it('applies opacity from objectStyle', () => {
+    const master = makeMaster()
+    master.objectStyle.defaultState.opacity = 0.5
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    const svg = container.querySelector('svg') as HTMLElement
+    expect(svg.style.opacity).toBe('0.5')
+  })
+
+  it('is hidden when initialVisibility is hidden', () => {
+    const master = makeMaster()
+    const appearance = makeAppearance(master.id, { initialVisibility: 'hidden' })
+    const { container } = render(<ShapeView master={master} appearance={appearance} />)
+    const svg = container.querySelector('svg') as HTMLElement
+    expect(svg.style.visibility).toBe('hidden')
+  })
+
+  it('is visible when initialVisibility is visible', () => {
+    const master = makeMaster()
+    const appearance = makeAppearance(master.id, { initialVisibility: 'visible' })
+    const { container } = render(<ShapeView master={master} appearance={appearance} />)
+    const svg = container.querySelector('svg') as HTMLElement
+    expect(svg.style.visibility).toBe('visible')
+  })
+})

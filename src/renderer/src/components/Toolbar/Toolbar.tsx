@@ -8,6 +8,7 @@ import styles from './Toolbar.module.css'
 
 export function Toolbar(): React.JSX.Element {
   const [shapePickerOpen, setShapePickerOpen] = useState(false)
+  const newPresentation = useDocumentStore((s) => s.newPresentation)
   const insertElement = useDocumentStore((s) => s.insertElement)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
 
@@ -38,7 +39,9 @@ export function Toolbar(): React.JSX.Element {
     <>
       <div className={styles.toolbar}>
         <div className={styles.group}>
-          <Button variant="secondary">New Presentation</Button>
+          <Button variant="secondary" onClick={newPresentation}>
+            New Presentation
+          </Button>
           <Button variant="ghost" onClick={() => setShapePickerOpen(true)}>
             Insert Shape
           </Button>

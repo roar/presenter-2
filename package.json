@@ -8,6 +8,8 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "dev:editor": "vite dev --config vite.editor.config.ts",
+    "build:editor": "vite build --config vite.editor.config.ts",
     "build:viewer": "vite build --config vite.viewer.config.ts",
     "preview:viewer": "vite preview --config vite.viewer.config.ts",
     "typecheck": "tsc --noEmit",

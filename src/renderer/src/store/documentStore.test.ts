@@ -12,6 +12,7 @@ function makePresentation(overrides?: Partial<Presentation>): Presentation {
     mastersById: {},
     appearancesById: {},
     animationsById: {},
+    animationGroupTemplatesById: {},
     textDecorationsById: {},
     revision: 0,
     ownerId: null,
@@ -162,6 +163,48 @@ describe('documentStore', () => {
       const state = useDocumentStore.getState()
       expect(state.isDirty).toBe(true)
       expect(state.history.length).toBe(historyLengthBefore + 1)
+    })
+  })
+
+  describe('newPresentation', () => {
+    it('creates a presentation with one slide', () => {
+      useDocumentStore.getState().newPresentation()
+
+      const { document } = useDocumentStore.getState()
+      expect(document?.slideOrder).toHaveLength(1)
+      const slideId = document!.slideOrder[0]
+      expect(document?.slidesById[slideId]).toBeDefined()
+    })
+
+    it('sets selectedSlideId to the new slide', () => {
+      useDocumentStore.getState().newPresentation()
+
+      const { document, ui } = useDocumentStore.getState()
+      expect(ui.selectedSlideId).toBe(document?.slideOrder[0])
+    })
+
+    it('resets history to a single entry', () => {
+      useDocumentStore.getState().setDocument(makePresentation())
+      useDocumentStore.getState().addSlide(makeSlide('s-1'))
+      useDocumentStore.getState().newPresentation()
+
+      const { history, historyIndex } = useDocumentStore.getState()
+      expect(history).toHaveLength(1)
+      expect(historyIndex).toBe(0)
+    })
+
+    it('marks the document as dirty', () => {
+      useDocumentStore.getState().newPresentation()
+
+      expect(useDocumentStore.getState().isDirty).toBe(true)
+    })
+
+    it('replaces any existing document', () => {
+      useDocumentStore.getState().setDocument(makePresentation({ id: 'old-pres' }))
+      useDocumentStore.getState().newPresentation()
+
+      const { document } = useDocumentStore.getState()
+      expect(document?.id).not.toBe('old-pres')
     })
   })
 

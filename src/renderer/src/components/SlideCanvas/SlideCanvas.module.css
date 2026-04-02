@@ -1,0 +1,14 @@
+.outer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.inner {
+  position: relative;
+  transform-origin: top left;
+  flex-shrink: 0;
+}

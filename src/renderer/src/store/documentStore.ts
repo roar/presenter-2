@@ -4,7 +4,7 @@ import type { Presentation, Slide, SlideId, MsoMaster } from '../../../shared/mo
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
-import { createAppearance } from '../../../shared/model/factories'
+import { createAppearance, createPresentation, createSlide } from '../../../shared/model/factories'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
 
@@ -30,6 +30,7 @@ interface DocumentState {
   isDirty: boolean // unsaved changes
 
   // Actions
+  newPresentation(): void
   loadDocument(repo: DocumentRepository, id: string, auth?: AuthContext): Promise<void>
   saveDocument(repo: DocumentRepository, auth?: AuthContext): Promise<void>
   setDocument(doc: Presentation): void
@@ -71,6 +72,21 @@ export const useDocumentStore = create<DocumentState>()(
     history: [],
     historyIndex: -1,
     isDirty: false,
+
+    newPresentation() {
+      set((state) => {
+        const presentation = createPresentation()
+        const slide = createSlide()
+        presentation.slideOrder = [slide.id]
+        presentation.slidesById[slide.id] = slide
+        state.document = presentation
+        state.history = [snapshot(presentation)]
+        state.historyIndex = 0
+        state.isDirty = true
+        state.ui.selectedSlideId = slide.id
+        state.ui.selectedElementIds = []
+      })
+    },
 
     async loadDocument(repo, id, auth = nullAuthContext) {
       const presentation = await repo.load(id, auth)
