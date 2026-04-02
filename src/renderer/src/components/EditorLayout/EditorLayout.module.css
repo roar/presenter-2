@@ -1,0 +1,19 @@
+.layout {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  gap: 1px;
+  background: var(--border);
+}
+
+.thumbnailPanel {
+  width: var(--panel-left-width);
+  flex-shrink: 0;
+  border: none;
+}
+
+.canvasPanel {
+  flex: 1;
+  border: none;
+  background: var(--canvas);
+}

@@ -1,11 +1,8 @@
 import React from 'react'
+import { EditorLayout } from './components/EditorLayout/EditorLayout'
 
 function App(): React.JSX.Element {
-  return (
-    <div>
-      <h1>Presenter 2</h1>
-    </div>
-  )
+  return <EditorLayout />
 }
 
 export default App
