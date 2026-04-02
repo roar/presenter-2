@@ -161,7 +161,6 @@ All animations and transitions support configurable easing.
 
 - **Presets:** `linear`, `ease-in`, `ease-out`, `ease-in-out`.
 - **Custom cubic Bézier:** the user may define a custom curve by manipulating control points. `x1` and `x2` are constrained to [0, 1].
-- **Spring:** parameterised by mass, stiffness, damping, and initial velocity. Still bounded by `durationMs`; may overshoot internally.
 
 ---
 
