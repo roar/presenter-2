@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { Transform } from '@shared/model/types'
+import {
+  computeMsoExitStateChains,
+  renderAllSlideEntryStates
+} from '@shared/animation/computeSlideEntryStates'
 import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
 import { ContextMenu } from '../ContextMenu/ContextMenu'
 import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
@@ -15,6 +19,20 @@ interface DragData {
   startClientX: number
   startClientY: number
   originalTransform: Transform
+}
+
+function parseRenderedTransform(transform: string): {
+  translateX: number
+  translateY: number
+  scale: number
+} {
+  const translateMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/)
+  const scaleMatch = transform.match(/scale\(([-\d.]+)\)/)
+  return {
+    translateX: translateMatch ? Number(translateMatch[1]) : 0,
+    translateY: translateMatch ? Number(translateMatch[2]) : 0,
+    scale: scaleMatch ? Number(scaleMatch[1]) : 1
+  }
 }
 
 export function SlideCanvas(): React.JSX.Element {
@@ -162,13 +180,23 @@ export function SlideCanvas(): React.JSX.Element {
   )
 
   const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
+  const msoExitStatesBySlide = patchedPresentation
+    ? computeMsoExitStateChains(patchedPresentation)
+    : []
+  const allEntryStates =
+    patchedPresentation != null
+      ? renderAllSlideEntryStates(patchedPresentation, msoExitStatesBySlide)
+      : []
+  const slideIndex =
+    selectedSlideId != null && patchedPresentation != null
+      ? patchedPresentation.slideOrder.indexOf(selectedSlideId)
+      : -1
+  const renderedSlide =
+    slideIndex >= 0 && slideIndex < allEntryStates.length ? allEntryStates[slideIndex] : null
 
-  const appearances =
-    slide != null && patchedPresentation != null
-      ? slide.appearanceIds
-          .map((id) => patchedPresentation.appearancesById[id])
-          .filter(Boolean)
-          .sort((a, b) => a.zIndex - b.zIndex)
+  const renderedAppearances =
+    renderedSlide != null
+      ? renderedSlide.appearances.slice().sort((a, b) => a.appearance.zIndex - b.appearance.zIndex)
       : []
 
   return (
@@ -187,30 +215,60 @@ export function SlideCanvas(): React.JSX.Element {
             }}
             onClick={() => selectElements([])}
           >
-            {appearances.map((appearance) => {
-              const master = patchedPresentation.mastersById[appearance.masterId]
-              if (!master) return null
+            {renderedAppearances.map((renderedAppearance) => {
+              const { appearance, master, visible, opacity, transform } = renderedAppearance
               const isDraggingThis = draggingMasterId === master.id
               const { x, y, width, height } = master.transform
+              const {
+                translateX,
+                translateY,
+                scale: renderedScale
+              } = parseRenderedTransform(transform)
+              const left = x + translateX
+              const top = y + translateY
+              const scaledWidth = width * renderedScale
+              const scaledHeight = height * renderedScale
               return (
                 <React.Fragment key={appearance.id}>
-                  {master.type === 'shape' && <ShapeView master={master} appearance={appearance} />}
-                  {master.type === 'text' && <TextView master={master} appearance={appearance} />}
-                  {master.type === 'image' && <ImageView master={master} appearance={appearance} />}
-                  {master.isMultiSlideObject && <MsoIndicator x={x} y={y} width={width} />}
+                  {master.type === 'shape' && (
+                    <ShapeView
+                      master={master}
+                      appearance={appearance}
+                      rendered={renderedAppearance}
+                    />
+                  )}
+                  {master.type === 'text' && (
+                    <TextView
+                      master={master}
+                      appearance={appearance}
+                      rendered={renderedAppearance}
+                    />
+                  )}
+                  {master.type === 'image' && (
+                    <ImageView
+                      master={master}
+                      appearance={appearance}
+                      rendered={renderedAppearance}
+                    />
+                  )}
+                  {master.isMultiSlideObject && (
+                    <MsoIndicator x={left} y={top} width={scaledWidth} />
+                  )}
                   {selectedElementIds.includes(master.id) && (
                     <div
                       data-testid="selection-indicator"
                       style={{
                         position: 'absolute',
-                        left: x,
-                        top: y,
-                        width,
-                        height,
+                        left,
+                        top,
+                        width: scaledWidth,
+                        height: scaledHeight,
                         outline: '2px solid var(--accent)',
                         outlineOffset: 2,
                         pointerEvents: 'none',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        opacity,
+                        visibility: visible ? 'visible' : 'hidden'
                       }}
                     />
                   )}
@@ -218,10 +276,10 @@ export function SlideCanvas(): React.JSX.Element {
                     data-testid="element-hitbox"
                     style={{
                       position: 'absolute',
-                      left: x,
-                      top: y,
-                      width,
-                      height,
+                      left,
+                      top,
+                      width: scaledWidth,
+                      height: scaledHeight,
                       cursor: isDraggingThis ? 'grabbing' : 'grab'
                     }}
                     onMouseDown={(e) => handleElementMouseDown(master.id, e)}

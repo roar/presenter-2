@@ -195,4 +195,49 @@ describe('SlideCanvas', () => {
     render(<SlideCanvas />)
     expect(screen.queryByTestId('selection-indicator')).not.toBeInTheDocument()
   })
+
+  it('renders MSO appearances at their propagated entry position on downstream slides', () => {
+    const pres = createPresentation()
+    const slide1 = createSlide()
+    const slide2 = createSlide()
+    const master = createMsoMaster('shape')
+    master.transform = { x: 100, y: 100, width: 300, height: 200, rotation: 0 }
+    master.objectStyle = {
+      defaultState: { fill: '#0000ff', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    master.geometry = { type: 'path', pathData: 'M 0 0 L 300 0 L 300 200 L 0 200 Z' }
+
+    const appearance1 = createAppearance(master.id, slide1.id)
+    const appearance2 = createAppearance(master.id, slide2.id)
+
+    slide1.appearanceIds = [appearance1.id]
+    slide1.animationOrder = ['move-1']
+    slide2.appearanceIds = [appearance2.id]
+
+    pres.slideOrder = [slide1.id, slide2.id]
+    pres.slidesById[slide1.id] = slide1
+    pres.slidesById[slide2.id] = slide2
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance1.id] = appearance1
+    pres.appearancesById[appearance2.id] = appearance2
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId: appearance1.id }
+    }
+
+    mockStore(slide2.id, pres)
+    render(<SlideCanvas />)
+
+    expect(screen.getByTestId('element-hitbox')).toHaveStyle({
+      left: '140px',
+      top: '180px'
+    })
+  })
 })

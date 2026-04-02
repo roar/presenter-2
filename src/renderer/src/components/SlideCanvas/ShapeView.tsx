@@ -1,14 +1,19 @@
+import type { RenderedAppearance } from '@shared/animation/types'
 import type { Appearance, MsoMaster } from '@shared/model/types'
 
 interface ShapeViewProps {
   master: MsoMaster
   appearance: Appearance
+  rendered?: RenderedAppearance
 }
 
-export function ShapeView({ master, appearance }: ShapeViewProps): React.JSX.Element {
+export function ShapeView({ master, appearance, rendered }: ShapeViewProps): React.JSX.Element {
   const { transform: t, objectStyle, geometry } = master
   const style = objectStyle.defaultState
-  const visible = appearance.initialVisibility === 'visible'
+  const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
+  const opacity = rendered?.opacity ?? style.opacity
+  const baseTransform = rendered?.transform
+  const rotationTransform = t.rotation !== 0 ? `rotate(${t.rotation}deg)` : ''
 
   const svgStyle: React.CSSProperties = {
     position: 'absolute',
@@ -17,8 +22,8 @@ export function ShapeView({ master, appearance }: ShapeViewProps): React.JSX.Ele
     width: t.width,
     height: t.height,
     overflow: 'visible',
-    transform: t.rotation !== 0 ? `rotate(${t.rotation}deg)` : undefined,
-    opacity: style.opacity,
+    transform: [baseTransform, rotationTransform].filter(Boolean).join(' ') || undefined,
+    opacity,
     visibility: visible ? 'visible' : 'hidden'
   }
 
