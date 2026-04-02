@@ -32,6 +32,7 @@ interface LayoutPanelProps {
   children?: React.ReactNode
   testId?: string
   selectedSlideId?: string | null
+  flush?: boolean
 }
 
 function LayoutPanel({
@@ -39,11 +40,18 @@ function LayoutPanel({
   className,
   children,
   testId,
-  selectedSlideId
+  selectedSlideId,
+  flush = false
 }: LayoutPanelProps): React.JSX.Element {
   return (
     <Panel className={className}>
-      <PanelSection title={title} testId={testId} selectedSlideId={selectedSlideId} fill={true}>
+      <PanelSection
+        title={title}
+        testId={testId}
+        selectedSlideId={selectedSlideId}
+        fill={true}
+        flush={flush}
+      >
         {children ?? null}
       </PanelSection>
     </Panel>
@@ -72,6 +80,7 @@ export function EditorLayout(): React.JSX.Element {
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const selectSlide = useDocumentStore((s) => s.selectSlide)
   const addSlide = useDocumentStore((s) => s.addSlide)
+  const removeSlide = useDocumentStore((s) => s.removeSlide)
   const copyElement = useDocumentStore((s) => s.copyElement)
   const pasteElement = useDocumentStore((s) => s.pasteElement)
   const updateAnimationTrigger = useDocumentStore((s) => s.updateAnimationTrigger)
@@ -269,6 +278,7 @@ export function EditorLayout(): React.JSX.Element {
                     isSelected={selectedSlideId === id}
                     renderedSlide={allEntryStates[idx] ?? { slide, appearances: [] }}
                     onClick={() => selectSlide(id)}
+                    onDelete={() => removeSlide(id)}
                   />
                 )
               })}
@@ -297,6 +307,7 @@ export function EditorLayout(): React.JSX.Element {
               className={styles.slideEditorPanel}
               testId="slide-editor-panel"
               selectedSlideId={selectedSlideId}
+              flush={true}
             >
               <div className={styles.slideCanvasContainer}>
                 {timelinePreviewFrame ? (
