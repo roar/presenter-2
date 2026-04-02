@@ -506,5 +506,56 @@ describe('resolveFrame', () => {
       expect(frame.msoAppearances[0].appearance.id).toBe(app1.id)
       expect(frame.front.appearances).toHaveLength(0)
     })
+
+    it('propagates completed move actions to the next MSO appearance in playback', () => {
+      const pres = createPresentation()
+      const sharedMaster = shapeMaster('shared-m')
+
+      const app1 = makeAppearance(sharedMaster.id, 's1')
+      const slide1 = createSlide()
+      slide1.id = 's1'
+      app1.slideId = 's1'
+      slide1.appearanceIds = [app1.id]
+      slide1.animationOrder = ['move-1']
+      slide1.transitionTriggerId = 'trans-1'
+      slide1.transition = { kind: 'cut', duration: 0.01, easing: 'linear' }
+
+      const app2 = makeAppearance(sharedMaster.id, 's2')
+      const slide2 = createSlide()
+      slide2.id = 's2'
+      app2.slideId = 's2'
+      slide2.appearanceIds = [app2.id]
+
+      const move = makeAnim(
+        'move-1',
+        app1.id,
+        'on-click',
+        { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+        1
+      )
+
+      pres.slideOrder = [slide1.id, slide2.id]
+      pres.slidesById[slide1.id] = slide1
+      pres.slidesById[slide2.id] = slide2
+      pres.mastersById[sharedMaster.id] = sharedMaster
+      pres.appearancesById[app1.id] = app1
+      pres.appearancesById[app2.id] = app2
+      pres.animationsById[move.id] = move
+
+      const frame = resolveFrame(
+        buildTimeline(
+          pres,
+          new Map([
+            ['move-1', 0],
+            ['trans-1', 1]
+          ])
+        ),
+        2
+      )
+
+      expect(frame.front.slide.id).toBe(slide2.id)
+      expect(frame.msoAppearances[0].appearance.id).toBe(app2.id)
+      expect(frame.msoAppearances[0].transform).toContain('translate(40px, 80px)')
+    })
   })
 })

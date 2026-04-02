@@ -35,6 +35,16 @@ function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move
   return effect.fromOffset
 }
 
+type PropagatedState = {
+  visible: boolean
+  opacity: number
+  translateX: number
+  translateY: number
+  scale: number | null
+  textShadow: TextShadow | null
+  strokeDashoffset: number | null
+}
+
 // ─── Appearance state resolution ──────────────────────────────────────────────
 
 function hasEffect(
@@ -47,12 +57,144 @@ function hasEffect(
   )
 }
 
+function defaultPropagatedState(
+  appearanceId: string,
+  initialVisibility: 'visible' | 'hidden',
+  animationsById: Record<string, TargetedAnimation>
+): PropagatedState {
+  const hasBuildIn = hasEffect(appearanceId, animationsById, (a) => a.effect.kind === 'build-in')
+  const hasLineDraw = hasEffect(appearanceId, animationsById, (a) => a.effect.type === 'line-draw')
+  const visible = initialVisibility === 'visible' && !hasBuildIn
+
+  return {
+    visible,
+    opacity: visible ? 1 : 0,
+    translateX: 0,
+    translateY: 0,
+    scale: null,
+    textShadow: null,
+    strokeDashoffset: hasLineDraw ? 1 : null
+  }
+}
+
+function entryStateFromPropagated(
+  propagated: PropagatedState,
+  appearanceId: string,
+  animationsById: Record<string, TargetedAnimation>
+): PropagatedState {
+  const hasBuildIn = hasEffect(appearanceId, animationsById, (a) => a.effect.kind === 'build-in')
+  const hasLineDraw = hasEffect(appearanceId, animationsById, (a) => a.effect.type === 'line-draw')
+
+  if (hasBuildIn) {
+    return {
+      ...propagated,
+      visible: false,
+      opacity: 0,
+      strokeDashoffset: hasLineDraw ? 1 : null
+    }
+  }
+
+  return {
+    ...propagated,
+    strokeDashoffset: hasLineDraw ? 1 : propagated.strokeDashoffset
+  }
+}
+
+function applyCompletedAnimation(
+  state: PropagatedState,
+  effect: TargetedAnimation['effect']
+): PropagatedState {
+  const next = { ...state }
+
+  if (effect.kind === 'build-in') {
+    next.visible = true
+    if (effect.type === 'fade') {
+      next.opacity = effect.to
+    } else if (effect.type === 'move') {
+      next.translateX = 0
+      next.translateY = 0
+    } else if (effect.type === 'scale') {
+      next.scale = effect.to
+    } else if (effect.type === 'line-draw') {
+      next.opacity = 1
+      next.strokeDashoffset = 0
+    }
+  } else if (effect.kind === 'build-out') {
+    if (effect.type === 'fade') {
+      next.opacity = effect.to
+      next.visible = false
+    }
+  } else if (effect.kind === 'action') {
+    if (effect.type === 'move') {
+      const delta = getMoveDelta(effect)
+      next.translateX += delta.x
+      next.translateY += delta.y
+    } else if (effect.type === 'text-shadow') {
+      next.textShadow = effect.to
+    } else if (effect.type === 'line-draw') {
+      next.strokeDashoffset = 0
+    }
+  }
+
+  return next
+}
+
+function getAppearanceEntryState(
+  appearance: Appearance,
+  timeline: PresentationTimeline,
+  masterAppearanceIds: Map<string, string[]>,
+  appearanceById: Record<string, Appearance>
+): PropagatedState {
+  const { presentation, scheduledAnimations } = timeline
+  const { animationsById } = presentation
+  const chain = masterAppearanceIds.get(appearance.masterId) ?? []
+  const currentIndex = chain.indexOf(appearance.id)
+
+  let propagated = defaultPropagatedState(
+    chain[0] ?? appearance.id,
+    currentIndex <= 0 ? appearance.initialVisibility : appearanceById[chain[0]].initialVisibility,
+    animationsById
+  )
+
+  for (let index = 0; index < currentIndex; index += 1) {
+    const previousAppearanceId = chain[index]
+    const previousAppearance = appearanceById[previousAppearanceId]
+    const entryState =
+      index === 0
+        ? defaultPropagatedState(
+            previousAppearance.id,
+            previousAppearance.initialVisibility,
+            animationsById
+          )
+        : entryStateFromPropagated(propagated, previousAppearance.id, animationsById)
+
+    const relevantEntries = scheduledAnimations.filter((entry) => {
+      const anim = animationsById[entry.animationId]
+      return (
+        anim?.target.kind === 'appearance' && anim.target.appearanceId === previousAppearance.id
+      )
+    })
+
+    propagated = relevantEntries.reduce(
+      (state, entry) => applyCompletedAnimation(state, animationsById[entry.animationId].effect),
+      entryState
+    )
+  }
+
+  if (currentIndex <= 0) {
+    return defaultPropagatedState(appearance.id, appearance.initialVisibility, animationsById)
+  }
+
+  return entryStateFromPropagated(propagated, appearance.id, animationsById)
+}
+
 function resolveAppearanceState(
   appearance: Appearance,
   master: MsoMaster,
   scheduledAnimations: ScheduledAnimationEntry[],
   animationsById: Record<string, TargetedAnimation>,
-  time: number
+  time: number,
+  baseState?: PropagatedState
 ): RenderedAppearance {
   // Animations that target this appearance and have been scheduled
   const relevantEntries = scheduledAnimations.filter((entry) => {
@@ -61,18 +203,15 @@ function resolveAppearanceState(
   })
 
   // Does this appearance have a build-in animation (anywhere in the presentation)?
-  const hasBuildIn = hasEffect(appearance.id, animationsById, (a) => a.effect.kind === 'build-in')
-  // Does it have a line-draw animation?
-  const hasLineDraw = hasEffect(appearance.id, animationsById, (a) => a.effect.type === 'line-draw')
-
-  // Initial state
-  let visible = appearance.initialVisibility === 'visible' && !hasBuildIn
-  let opacity = visible ? 1 : 0
-  let translateX = 0
-  let translateY = 0
-  let scale: number | null = null
-  let textShadow: TextShadow | null = null
-  let strokeDashoffset: number | null = hasLineDraw ? 1 : null
+  const initialState =
+    baseState ?? defaultPropagatedState(appearance.id, appearance.initialVisibility, animationsById)
+  let visible = initialState.visible
+  let opacity = initialState.opacity
+  let translateX = initialState.translateX
+  let translateY = initialState.translateY
+  let scale: number | null = initialState.scale
+  let textShadow: TextShadow | null = initialState.textShadow
+  let strokeDashoffset: number | null = initialState.strokeDashoffset
 
   for (const entry of relevantEntries) {
     const anim = animationsById[entry.animationId]
@@ -152,7 +291,8 @@ function renderSlide(
   slideId: string,
   timeline: PresentationTimeline,
   msoMasterIds: Set<string>,
-  time: number
+  time: number,
+  masterAppearanceIds: Map<string, string[]>
 ): { regular: RenderedAppearance[]; mso: RenderedAppearance[] } {
   const { presentation, scheduledAnimations } = timeline
   const { slidesById, mastersById, appearancesById, animationsById } = presentation
@@ -164,12 +304,16 @@ function renderSlide(
   for (const appId of slide.appearanceIds) {
     const appearance = appearancesById[appId]
     const master = mastersById[appearance.masterId]
+    const baseState = msoMasterIds.has(master.id)
+      ? getAppearanceEntryState(appearance, timeline, masterAppearanceIds, appearancesById)
+      : undefined
     const rendered = resolveAppearanceState(
       appearance,
       master,
       scheduledAnimations,
       animationsById,
-      time
+      time,
+      baseState
     )
     if (msoMasterIds.has(master.id)) {
       mso.push(rendered)
@@ -230,13 +374,24 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
       .filter(([, slideIds]) => slideIds.size > 1)
       .map(([masterId]) => masterId)
   )
+  const masterAppearanceIds = new Map<string, string[]>()
+  for (const slideId of slideOrder) {
+    const slide = slidesById[slideId]
+    for (const appearanceId of slide.appearanceIds) {
+      const appearance = presentation.appearancesById[appearanceId]
+      const chain = masterAppearanceIds.get(appearance.masterId)
+      if (chain) chain.push(appearance.id)
+      else masterAppearanceIds.set(appearance.masterId, [appearance.id])
+    }
+  }
 
   const frontSlideId = slideOrder[activeIndex]
   const { regular: frontRegular, mso: frontMso } = renderSlide(
     frontSlideId,
     timeline,
     msoMasterIds,
-    time
+    time,
+    masterAppearanceIds
   )
 
   const front: RenderedSlide = { slide: slidesById[frontSlideId], appearances: frontRegular }
@@ -244,7 +399,13 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
   let behind: RenderedSlide | null = null
   if (activeTransition && activeIndex > 0) {
     const behindSlideId = slideOrder[activeIndex - 1]
-    const { regular: behindRegular } = renderSlide(behindSlideId, timeline, msoMasterIds, time)
+    const { regular: behindRegular } = renderSlide(
+      behindSlideId,
+      timeline,
+      msoMasterIds,
+      time,
+      masterAppearanceIds
+    )
     behind = { slide: slidesById[behindSlideId], appearances: behindRegular }
   }
 
