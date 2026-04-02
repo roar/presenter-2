@@ -117,11 +117,30 @@ function App(): React.JSX.Element {
 
   const tl = buildTimeline(pres, triggerTimes)
   const frame = resolveFrame(tl, currentTime)
+  const frameBackground = frame.front.slide.background.color ?? frame.front.slide.background.image
+
+  useEffect(() => {
+    const background = frameBackground ?? '#ffffff'
+    document.documentElement.style.background = background
+    document.body.style.background = background
+
+    return () => {
+      document.documentElement.style.background = ''
+      document.body.style.background = ''
+    }
+  }, [frameBackground])
 
   if (error) return <div style={{ padding: 24, color: '#ff453a' }}>Error: {error}</div>
 
   return (
-    <div style={{ width: '100vw', height: '100vh', cursor: 'pointer' }}>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        cursor: 'pointer',
+        background: frameBackground ?? '#ffffff'
+      }}
+    >
       <SlideRenderer frame={frame} />
     </div>
   )

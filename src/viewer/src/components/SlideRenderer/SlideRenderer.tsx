@@ -34,6 +34,7 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
   }, [])
 
   const { front, behind, transition, msoAppearances } = frame
+  const frameBackground = front.slide.background.color ?? front.slide.background.image ?? '#ffffff'
 
   const frontOpacity =
     transition?.kind === 'fade-through-color'
@@ -45,7 +46,7 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
   const frontTranslateX = transition?.kind === 'push' ? `${(1 - transition.progress) * 100}%` : '0'
 
   return (
-    <div ref={outerRef} className={styles.outer}>
+    <div ref={outerRef} className={styles.outer} style={{ background: frameBackground }}>
       <div
         className={styles.inner}
         style={{

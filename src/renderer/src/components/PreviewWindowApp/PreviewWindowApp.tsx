@@ -120,14 +120,28 @@ export function PreviewWindowApp(): React.JSX.Element {
     }
   }, [advanceToNextCue])
 
+  const frame = playbackPresentation
+    ? resolveFrame(buildTimeline(playbackPresentation, triggerTimes), currentTime)
+    : null
+  const frameBackground = frame?.front.slide.background.color ?? frame?.front.slide.background.image
+
+  useEffect(() => {
+    const background = frameBackground ?? '#ffffff'
+    document.documentElement.style.background = background
+    document.body.style.background = background
+
+    return () => {
+      document.documentElement.style.background = ''
+      document.body.style.background = ''
+    }
+  }, [frameBackground])
+
   if (!playbackPresentation) {
     return <div className={styles.empty}>No presentation loaded.</div>
   }
 
-  const frame = resolveFrame(buildTimeline(playbackPresentation, triggerTimes), currentTime)
-
   return (
-    <div className={styles.root}>
+    <div className={styles.root} style={{ background: frameBackground ?? '#ffffff' }}>
       <SlideRenderer frame={frame} />
     </div>
   )

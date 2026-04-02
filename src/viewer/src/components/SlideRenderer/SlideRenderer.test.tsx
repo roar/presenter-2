@@ -125,4 +125,17 @@ describe('SlideRenderer', () => {
     render(<SlideRenderer frame={frame} />)
     expect(screen.getByText('Logo')).toBeDefined()
   })
+
+  it('uses the front slide background for the viewer area', () => {
+    const master = textMaster('m1', 'Background slide')
+    const app = createAppearance(master.id, 'slide')
+    const pres = singleSlide([app], [master])
+    pres.slidesById[pres.slideOrder[0]].background = { color: '#123456' }
+
+    const frame = resolveFrame(buildTimeline(pres, new Map()), 0)
+    const { container } = render(<SlideRenderer frame={frame} />)
+    const outer = container.firstElementChild as HTMLElement
+
+    expect(outer.style.background).toBe('rgb(18, 52, 86)')
+  })
 })

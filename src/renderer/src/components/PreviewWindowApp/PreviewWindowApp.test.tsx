@@ -12,7 +12,12 @@ vi.mock('@shared/animation/buildTimeline', () => ({
 vi.mock('@shared/animation/resolveFrame', () => ({
   resolveFrame: () => ({
     front: {
-      slide: { id: 'slide-1', appearanceIds: [], animationOrder: [], background: {} },
+      slide: {
+        id: 'slide-1',
+        appearanceIds: [],
+        animationOrder: [],
+        background: { color: '#123456' }
+      },
       appearances: []
     },
     behind: null,
@@ -142,5 +147,16 @@ describe('PreviewWindowApp', () => {
       )
       expect((lastCall?.[1] as Map<string, number>).has('implicit-transition:slide-1')).toBe(true)
     })
+  })
+
+  it('uses the frame background for the preview window root', async () => {
+    const { container } = render(<PreviewWindowApp />)
+
+    await waitFor(() => {
+      expect(buildTimelineMock).toHaveBeenCalled()
+    })
+
+    expect((container.firstElementChild as HTMLElement).style.background).toBe('rgb(18, 52, 86)')
+    expect(document.body.style.background).toBe('rgb(18, 52, 86)')
   })
 })
