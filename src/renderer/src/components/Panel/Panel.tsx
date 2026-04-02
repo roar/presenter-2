@@ -16,6 +16,7 @@ interface PanelSectionProps {
   selectedSlideId?: string | null
   fill?: boolean
   flush?: boolean
+  scrollable?: boolean
 }
 
 export function PanelSection({
@@ -24,22 +25,30 @@ export function PanelSection({
   testId,
   selectedSlideId,
   fill = false,
-  flush = false
+  flush = false,
+  scrollable = false
 }: PanelSectionProps) {
   return (
     <section
-      className={[styles.section, fill ? styles.sectionFill : '', flush ? styles.sectionFlush : '']
+      className={[
+        styles.section,
+        fill ? styles.sectionFill : '',
+        flush ? styles.sectionFlush : '',
+        scrollable ? styles.sectionScrollable : ''
+      ]
         .filter(Boolean)
         .join(' ')}
       data-testid={testId}
       data-selected-slide-id={selectedSlideId ?? undefined}
+      data-scrollable={scrollable ? true : undefined}
     >
       {title && <h3 className={styles.sectionTitle}>{title}</h3>}
       <div
         className={[
           styles.sectionContent,
           fill ? styles.sectionContentFill : '',
-          flush ? styles.sectionContentFlush : ''
+          flush ? styles.sectionContentFlush : '',
+          scrollable ? styles.sectionContentScrollable : ''
         ]
           .filter(Boolean)
           .join(' ')}

@@ -146,6 +146,14 @@ describe('EditorLayout', () => {
     expect(screen.getByText('Properties')).toBeInTheDocument()
     expect(screen.getByText('Timeline')).toBeInTheDocument()
     expect(slideEditorPanel).toHaveAttribute('data-selected-slide-id', slide.id)
+    expect(slidesPanel).toHaveAttribute('data-scrollable', 'true')
+    expect(animationPanel).toHaveAttribute('data-scrollable', 'true')
+    expect(objectsPanel).toHaveAttribute('data-scrollable', 'true')
+    expect(propertiesPanel).toHaveAttribute('data-scrollable', 'true')
+    expect(slideEditorPanel).not.toHaveAttribute('data-scrollable')
+    expect(notesPanel).not.toHaveAttribute('data-scrollable')
+    expect(videoPanel).not.toHaveAttribute('data-scrollable')
+    expect(timelinePanel).not.toHaveAttribute('data-scrollable')
     expect(
       slidesPanel.compareDocumentPosition(animationPanel) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)

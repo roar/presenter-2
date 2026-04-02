@@ -24,6 +24,10 @@
   min-height: 0;
 }
 
+.sectionScrollable {
+  min-height: 0;
+}
+
 .section + .section {
   border-top: 1px solid var(--border);
 }
@@ -55,4 +59,9 @@
 .sectionContentFill {
   flex: 1;
   min-height: 0;
+}
+
+.sectionContentScrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
 }

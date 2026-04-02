@@ -33,6 +33,7 @@ interface LayoutPanelProps {
   testId?: string
   selectedSlideId?: string | null
   flush?: boolean
+  scrollable?: boolean
 }
 
 function LayoutPanel({
@@ -41,7 +42,8 @@ function LayoutPanel({
   children,
   testId,
   selectedSlideId,
-  flush = false
+  flush = false,
+  scrollable = false
 }: LayoutPanelProps): React.JSX.Element {
   return (
     <Panel className={className}>
@@ -51,6 +53,7 @@ function LayoutPanel({
         selectedSlideId={selectedSlideId}
         fill={true}
         flush={flush}
+        scrollable={scrollable}
       >
         {children ?? null}
       </PanelSection>
@@ -264,7 +267,12 @@ export function EditorLayout(): React.JSX.Element {
       </Panel>
       <div className={styles.workspace}>
         <div className={styles.mainRow}>
-          <LayoutPanel title="Slides" className={styles.slidesPanel} testId="slides-panel">
+          <LayoutPanel
+            title="Slides"
+            className={styles.slidesPanel}
+            testId="slides-panel"
+            scrollable={true}
+          >
             <div className={styles.newSlideRow}>
               <Button variant="secondary" onClick={handleNewSlide}>
                 New Slide
@@ -298,7 +306,12 @@ export function EditorLayout(): React.JSX.Element {
               })}
             </div>
           </LayoutPanel>
-          <LayoutPanel title="Animation" className={styles.sidebarPanel} testId="animation-panel">
+          <LayoutPanel
+            title="Animation"
+            className={styles.sidebarPanel}
+            testId="animation-panel"
+            scrollable={true}
+          >
             {selectedSlideAnimations.map((animation) => (
               <AnimationCard
                 key={animation.id}
@@ -314,7 +327,12 @@ export function EditorLayout(): React.JSX.Element {
               />
             ))}
           </LayoutPanel>
-          <LayoutPanel title="Objects" className={styles.sidebarPanel} testId="objects-panel" />
+          <LayoutPanel
+            title="Objects"
+            className={styles.sidebarPanel}
+            testId="objects-panel"
+            scrollable={true}
+          />
           <div className={styles.centralColumn}>
             <LayoutPanel
               title="SlideEditor"
@@ -340,6 +358,7 @@ export function EditorLayout(): React.JSX.Element {
             title="Properties"
             className={styles.sidebarPanel}
             testId="properties-panel"
+            scrollable={true}
           />
         </div>
         <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel">
