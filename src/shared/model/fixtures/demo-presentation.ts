@@ -479,7 +479,7 @@ export const demoPresentationDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 780, y: 700 }, to: { x: 780, y: 290 } }
+                animation: { type: 'move', fromOffset: { x: 0, y: 410 } }
               }
             },
             // Scale: size 0 → 1
@@ -489,7 +489,7 @@ export const demoPresentationDocument: Document = {
               offset: 0,
               duration: 0.6,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'scale', from: 0, to: 1 } }
+              effect: { kind: 'enter', animation: { type: 'scale', to: 1 } }
             }
           ]
         },
@@ -678,7 +678,7 @@ export const demoPresentationDocument: Document = {
               easing: 'linear',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 400, y: 236 }, to: { x: 1700, y: 236 } }
+                animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             },
             {
@@ -689,7 +689,7 @@ export const demoPresentationDocument: Document = {
               easing: 'ease-in',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 400, y: 396 }, to: { x: 1700, y: 396 } }
+                animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             },
             {
@@ -700,7 +700,7 @@ export const demoPresentationDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 400, y: 556 }, to: { x: 1700, y: 556 } }
+                animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             },
             {
@@ -711,7 +711,7 @@ export const demoPresentationDocument: Document = {
               easing: 'ease-in-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 400, y: 716 }, to: { x: 1700, y: 716 } }
+                animation: { type: 'move', fromOffset: { x: -1300, y: 0 } }
               }
             }
           ]
@@ -854,7 +854,6 @@ export const demoPresentationDocument: Document = {
                 kind: 'property',
                 animation: {
                   type: 'text-shadow',
-                  from: { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(10,132,255,0)' },
                   to: { offsetX: 0, offsetY: 6, blur: 32, color: 'rgba(10,132,255,0.8)' }
                 }
               }

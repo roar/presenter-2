@@ -89,7 +89,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'fade', from: 0, to: 1 } }
+              effect: { kind: 'enter', animation: { type: 'fade', to: 1 } }
             },
             {
               id: 'anim-b2',
@@ -99,7 +99,7 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 160, y: 240 }, to: { x: 160, y: 340 } }
+                animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
               }
             },
             // Subtitle: fade in + move down
@@ -109,7 +109,7 @@ export const bibelhistorienDocument: Document = {
               offset: 0,
               duration: 3,
               easing: 'ease-out',
-              effect: { kind: 'enter', animation: { type: 'fade', from: 0, to: 1 } }
+              effect: { kind: 'enter', animation: { type: 'fade', to: 1 } }
             },
             {
               id: 'anim-b4',
@@ -119,7 +119,7 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'move', from: { x: 160, y: 448 }, to: { x: 160, y: 548 } }
+                animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
               }
             },
             // Underline: draw in + move down with subtitle (simultaneously)
@@ -139,11 +139,7 @@ export const bibelhistorienDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: {
-                  type: 'move',
-                  from: { x: UNDERLINE_X, y: UNDERLINE_Y - 100 },
-                  to: { x: UNDERLINE_X, y: UNDERLINE_Y }
-                }
+                animation: { type: 'move', fromOffset: { x: 0, y: -100 } }
               }
             }
           ]

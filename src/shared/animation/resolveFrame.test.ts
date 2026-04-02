@@ -64,7 +64,7 @@ function fadeEnterCue(
         offset: 0,
         duration,
         easing: 'linear',
-        effect: { kind: 'enter', animation: { type: 'fade', from: 0, to: 1 } }
+        effect: { kind: 'enter', animation: { type: 'fade', to: 1 } }
       }
     ]
   }
@@ -89,7 +89,7 @@ function moveEnterCue(
         easing: 'linear',
         effect: {
           kind: 'enter',
-          animation: { type: 'move', from: { x: 100, y: 200 }, to: { x: 100, y: 100 } }
+          animation: { type: 'move', fromOffset: { x: 0, y: 100 } }
         }
       }
     ]
@@ -183,11 +183,9 @@ describe('resolveFrame', () => {
         [moveEnterCue('c1', 'on-click', 'el')]
       )
       const timeline = timelineFromSlides([s], { c1: 0 })
-      const frame = resolveFrame(timeline, 0.5) // halfway: y should be 150 → translate 50px down from base
+      const frame = resolveFrame(timeline, 0.5) // halfway: fromOffset.y=100 lerps to 0, midpoint = 50
       const el = frame.front.elements[0]
       expect(el.visible).toBe(true)
-      // from {x:100, y:200} to {x:100, y:100}, at 50%: interp y = 150
-      // delta from element.y (100) = +50
       expect(el.transform).toContain('translate(0px, 50px)')
     })
 
@@ -317,7 +315,7 @@ describe('resolveFrame', () => {
             offset: 0,
             duration,
             easing: 'linear',
-            effect: { kind: 'enter', animation: { type: 'scale', from: 0, to: 1 } }
+            effect: { kind: 'enter', animation: { type: 'scale', to: 1 } }
           }
         ]
       }
@@ -368,7 +366,6 @@ describe('resolveFrame', () => {
               kind: 'property',
               animation: {
                 type: 'text-shadow',
-                from: { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0, 0, 0, 0)' },
                 to: { offsetX: 4, offsetY: 8, blur: 20, color: 'rgba(0, 0, 0, 1)' }
               }
             }

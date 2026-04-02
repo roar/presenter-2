@@ -120,19 +120,18 @@ function resolveElementState(
     if (effect.kind === 'enter') {
       visible = true
       if (effect.animation.type === 'fade') {
-        opacity = lerp(effect.animation.from, effect.animation.to, progress)
+        opacity = lerp(opacity, effect.animation.to, progress)
         if (completed) opacity = effect.animation.to
       } else if (effect.animation.type === 'move') {
-        const ix = lerp(effect.animation.from.x, effect.animation.to.x, progress)
-        const iy = lerp(effect.animation.from.y, effect.animation.to.y, progress)
-        translateX = ix - element.x
-        translateY = iy - element.y
+        const { fromOffset } = effect.animation
+        translateX = lerp(fromOffset.x, 0, progress)
+        translateY = lerp(fromOffset.y, 0, progress)
         if (completed) {
           translateX = 0
           translateY = 0
         }
       } else if (effect.animation.type === 'scale') {
-        scale = lerp(effect.animation.from, effect.animation.to, progress)
+        scale = lerp(scale ?? 0, effect.animation.to, progress)
         if (completed) scale = effect.animation.to
       } else if (effect.animation.type === 'line-draw') {
         opacity = 1 // visibility is controlled by strokeDashoffset, not opacity
@@ -141,7 +140,7 @@ function resolveElementState(
       }
     } else if (effect.kind === 'exit') {
       if (effect.animation.type === 'fade') {
-        opacity = lerp(effect.animation.from, effect.animation.to, progress)
+        opacity = lerp(opacity, effect.animation.to, progress)
         if (completed) {
           opacity = effect.animation.to
           visible = false
@@ -149,7 +148,7 @@ function resolveElementState(
       }
     } else if (effect.kind === 'property') {
       if (effect.animation.type === 'text-shadow') {
-        const from = effect.animation.from
+        const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
         const to = effect.animation.to
         textShadow = {
           offsetX: lerp(from.offsetX, to.offsetX, progress),

@@ -74,7 +74,7 @@ export const exampleDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'fade', from: 0, to: 1 }
+                animation: { type: 'fade', to: 1 }
               }
             },
             // Subtitle fades in 0.2s after title starts (parallel, delayed)
@@ -86,7 +86,7 @@ export const exampleDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'fade', from: 0, to: 1 }
+                animation: { type: 'fade', to: 1 }
               }
             }
           ]
@@ -180,11 +180,7 @@ export const exampleDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: {
-                  type: 'move',
-                  from: { x: 200, y: 500 },
-                  to: { x: 200, y: 320 }
-                }
+                animation: { type: 'move', fromOffset: { x: 0, y: 180 } }
               }
             },
             {
@@ -195,7 +191,7 @@ export const exampleDocument: Document = {
               easing: 'ease-out',
               effect: {
                 kind: 'enter',
-                animation: { type: 'fade', from: 0, to: 1 }
+                animation: { type: 'fade', to: 1 }
               }
             }
           ]

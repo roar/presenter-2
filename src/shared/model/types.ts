@@ -353,10 +353,12 @@ export type AnimationEffect =
   | { kind: 'property'; animation: VisualEffect }
 
 export type VisualEffect =
-  | { type: 'fade'; from: number; to: number }
-  | { type: 'move'; from: Position; to: Position }
-  | { type: 'scale'; from: number; to: number }
-  | { type: 'text-shadow'; from: TextShadow; to: TextShadow }
+  | { type: 'fade'; to: number }
+  // fromOffset is the displacement from the element's natural position where the animation starts.
+  // The implicit destination is always the natural position (zero offset).
+  | { type: 'move'; fromOffset: Position }
+  | { type: 'scale'; to: number }
+  | { type: 'text-shadow'; to: TextShadow }
   | { type: 'line-draw' }
 
 // ─── Animation group templates ────────────────────────────────────────────────
@@ -374,7 +376,6 @@ export type AnimationGroupMember =
       trigger: GroupMemberTrigger
       durationMs: number
       easing: Easing
-      from: number
       to: number
     }
   | {
@@ -383,7 +384,6 @@ export type AnimationGroupMember =
       trigger: GroupMemberTrigger
       durationMs: number
       easing: Easing
-      from: Color
       to: Color
     }
   | {
@@ -392,7 +392,6 @@ export type AnimationGroupMember =
       trigger: GroupMemberTrigger
       durationMs: number
       easing: Easing
-      from: Partial<Transform>
       to: Partial<Transform>
     }
   | {
@@ -401,7 +400,6 @@ export type AnimationGroupMember =
       trigger: GroupMemberTrigger
       durationMs: number
       easing: Easing
-      from: number
       to: number
     }
   | {
@@ -410,7 +408,6 @@ export type AnimationGroupMember =
       trigger: GroupMemberTrigger
       durationMs: number
       easing: Easing
-      from: number
       to: number
       mode: 'chars' | 'words' | 'lines'
     }
@@ -420,7 +417,6 @@ export type AnimationGroupMember =
       trigger: GroupMemberTrigger
       durationMs: number
       easing: Easing
-      fromState: string | 'default'
       toState: string | 'default'
     }
 
