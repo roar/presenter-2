@@ -15,6 +15,9 @@ import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
 import { SlideTimeline } from '../SlideTimeline/SlideTimeline'
 import {
   buildPresentationPlaybackPlan,
+  buildPresentationTimelineViewModel,
+  buildSlideTimelineViewModel,
+  buildTriggerTimesForPresentationTime,
   buildTriggerTimesForSlideTime
 } from '../SlideTimeline/slideTimelineModel'
 import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
@@ -78,10 +81,13 @@ export function EditorLayout(): React.JSX.Element {
   const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
   const [timelineState, setTimelineState] = useState<{
-    slideId: string | null
+    key: string
     time: number
     isPlaying: boolean
-  }>({ slideId: null, time: 0, isPlaying: false })
+  }>({ key: '', time: 0, isPlaying: false })
+  const [timelineScope, setTimelineScope] = useState<'selected-slide' | 'all-slides'>(
+    'selected-slide'
+  )
   const timelineTimeRef = useRef(0)
 
   useEffect(() => {
@@ -132,28 +138,31 @@ export function EditorLayout(): React.JSX.Element {
   )
   const selectedSlideTimeline =
     selectedSlideId && playbackPlan ? playbackPlan.slideTimelinesById[selectedSlideId] : null
-  const timelineTime = timelineState.slideId === selectedSlideId ? timelineState.time : 0
-  const isTimelinePlaying =
-    timelineState.slideId === selectedSlideId ? timelineState.isPlaying : false
+  const timelineKey =
+    timelineScope === 'selected-slide' ? `selected:${selectedSlideId ?? ''}` : 'all-slides'
+  const timelineViewModel = useMemo(() => {
+    if (!playbackPlan) return null
+    if (timelineScope === 'all-slides') return buildPresentationTimelineViewModel(playbackPlan)
+    return selectedSlideTimeline ? buildSlideTimelineViewModel(selectedSlideTimeline) : null
+  }, [playbackPlan, selectedSlideTimeline, timelineScope])
+  const timelineTime = timelineState.key === timelineKey ? timelineState.time : 0
+  const isTimelinePlaying = timelineState.key === timelineKey ? timelineState.isPlaying : false
   const selectedSlideAnimations =
     selectedSlide != null && document != null
       ? selectedSlide.animationOrder
           .map((animationId) => document.animationsById[animationId])
           .filter(Boolean)
       : []
-  const isTimelinePreviewing =
-    selectedSlideId != null &&
-    selectedSlideTimeline != null &&
-    (isTimelinePlaying || timelineTime > 0)
+  const isTimelinePreviewing = timelineViewModel != null && (isTimelinePlaying || timelineTime > 0)
 
   useEffect(() => {
     timelineTimeRef.current = timelineTime
   }, [timelineTime])
 
   useEffect(() => {
-    if (!isTimelinePlaying || !selectedSlideTimeline) return
+    if (!isTimelinePlaying || !timelineViewModel) return
 
-    const initialTime = Math.min(timelineTimeRef.current, selectedSlideTimeline.totalDuration)
+    const initialTime = Math.min(timelineTimeRef.current, timelineViewModel.totalDuration)
     let frameId = 0
     let startTime: number | null = null
 
@@ -164,18 +173,18 @@ export function EditorLayout(): React.JSX.Element {
 
       const nextTime = Math.min(
         (now - startTime) / 1000,
-        Math.max(selectedSlideTimeline.totalDuration, 0)
+        Math.max(timelineViewModel.totalDuration, 0)
       )
       timelineTimeRef.current = nextTime
       setTimelineState((current) => ({
-        slideId: selectedSlideId,
+        key: timelineKey,
         time: nextTime,
         isPlaying: current.isPlaying
       }))
 
-      if (nextTime >= selectedSlideTimeline.totalDuration) {
+      if (nextTime >= timelineViewModel.totalDuration) {
         setTimelineState({
-          slideId: selectedSlideId,
+          key: timelineKey,
           time: nextTime,
           isPlaying: false
         })
@@ -187,19 +196,20 @@ export function EditorLayout(): React.JSX.Element {
 
     frameId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frameId)
-  }, [isTimelinePlaying, selectedSlideId, selectedSlideTimeline])
+  }, [isTimelinePlaying, timelineKey, timelineViewModel])
 
   const timelinePreviewFrame = useMemo(() => {
-    if (!playbackPlan || !selectedSlideId || !isTimelinePreviewing) return null
+    if (!playbackPlan || !isTimelinePreviewing) return null
 
-    const { absoluteTime, triggerTimes } = buildTriggerTimesForSlideTime(
-      playbackPlan,
-      selectedSlideId,
-      timelineTime
-    )
+    const { absoluteTime, triggerTimes } =
+      timelineScope === 'all-slides'
+        ? buildTriggerTimesForPresentationTime(playbackPlan, timelineTime)
+        : selectedSlideId
+          ? buildTriggerTimesForSlideTime(playbackPlan, selectedSlideId, timelineTime)
+          : { absoluteTime: 0, triggerTimes: new Map<string, number>() }
 
     return resolveFrame(buildTimeline(playbackPlan.presentation, triggerTimes), absoluteTime)
-  }, [isTimelinePreviewing, playbackPlan, selectedSlideId, timelineTime])
+  }, [isTimelinePreviewing, playbackPlan, selectedSlideId, timelineScope, timelineTime])
 
   function handleNewSlide() {
     addSlide(createSlide())
@@ -207,7 +217,7 @@ export function EditorLayout(): React.JSX.Element {
 
   function handleTimelineTimeChange(nextTime: number): void {
     setTimelineState({
-      slideId: selectedSlideId,
+      key: timelineKey,
       time: nextTime,
       isPlaying: false
     })
@@ -215,18 +225,23 @@ export function EditorLayout(): React.JSX.Element {
   }
 
   function handleTimelinePlayToggle(nextPlaying: boolean): void {
-    if (!selectedSlideTimeline) return
+    if (!timelineViewModel) return
 
     const nextTime =
-      nextPlaying && timelineTimeRef.current >= selectedSlideTimeline.totalDuration
+      nextPlaying && timelineTimeRef.current >= timelineViewModel.totalDuration
         ? 0
         : timelineTimeRef.current
     timelineTimeRef.current = nextTime
     setTimelineState({
-      slideId: selectedSlideId,
+      key: timelineKey,
       time: nextTime,
       isPlaying: nextPlaying
     })
+  }
+
+  function handleTimelineScopeToggle(): void {
+    setTimelineScope((current) => (current === 'selected-slide' ? 'all-slides' : 'selected-slide'))
+    timelineTimeRef.current = 0
   }
 
   return (
@@ -303,13 +318,15 @@ export function EditorLayout(): React.JSX.Element {
           />
         </div>
         <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel">
-          {selectedSlideTimeline ? (
+          {timelineViewModel ? (
             <SlideTimeline
-              timeline={selectedSlideTimeline}
+              timeline={timelineViewModel}
               currentTime={timelineTime}
               isPlaying={isTimelinePlaying}
               onTimeChange={handleTimelineTimeChange}
               onPlayToggle={handleTimelinePlayToggle}
+              scope={timelineScope}
+              onScopeToggle={handleTimelineScopeToggle}
             />
           ) : null}
         </LayoutPanel>

@@ -1,14 +1,16 @@
 import React, { useRef, useState } from 'react'
 import { Button } from '../Button/Button'
-import type { SlideTimelineBar, SlideTimelineModel } from './slideTimelineModel'
+import type { SlideTimelineBar, TimelineViewModel } from './slideTimelineModel'
 import styles from './SlideTimeline.module.css'
 
 interface SlideTimelineProps {
-  timeline: SlideTimelineModel
+  timeline: TimelineViewModel
   currentTime: number
   isPlaying: boolean
   onTimeChange: (time: number) => void
   onPlayToggle: (isPlaying: boolean) => void
+  scope: 'selected-slide' | 'all-slides'
+  onScopeToggle: () => void
 }
 
 function formatTime(value: number): string {
@@ -51,7 +53,9 @@ export function SlideTimeline({
   currentTime,
   isPlaying,
   onTimeChange,
-  onPlayToggle
+  onPlayToggle,
+  scope,
+  onScopeToggle
 }: SlideTimelineProps): React.JSX.Element {
   const [isScrubMode, setIsScrubMode] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -59,9 +63,9 @@ export function SlideTimeline({
   const playheadStyle = {
     left: `${(clampedTime / Math.max(timeline.totalDuration, 1)) * 100}%`
   }
-  const clickBuckets = timeline.buckets.filter((bucket) => bucket.triggerId)
-  const allBars = timeline.buckets.flatMap((bucket) => bucket.bars)
-  const laneCount = Math.max(1, ...timeline.buckets.map((bucket) => Math.max(bucket.laneCount, 1)))
+  const clickBuckets = timeline.clickMarkers
+  const allBars = timeline.bars
+  const laneCount = Math.max(1, timeline.laneCount)
 
   function scrubToPointer(clientX: number): void {
     const rect = rootRef.current?.getBoundingClientRect()
@@ -106,27 +110,41 @@ export function SlideTimeline({
           >
             {isScrubMode ? 'Scrub On' : 'Scrub Off'}
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            aria-label={
+              scope === 'selected-slide'
+                ? 'Show all slides timeline'
+                : 'Show selected slide timeline'
+            }
+            onClick={() => {
+              setIsScrubMode(false)
+              onPlayToggle(false)
+              onScopeToggle()
+            }}
+          >
+            {scope === 'selected-slide' ? 'Selected slide' : 'All slides'}
+          </Button>
         </div>
         <div className={styles.timeReadout}>
           {formatTime(clampedTime)} / {formatTime(timeline.totalDuration)}
         </div>
       </div>
       <div className={styles.trackSummary}>
-        {timeline.buckets
-          .filter((bucket) => !bucket.triggerId)
-          .map((bucket) => (
-            <span key={bucket.label} className={styles.summaryLabel}>
-              {bucket.label}
-            </span>
-          ))}
+        {timeline.summaryLabels.map((label) => (
+          <span key={label} className={styles.summaryLabel}>
+            {label}
+          </span>
+        ))}
       </div>
       <div className={styles.clickLabels} aria-hidden="true">
         {clickBuckets.map((bucket) => (
           <div
-            key={bucket.label}
+            key={`${bucket.label}:${bucket.time}`}
             className={styles.clickLabel}
             style={{
-              left: `${(bucket.startTime / Math.max(timeline.totalDuration, 1)) * 100}%`
+              left: `${(bucket.time / Math.max(timeline.totalDuration, 1)) * 100}%`
             }}
           >
             {bucket.label}
@@ -143,28 +161,29 @@ export function SlideTimeline({
         <div className={styles.playhead} style={playheadStyle} />
         {clickBuckets.map((bucket) => (
           <div
-            key={bucket.label}
+            key={`${bucket.label}:${bucket.time}`}
             className={styles.clickMarker}
             style={{
-              left: `${(bucket.startTime / Math.max(timeline.totalDuration, 1)) * 100}%`
+              left: `${(bucket.time / Math.max(timeline.totalDuration, 1)) * 100}%`
             }}
             aria-label={`Click marker: ${bucket.label}`}
             title={bucket.label}
           />
         ))}
-        {timeline.transition ? (
+        {timeline.transitionBars.map((transitionBar) => (
           <div
+            key={transitionBar.key}
             className={[styles.bar, styles.transitionBar].join(' ')}
             style={getBarStyle(
-              timeline.transition.startTime,
-              timeline.transition.endTime,
+              transitionBar.startTime,
+              transitionBar.endTime,
               0,
               timeline.totalDuration
             )}
           >
-            <span className={styles.barText}>{timeline.transition.kind}</span>
+            <span className={styles.barText}>{transitionBar.kind}</span>
           </div>
-        ) : null}
+        ))}
         {allBars.map((bar) => renderBar(bar, timeline.totalDuration))}
       </div>
     </div>

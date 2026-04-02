@@ -39,6 +39,27 @@ export interface SlideTimelineModel {
   buckets: SlideTimelineBucket[]
 }
 
+export interface TimelineMarker {
+  label: string
+  time: number
+}
+
+export interface TimelineRange {
+  key: string
+  kind: string
+  startTime: number
+  endTime: number
+}
+
+export interface TimelineViewModel {
+  totalDuration: number
+  summaryLabels: string[]
+  clickMarkers: TimelineMarker[]
+  transitionBars: TimelineRange[]
+  bars: SlideTimelineBar[]
+  laneCount: number
+}
+
 export interface SlideTimelineSegment {
   slideId: SlideId
   startTime: number
@@ -243,5 +264,123 @@ export function buildTriggerTimesForSlideTime(
   return {
     absoluteTime: segment.startTime + clampedLocalTime,
     triggerTimes
+  }
+}
+
+export function buildTriggerTimesForPresentationTime(
+  plan: PresentationPlaybackPlan,
+  presentationTime: number
+): { absoluteTime: number; triggerTimes: Map<string, number> } {
+  const clampedTime = Math.max(
+    0,
+    Math.min(
+      presentationTime,
+      Math.max(0, ...plan.segments.map((segment) => segment.endTime), MIN_TIMELINE_DURATION)
+    )
+  )
+  const triggerTimes = new Map<string, number>()
+
+  for (const segment of plan.segments) {
+    if (segment.startTime > clampedTime) break
+
+    if (segment.timeline.transition?.triggerId) {
+      triggerTimes.set(segment.timeline.transition.triggerId, segment.startTime)
+    }
+
+    const localCutoff = Math.min(clampedTime - segment.startTime, segment.timeline.totalDuration)
+
+    for (const bucket of segment.timeline.buckets) {
+      if (!bucket.triggerId) continue
+      if (bucket.startTime <= localCutoff) {
+        triggerTimes.set(bucket.triggerId, segment.startTime + bucket.startTime)
+      }
+    }
+  }
+
+  return {
+    absoluteTime: clampedTime,
+    triggerTimes
+  }
+}
+
+export function buildSlideTimelineViewModel(timeline: SlideTimelineModel): TimelineViewModel {
+  return {
+    totalDuration: timeline.totalDuration,
+    summaryLabels: timeline.buckets
+      .filter((bucket) => !bucket.triggerId)
+      .map((bucket) => bucket.label),
+    clickMarkers: timeline.buckets
+      .filter((bucket) => bucket.triggerId)
+      .map((bucket) => ({ label: bucket.label, time: bucket.startTime })),
+    transitionBars: timeline.transition
+      ? [
+          {
+            key: timeline.transition.triggerId,
+            kind: timeline.transition.kind,
+            startTime: timeline.transition.startTime,
+            endTime: timeline.transition.endTime
+          }
+        ]
+      : [],
+    bars: timeline.buckets.flatMap((bucket) => bucket.bars),
+    laneCount: Math.max(1, ...timeline.buckets.map((bucket) => Math.max(bucket.laneCount, 1)))
+  }
+}
+
+export function buildPresentationTimelineViewModel(
+  plan: PresentationPlaybackPlan
+): TimelineViewModel {
+  const summaryLabels = plan.segments.map((segment, index) => `Slide ${index + 1}`)
+  const clickMarkers: TimelineMarker[] = []
+  const transitionBars: TimelineRange[] = []
+  const bars: SlideTimelineBar[] = []
+  let laneCount = 1
+
+  for (let index = 0; index < plan.segments.length; index += 1) {
+    const segment = plan.segments[index]
+    const offset = segment.startTime
+    laneCount = Math.max(
+      laneCount,
+      segment.timeline.buckets.map((bucket) => bucket.laneCount).reduce((a, b) => Math.max(a, b), 1)
+    )
+
+    if (segment.timeline.transition) {
+      transitionBars.push({
+        key: segment.timeline.transition.triggerId,
+        kind: segment.timeline.transition.kind,
+        startTime: offset + segment.timeline.transition.startTime,
+        endTime: offset + segment.timeline.transition.endTime
+      })
+    }
+
+    for (const bucket of segment.timeline.buckets) {
+      if (bucket.triggerId) {
+        clickMarkers.push({
+          label: bucket.label,
+          time: offset + bucket.startTime
+        })
+      }
+
+      for (const bar of bucket.bars) {
+        bars.push({
+          ...bar,
+          startTime: offset + bar.startTime,
+          endTime: offset + bar.endTime,
+          triggerTime: offset + bar.triggerTime
+        })
+      }
+    }
+  }
+
+  return {
+    totalDuration: Math.max(
+      MIN_TIMELINE_DURATION,
+      ...plan.segments.map((segment) => segment.endTime)
+    ),
+    summaryLabels,
+    clickMarkers,
+    transitionBars,
+    bars,
+    laneCount
   }
 }

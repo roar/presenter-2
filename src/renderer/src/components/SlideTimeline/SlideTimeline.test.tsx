@@ -1,81 +1,72 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { SlideTimelineModel } from './slideTimelineModel'
+import type { TimelineViewModel } from './slideTimelineModel'
 import { SlideTimeline } from './SlideTimeline'
 
-function makeTimeline(): SlideTimelineModel {
+function makeTimeline(): TimelineViewModel {
   return {
-    slideId: 'slide-1',
     totalDuration: 3,
-    transition: {
-      triggerId: 'transition-1',
-      kind: 'push',
-      startTime: 0,
-      endTime: 0.5
-    },
-    buckets: [
+    summaryLabels: ['Autoplay'],
+    clickMarkers: [{ label: 'Click 1', time: 1.9 }],
+    transitionBars: [
       {
-        index: 0,
-        label: 'Autoplay',
+        key: 'transition-1',
+        kind: 'push',
+        startTime: 0,
+        endTime: 0.5
+      }
+    ],
+    bars: [
+      {
+        animationId: 'anim-1',
+        title: 'Move',
+        objectName: 'Airplane',
         startTime: 0.5,
         endTime: 1.5,
-        laneCount: 1,
-        bars: [
-          {
-            animationId: 'anim-1',
-            title: 'Move',
-            objectName: 'Airplane',
-            startTime: 0.5,
-            endTime: 1.5,
-            triggerTime: 0.5,
-            lane: 0
-          }
-        ]
+        triggerTime: 0.5,
+        lane: 0
       },
       {
-        index: 1,
-        label: 'Click 1',
+        animationId: 'anim-2',
+        title: 'Move',
+        objectName: 'Balloon',
         startTime: 1.9,
+        endTime: 2.6,
+        triggerTime: 1.9,
+        lane: 0
+      },
+      {
+        animationId: 'anim-3',
+        title: 'Scale',
+        objectName: 'Balloon',
+        startTime: 2.1,
         endTime: 3,
-        triggerId: 'anim-2',
-        laneCount: 2,
-        bars: [
-          {
-            animationId: 'anim-2',
-            title: 'Move',
-            objectName: 'Balloon',
-            startTime: 1.9,
-            endTime: 2.6,
-            triggerTime: 1.9,
-            lane: 0
-          },
-          {
-            animationId: 'anim-3',
-            title: 'Scale',
-            objectName: 'Balloon',
-            startTime: 2.1,
-            endTime: 3,
-            triggerTime: 1.9,
-            lane: 1
-          }
-        ]
+        triggerTime: 1.9,
+        lane: 1
       }
-    ]
+    ],
+    laneCount: 2
   }
 }
 
+function renderTimeline(scope: 'selected-slide' | 'all-slides' = 'selected-slide') {
+  return render(
+    <SlideTimeline
+      timeline={makeTimeline()}
+      currentTime={0}
+      isPlaying={false}
+      onTimeChange={vi.fn()}
+      onPlayToggle={vi.fn()}
+      scope={scope}
+      onScopeToggle={vi.fn()}
+    />
+  )
+}
+
 describe('SlideTimeline', () => {
-  it('renders the transition bar and click buckets', () => {
-    render(
-      <SlideTimeline
-        timeline={makeTimeline()}
-        currentTime={0}
-        isPlaying={false}
-        onTimeChange={vi.fn()}
-        onPlayToggle={vi.fn()}
-      />
-    )
+  it('renders the timeline content', () => {
+    renderTimeline()
 
     expect(screen.queryByText('Transition')).not.toBeInTheDocument()
     expect(screen.getByText('Autoplay')).toBeInTheDocument()
@@ -86,16 +77,8 @@ describe('SlideTimeline', () => {
     expect(screen.getByTestId('timeline-track')).toBeInTheDocument()
   })
 
-  it('renders a single shared track with click markers and stacks overlapping bars vertically', () => {
-    render(
-      <SlideTimeline
-        timeline={makeTimeline()}
-        currentTime={0}
-        isPlaying={false}
-        onTimeChange={vi.fn()}
-        onPlayToggle={vi.fn()}
-      />
-    )
+  it('renders a single shared track with click markers and stacked overlapping bars', () => {
+    renderTimeline()
 
     expect(screen.getAllByTestId('timeline-track')).toHaveLength(1)
     expect(screen.getAllByLabelText('Click marker: Click 1').length).toBeGreaterThan(0)
@@ -114,6 +97,8 @@ describe('SlideTimeline', () => {
         isPlaying={false}
         onTimeChange={vi.fn()}
         onPlayToggle={onPlayToggle}
+        scope="selected-slide"
+        onScopeToggle={vi.fn()}
       />
     )
 
@@ -127,6 +112,8 @@ describe('SlideTimeline', () => {
         isPlaying={true}
         onTimeChange={vi.fn()}
         onPlayToggle={onPlayToggle}
+        scope="selected-slide"
+        onScopeToggle={vi.fn()}
       />
     )
 
@@ -134,19 +121,14 @@ describe('SlideTimeline', () => {
     expect(onPlayToggle).toHaveBeenCalledWith(false)
   })
 
-  it('renders a scrub button next to play', () => {
-    render(
-      <SlideTimeline
-        timeline={makeTimeline()}
-        currentTime={0}
-        isPlaying={false}
-        onTimeChange={vi.fn()}
-        onPlayToggle={vi.fn()}
-      />
-    )
+  it('renders scrub and scope toggle buttons next to play', () => {
+    renderTimeline()
 
     expect(screen.getByRole('button', { name: 'Play timeline' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Enable scrub mode' })).toHaveTextContent('Scrub Off')
+    expect(screen.getByRole('button', { name: 'Show all slides timeline' })).toHaveTextContent(
+      'Selected slide'
+    )
   })
 
   it('follows mouse movement anywhere inside the timeline panel when scrub mode is enabled', async () => {
@@ -160,6 +142,8 @@ describe('SlideTimeline', () => {
         isPlaying={false}
         onTimeChange={onTimeChange}
         onPlayToggle={vi.fn()}
+        scope="selected-slide"
+        onScopeToggle={vi.fn()}
       />
     )
 
@@ -196,6 +180,8 @@ describe('SlideTimeline', () => {
         isPlaying={false}
         onTimeChange={vi.fn()}
         onPlayToggle={onPlayToggle}
+        scope="selected-slide"
+        onScopeToggle={vi.fn()}
       />
     )
 
@@ -218,6 +204,8 @@ describe('SlideTimeline', () => {
         isPlaying={false}
         onTimeChange={onTimeChange}
         onPlayToggle={vi.fn()}
+        scope="selected-slide"
+        onScopeToggle={vi.fn()}
       />
     )
 
@@ -242,16 +230,44 @@ describe('SlideTimeline', () => {
     expect(onTimeChange).not.toHaveBeenCalled()
   })
 
-  it('does not render the old top progress scrubber', () => {
-    render(
+  it('toggles between selected-slide and all-slides scopes', async () => {
+    const user = userEvent.setup()
+    const onScopeToggle = vi.fn()
+
+    const { rerender } = render(
       <SlideTimeline
         timeline={makeTimeline()}
         currentTime={0}
         isPlaying={false}
         onTimeChange={vi.fn()}
         onPlayToggle={vi.fn()}
+        scope="selected-slide"
+        onScopeToggle={onScopeToggle}
       />
     )
+
+    await user.click(screen.getByRole('button', { name: 'Show all slides timeline' }))
+    expect(onScopeToggle).toHaveBeenCalledOnce()
+
+    rerender(
+      <SlideTimeline
+        timeline={makeTimeline()}
+        currentTime={0}
+        isPlaying={false}
+        onTimeChange={vi.fn()}
+        onPlayToggle={vi.fn()}
+        scope="all-slides"
+        onScopeToggle={onScopeToggle}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Show selected slide timeline' })).toHaveTextContent(
+      'All slides'
+    )
+  })
+
+  it('does not render the old top progress scrubber', () => {
+    renderTimeline()
 
     expect(screen.queryByRole('slider', { name: 'Timeline scrubber' })).not.toBeInTheDocument()
   })

@@ -187,7 +187,13 @@ describe('EditorLayout', () => {
         selectSlide,
         setPreviewPatch: vi.fn(),
         copyElement: vi.fn(),
-        pasteElement: vi.fn()
+        pasteElement: vi.fn(),
+        updateAnimationTrigger: vi.fn(),
+        updateAnimationOffset: vi.fn(),
+        updateAnimationDuration: vi.fn(),
+        updateAnimationEasing: vi.fn(),
+        updateAnimationNumericTo: vi.fn(),
+        updateAnimationMoveDelta: vi.fn()
       })
     })
 
@@ -227,8 +233,64 @@ describe('EditorLayout', () => {
     render(<EditorLayout />)
 
     expect(screen.getByRole('button', { name: 'Play timeline' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show all slides timeline' })).toBeInTheDocument()
     expect(screen.getByText('Autoplay')).toBeInTheDocument()
     expect(screen.getByLabelText('Move: Airplane')).toBeInTheDocument()
+  })
+
+  it('toggles to the all-slides timeline using the same timeline component', async () => {
+    const user = userEvent.setup()
+    const slide1 = createSlide()
+    const slide2 = createSlide()
+    const master1 = createMsoMaster('shape')
+    const master2 = createMsoMaster('shape')
+    master1.name = 'Airplane'
+    master2.name = 'Balloon'
+    const appearance1 = createAppearance(master1.id, slide1.id)
+    const appearance2 = createAppearance(master2.id, slide2.id)
+    const animation1: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance1.id }
+    }
+    const animation2: TargetedAnimation = {
+      id: 'anim-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 200, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance2.id }
+    }
+
+    slide1.appearanceIds = [appearance1.id]
+    slide1.animationOrder = [animation1.id]
+    slide2.appearanceIds = [appearance2.id]
+    slide2.animationOrder = [animation2.id]
+
+    const document = {
+      ...makePresentation(slide1, slide2),
+      mastersById: { [master1.id]: master1, [master2.id]: master2 },
+      appearancesById: { [appearance1.id]: appearance1, [appearance2.id]: appearance2 },
+      animationsById: { [animation1.id]: animation1, [animation2.id]: animation2 }
+    }
+
+    mockStore(document, slide1.id)
+    render(<EditorLayout />)
+
+    await user.click(screen.getByRole('button', { name: 'Show all slides timeline' }))
+
+    expect(screen.getByRole('button', { name: 'Show selected slide timeline' })).toBeInTheDocument()
+    expect(screen.getByText('Slide 1')).toBeInTheDocument()
+    expect(screen.getByText('Slide 2')).toBeInTheDocument()
+    expect(screen.getByLabelText('Move: Airplane')).toBeInTheDocument()
+    expect(screen.getByLabelText('Move: Balloon')).toBeInTheDocument()
   })
 
   it('swaps the timeline contents when the selected slide changes', () => {
