@@ -55,6 +55,7 @@ function makePresentation(...slides: Slide[]): Presentation {
 const addSlide = vi.fn()
 const removeSlide = vi.fn()
 const selectSlide = vi.fn()
+const selectElements = vi.fn()
 
 function mockStore(document: Presentation | null, selectedSlideId: string | null = null): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
@@ -65,6 +66,7 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       addSlide,
       removeSlide,
       selectSlide,
+      selectElements,
       setPreviewPatch: vi.fn(),
       copyElement: vi.fn(),
       pasteElement: vi.fn(),
@@ -215,6 +217,7 @@ describe('EditorLayout', () => {
         ui: { selectedSlideId: slide.id, selectedElementIds: [] },
         addSlide,
         selectSlide,
+        selectElements,
         setPreviewPatch: vi.fn(),
         copyElement: vi.fn(),
         pasteElement: vi.fn(),
@@ -270,6 +273,43 @@ describe('EditorLayout', () => {
     expect(screen.getByRole('button', { name: 'Show all slides timeline' })).toBeInTheDocument()
     expect(screen.getByText('Autoplay')).toBeInTheDocument()
     expect(screen.getByLabelText('Move: Airplane')).toBeInTheDocument()
+  })
+
+  it('renders the selected slide objects in the objects panel and selects them on click', async () => {
+    const user = userEvent.setup()
+    const slide = createSlide()
+    const master1 = createMsoMaster('shape')
+    master1.name = 'Airplane'
+    master1.transform = { x: 10, y: 20, width: 100, height: 80, rotation: 0 }
+    const master2 = createMsoMaster('text')
+    master2.content = {
+      type: 'text',
+      value: { blocks: [{ id: 'b1', runs: [{ id: 'r1', text: 'Title', marks: [] }] }] }
+    }
+    master2.textStyle = { defaultState: { fontSize: 24, color: '#fff' }, namedStates: {} }
+    master2.transform = { x: 50, y: 60, width: 200, height: 50, rotation: 0 }
+    const appearance1 = createAppearance(master1.id, slide.id)
+    const appearance2 = createAppearance(master2.id, slide.id)
+
+    slide.appearanceIds = [appearance1.id, appearance2.id]
+
+    const document = {
+      ...makePresentation(slide),
+      mastersById: { [master1.id]: master1, [master2.id]: master2 },
+      appearancesById: { [appearance1.id]: appearance1, [appearance2.id]: appearance2 }
+    }
+
+    mockStore(document, slide.id)
+    render(<EditorLayout />)
+
+    expect(screen.getAllByText('Airplane').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Title').length).toBeGreaterThan(0)
+    expect(screen.getByRole('img', { name: 'Airplane preview' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Title preview' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /airplane/i }))
+
+    expect(selectElements).toHaveBeenCalledWith([master1.id])
   })
 
   it('toggles to the all-slides timeline using the same timeline component', async () => {

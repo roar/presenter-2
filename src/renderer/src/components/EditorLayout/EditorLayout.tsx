@@ -10,6 +10,7 @@ import { resolveFrame } from '@shared/animation/resolveFrame'
 import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
 import { AnimationCard } from '../AnimationCard/AnimationCard'
 import { Button } from '../Button/Button'
+import { ObjectCard } from '../ObjectCard/ObjectCard'
 import { Panel, PanelSection } from '../Panel/Panel'
 import { SlideCanvas } from '../SlideCanvas/SlideCanvas'
 import { SlideTimeline } from '../SlideTimeline/SlideTimeline'
@@ -82,6 +83,7 @@ export function EditorLayout(): React.JSX.Element {
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const selectSlide = useDocumentStore((s) => s.selectSlide)
+  const selectElements = useDocumentStore((s) => s.selectElements)
   const addSlide = useDocumentStore((s) => s.addSlide)
   const removeSlide = useDocumentStore((s) => s.removeSlide)
   const copyElement = useDocumentStore((s) => s.copyElement)
@@ -148,6 +150,12 @@ export function EditorLayout(): React.JSX.Element {
 
   const slideOrder = document?.slideOrder ?? []
   const selectedSlide = selectedSlideId ? document?.slidesById[selectedSlideId] : null
+  const selectedSlideIndex =
+    selectedSlideId != null ? slideOrder.findIndex((slideId) => slideId === selectedSlideId) : -1
+  const selectedRenderedSlide =
+    selectedSlideIndex >= 0 && selectedSlideIndex < allEntryStates.length
+      ? allEntryStates[selectedSlideIndex]
+      : null
   const playbackPlan = useMemo(
     () => (patchedPresentation ? buildPresentationPlaybackPlan(patchedPresentation) : null),
     [patchedPresentation]
@@ -169,6 +177,10 @@ export function EditorLayout(): React.JSX.Element {
           .map((animationId) => document.animationsById[animationId])
           .filter(Boolean)
       : []
+  const selectedSlideObjects =
+    selectedRenderedSlide?.appearances
+      .slice()
+      .sort((a, b) => a.appearance.zIndex - b.appearance.zIndex) ?? []
   const isTimelinePreviewing = timelineViewModel != null && (isTimelinePlaying || timelineTime > 0)
 
   useEffect(() => {
@@ -332,7 +344,17 @@ export function EditorLayout(): React.JSX.Element {
             className={styles.sidebarPanel}
             testId="objects-panel"
             scrollable={true}
-          />
+          >
+            {selectedSlideObjects.map((renderedAppearance) => (
+              <ObjectCard
+                key={renderedAppearance.appearance.id}
+                objectName={getMasterDisplayName(renderedAppearance.master)}
+                rendered={renderedAppearance}
+                isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
+                onClick={() => selectElements([renderedAppearance.master.id])}
+              />
+            ))}
+          </LayoutPanel>
           <div className={styles.centralColumn}>
             <LayoutPanel
               title="SlideEditor"
