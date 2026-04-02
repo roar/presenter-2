@@ -57,8 +57,8 @@ export interface MsoMaster {
   id: MasterId
   type: 'shape' | 'text' | 'image' | 'group' | 'table'
   transform: Transform
-  style: StyleProperties
-  styleStates?: Record<string, Partial<StyleProperties>>
+  objectStyle: ObjectStyle
+  textStyle?: TextStyle // only relevant for type: 'text'
   content: Content
   geometry?: ShapeGeometry
   childMasterIds?: MasterId[]
@@ -93,15 +93,33 @@ export interface Transform {
 
 export type Color = string // CSS color value
 
-export interface StyleProperties {
+// Container/graphic properties — apply to the bounding box of any master type.
+export interface ObjectStyleProperties {
   fill?: Color
   stroke?: Color
   strokeWidth?: number
   opacity?: number
+}
+
+// Typography properties — only meaningful on type: 'text' masters.
+export interface TextStyleProperties {
   fontSize?: number
   fontFamily?: string
   fontWeight?: number
+  color?: Color
   textShadow?: TextShadow
+}
+
+// A style owns a default state and any number of named overrides.
+// Named states resolve as: defaultState + partial overrides applied on top.
+export interface ObjectStyle {
+  defaultState: ObjectStyleProperties
+  namedStates: Record<string, Partial<ObjectStyleProperties>>
+}
+
+export interface TextStyle {
+  defaultState: TextStyleProperties
+  namedStates: Record<string, Partial<TextStyleProperties>>
 }
 
 // ─── Content ─────────────────────────────────────────────────────────────────

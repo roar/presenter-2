@@ -41,7 +41,7 @@ export function createMsoMaster(type: MsoMaster['type']): MsoMaster {
     id: crypto.randomUUID(),
     type,
     transform: { x: 0, y: 0, width: 0, height: 0, rotation: 0 },
-    style: {},
+    objectStyle: { defaultState: {}, namedStates: {} },
     content: { type: 'none' },
     version: 0
   }

@@ -53,20 +53,26 @@ function masterFromElement(el: LeafElement): MsoMaster {
   }
   master.content = contentFromElement(el)
   if (el.kind === 'text') {
-    master.style = {
-      fontSize: el.fontSize,
-      fontWeight: el.fontWeight,
-      fontFamily: el.fontFamily,
-      fill: el.color
+    master.textStyle = {
+      defaultState: {
+        fontSize: el.fontSize,
+        fontWeight: el.fontWeight,
+        fontFamily: el.fontFamily,
+        color: el.color
+      },
+      namedStates: {}
     }
   }
   if (el.kind === 'shape') {
     master.geometry = { type: 'path', pathData: el.pathData }
-    master.style = {
-      fill: el.fill.color,
-      stroke: el.stroke.color,
-      strokeWidth: el.stroke.width,
-      opacity: el.fill.opacity
+    master.objectStyle = {
+      defaultState: {
+        fill: el.fill.color,
+        stroke: el.stroke.color,
+        strokeWidth: el.stroke.width,
+        opacity: el.fill.opacity
+      },
+      namedStates: {}
     }
   }
   return master
