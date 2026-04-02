@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import type { Presentation } from '../../shared/model/types'
 import { examplePresentation } from '../../shared/model/fixtures/example-presentation'
 import { buildTimeline } from '../../shared/animation/buildTimeline'
+import { createPlaybackPresentation } from '../../shared/animation/createPlaybackPresentation'
 import { resolveFrame } from '../../shared/animation/resolveFrame'
 import { SlideRenderer } from './components/SlideRenderer/SlideRenderer'
 
@@ -18,6 +19,9 @@ function App(): React.JSX.Element {
   const [triggerTimes, setTriggerTimes] = useState<Map<string, number>>(new Map())
   const startTimeRef = useRef<number | null>(null)
   const rafRef = useRef<number | null>(null)
+  const currentTimeRef = useRef(0)
+  const triggerTimesRef = useRef<Map<string, number>>(new Map())
+  const onClickIdsRef = useRef<string[]>([])
 
   useEffect(() => {
     const id = getPresentationIdFromUrl()
@@ -51,7 +55,7 @@ function App(): React.JSX.Element {
     }
   }, [])
 
-  const pres = presentation ?? examplePresentation
+  const pres = createPlaybackPresentation(presentation ?? examplePresentation)
 
   // Collect all on-click IDs in slide order: on-click animation IDs + transitionTriggerIds
   const onClickIds = pres.slideOrder.flatMap((slideId) => {
@@ -63,12 +67,53 @@ function App(): React.JSX.Element {
     return [...animClickIds, ...transId]
   })
 
-  const handleClick = useCallback(() => {
-    const nextId = onClickIds.find((id) => !triggerTimes.has(id))
-    if (nextId) {
-      setTriggerTimes((prev) => new Map([...prev, [nextId, currentTime]]))
+  useEffect(() => {
+    currentTimeRef.current = currentTime
+  }, [currentTime])
+
+  useEffect(() => {
+    triggerTimesRef.current = triggerTimes
+  }, [triggerTimes])
+
+  useEffect(() => {
+    onClickIdsRef.current = onClickIds
+  }, [onClickIds])
+
+  useEffect(() => {
+    function advanceToNextCue(): void {
+      const nextId = onClickIdsRef.current.find((id) => !triggerTimesRef.current.has(id))
+      if (nextId) {
+        setTriggerTimes((prev) => {
+          const next = new Map([...prev, [nextId, currentTimeRef.current]])
+          triggerTimesRef.current = next
+          return next
+        })
+      }
     }
-  }, [onClickIds, triggerTimes, currentTime])
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (
+        event.key === ' ' ||
+        event.key === 'Enter' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'PageDown'
+      ) {
+        event.preventDefault()
+        advanceToNextCue()
+      }
+    }
+
+    function handleWindowClick(): void {
+      advanceToNextCue()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('click', handleWindowClick)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('click', handleWindowClick)
+    }
+  }, [])
 
   const tl = buildTimeline(pres, triggerTimes)
   const frame = resolveFrame(tl, currentTime)
@@ -76,7 +121,7 @@ function App(): React.JSX.Element {
   if (error) return <div style={{ padding: 24, color: '#ff453a' }}>Error: {error}</div>
 
   return (
-    <div style={{ width: '100vw', height: '100vh', cursor: 'pointer' }} onClick={handleClick}>
+    <div style={{ width: '100vw', height: '100vh', cursor: 'pointer' }}>
       <SlideRenderer frame={frame} />
     </div>
   )

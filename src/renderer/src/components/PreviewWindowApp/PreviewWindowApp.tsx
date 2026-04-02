@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Presentation } from '@shared/model/types'
 import { buildTimeline } from '@shared/animation/buildTimeline'
+import { createPlaybackPresentation } from '@shared/animation/createPlaybackPresentation'
 import { resolveFrame } from '@shared/animation/resolveFrame'
 import { SlideRenderer } from '../../../../viewer/src/components/SlideRenderer/SlideRenderer'
 import styles from './PreviewWindowApp.module.css'
@@ -11,6 +12,9 @@ export function PreviewWindowApp(): React.JSX.Element {
   const [triggerTimes, setTriggerTimes] = useState<Map<string, number>>(new Map())
   const startTimeRef = useRef<number | null>(null)
   const rafRef = useRef<number | null>(null)
+  const currentTimeRef = useRef(0)
+  const triggerTimesRef = useRef<Map<string, number>>(new Map())
+  const onClickIdsRef = useRef<string[]>([])
 
   useEffect(() => {
     if (typeof window.presenterPreview?.getCurrentPresentation !== 'function') {
@@ -50,33 +54,80 @@ export function PreviewWindowApp(): React.JSX.Element {
     }
   }, [])
 
+  const playbackPresentation = useMemo(
+    () => (presentation ? createPlaybackPresentation(presentation) : null),
+    [presentation]
+  )
+
   const onClickIds = useMemo(() => {
-    if (!presentation) return []
-    return presentation.slideOrder.flatMap((slideId) => {
-      const slide = presentation.slidesById[slideId]
+    if (!playbackPresentation) return []
+    return playbackPresentation.slideOrder.flatMap((slideId) => {
+      const slide = playbackPresentation.slidesById[slideId]
       const animationClickIds = slide.animationOrder.filter(
-        (animationId) => presentation.animationsById[animationId]?.trigger === 'on-click'
+        (animationId) => playbackPresentation.animationsById[animationId]?.trigger === 'on-click'
       )
       const transitionTriggerIds = slide.transitionTriggerId ? [slide.transitionTriggerId] : []
       return [...animationClickIds, ...transitionTriggerIds]
     })
-  }, [presentation])
+  }, [playbackPresentation])
 
-  const handleClick = useCallback(() => {
-    const nextId = onClickIds.find((id) => !triggerTimes.has(id))
+  useEffect(() => {
+    currentTimeRef.current = currentTime
+  }, [currentTime])
+
+  useEffect(() => {
+    triggerTimesRef.current = triggerTimes
+  }, [triggerTimes])
+
+  useEffect(() => {
+    onClickIdsRef.current = onClickIds
+  }, [onClickIds])
+
+  const advanceToNextCue = useCallback(() => {
+    const nextId = onClickIdsRef.current.find((id) => !triggerTimesRef.current.has(id))
     if (nextId) {
-      setTriggerTimes((prev) => new Map([...prev, [nextId, currentTime]]))
+      setTriggerTimes((prev) => {
+        const next = new Map([...prev, [nextId, currentTimeRef.current]])
+        triggerTimesRef.current = next
+        return next
+      })
     }
-  }, [currentTime, onClickIds, triggerTimes])
+  }, [])
 
-  if (!presentation) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (
+        event.key === ' ' ||
+        event.key === 'Enter' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'PageDown'
+      ) {
+        event.preventDefault()
+        advanceToNextCue()
+      }
+    }
+
+    function handleWindowClick(): void {
+      advanceToNextCue()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('click', handleWindowClick)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('click', handleWindowClick)
+    }
+  }, [advanceToNextCue])
+
+  if (!playbackPresentation) {
     return <div className={styles.empty}>No presentation loaded.</div>
   }
 
-  const frame = resolveFrame(buildTimeline(presentation, triggerTimes), currentTime)
+  const frame = resolveFrame(buildTimeline(playbackPresentation, triggerTimes), currentTime)
 
   return (
-    <div className={styles.root} onClick={handleClick}>
+    <div className={styles.root}>
       <SlideRenderer frame={frame} />
     </div>
   )
