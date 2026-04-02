@@ -78,9 +78,9 @@ Each animation has one of the following triggers:
 ### 4.3 Properties
 
 Each animation specifies:
-- **Target** — the object, group child, text range, or text decoration to animate.
+- **Target** — the object, group, group child, text range, or text decoration to animate.
 - **Type** — the animation type (see §4.5).
-- **From / To values** — start and end values, specific to the animation type.
+- **To values** — animation end value, specific to the animation type.
 - **Duration** — in milliseconds.
 - **Easing** — see Section 7.
 
