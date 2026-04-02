@@ -139,7 +139,7 @@ The group's total duration is derived — it is the time from group start to the
 Each member animation in a group specifies:
 - **Target slot** — the named parameter slot this animation applies to.
 - **Type** — any animation type from §4.5.
-- **From / To values** — as per the animation type.
+- **To value** — as per the animation type.
 - **Duration** and **Easing**.
 - **Trigger** — `withPrevious` or `afterPrevious`, with optional delay.
 
