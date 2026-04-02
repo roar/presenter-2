@@ -5,8 +5,10 @@
   gap: var(--space-xs);
   width: 100%;
   padding: var(--space-xs);
-  background: none;
-  border: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
   cursor: pointer;
 }
 
@@ -26,4 +28,8 @@
 
 .selected .header {
   color: var(--text);
+}
+
+.selected {
+  border-color: var(--accent);
 }

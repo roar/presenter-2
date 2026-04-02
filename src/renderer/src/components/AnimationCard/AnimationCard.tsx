@@ -1,12 +1,18 @@
 import React from 'react'
 import type { Easing, TargetedAnimation } from '@shared/model/types'
+import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
 import { InfoCard } from '../InfoCard/InfoCard'
+import { NumberInput } from '../NumberInput/NumberInput'
 import styles from './AnimationCard.module.css'
 
 interface AnimationCardProps {
   animation: TargetedAnimation
   isSelected: boolean
-  onClick: () => void
+  onClick?: () => void
+  onTriggerChange?: (trigger: TargetedAnimation['trigger']) => void
+  onOffsetChange?: (offset: number) => void
+  onDurationChange?: (duration: number) => void
+  onEasingChange?: (easing: Easing) => void
 }
 
 function formatEffectType(animation: TargetedAnimation): string {
@@ -14,47 +20,84 @@ function formatEffectType(animation: TargetedAnimation): string {
   return effectType.charAt(0).toUpperCase() + effectType.slice(1)
 }
 
-function formatTrigger(trigger: TargetedAnimation['trigger']): string {
-  if (trigger === 'on-click') return 'On click'
-  if (trigger === 'after-previous') return 'After previous'
-  return 'With previous'
-}
+type EasingOptionValue = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'custom'
 
-function formatSeconds(value: number): string {
-  return `${value}s`
-}
-
-function formatEasing(easing: Easing): string {
+function getEasingOptionValue(easing: Easing): EasingOptionValue {
   if (typeof easing === 'string') return easing
-  if (easing.kind === 'cubic-bezier') {
-    return `cubic-bezier(${easing.x1}, ${easing.y1}, ${easing.x2}, ${easing.y2})`
+  return 'custom'
+}
+
+function mapEasingOptionValue(value: EasingOptionValue, current: Easing): Easing {
+  if (value === 'custom') {
+    if (typeof current === 'string') {
+      return {
+        kind: 'curve',
+        points: [
+          { x: 0, y: 0, kind: 'corner' },
+          { x: 1, y: 1, kind: 'corner' }
+        ]
+      }
+    }
+    return current
   }
-  return 'curve'
+  return value
 }
 
 export function AnimationCard({
   animation,
   isSelected,
-  onClick
+  onClick,
+  onTriggerChange,
+  onOffsetChange,
+  onDurationChange,
+  onEasingChange
 }: AnimationCardProps): React.JSX.Element {
   return (
     <InfoCard header={formatEffectType(animation)} isSelected={isSelected} onClick={onClick}>
       <div className={styles.details}>
         <div className={styles.detail}>
           <span className={styles.label}>Trigger</span>
-          <span className={styles.value}>{formatTrigger(animation.trigger)}</span>
+          <DropdownMenu
+            value={animation.trigger}
+            options={[
+              { value: 'on-click', label: 'On click' },
+              { value: 'after-previous', label: 'After previous' },
+              { value: 'with-previous', label: 'With previous' }
+            ]}
+            onChange={(trigger) => onTriggerChange?.(trigger)}
+          />
         </div>
         <div className={styles.detail}>
           <span className={styles.label}>Delay</span>
-          <span className={styles.value}>{formatSeconds(animation.offset)}</span>
+          <NumberInput
+            aria-label="Delay"
+            value={animation.offset}
+            decimals={2}
+            onCommit={(offset) => onOffsetChange?.(offset)}
+          />
         </div>
         <div className={styles.detail}>
           <span className={styles.label}>Duration</span>
-          <span className={styles.value}>{formatSeconds(animation.duration)}</span>
+          <NumberInput
+            aria-label="Duration"
+            value={animation.duration}
+            decimals={2}
+            onCommit={(duration) => onDurationChange?.(duration)}
+          />
         </div>
         <div className={styles.detail}>
           <span className={styles.label}>Easing</span>
-          <span className={styles.value}>{formatEasing(animation.easing)}</span>
+          <DropdownMenu
+            value={getEasingOptionValue(animation.easing)}
+            options={[
+              { value: 'linear', label: 'Linear' },
+              { value: 'ease-in', label: 'Ease in' },
+              { value: 'ease-out', label: 'Ease out' },
+              { value: 'ease-in-out', label: 'Ease in out' },
+              { value: 'custom', label: 'Custom' }
+            ]}
+            onChange={(value) => onEasingChange?.(mapEasingOptionValue(value, animation.easing))}
+          />
         </div>
       </div>
     </InfoCard>

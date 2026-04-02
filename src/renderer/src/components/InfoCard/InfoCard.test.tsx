@@ -48,4 +48,15 @@ describe('InfoCard', () => {
 
     expect(onClick).toHaveBeenCalledOnce()
   })
+
+  it('renders a non-interactive wrapper when onClick is omitted', () => {
+    render(
+      <InfoCard header="Header" isSelected={false}>
+        <div>Body</div>
+      </InfoCard>
+    )
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByText('Header')).toBeInTheDocument()
+  })
 })

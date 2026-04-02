@@ -7,7 +7,10 @@ import type {
   MsoMaster,
   Transform,
   AppearanceId,
-  TargetedAnimation
+  TargetedAnimation,
+  AnimationId,
+  AnimationTrigger,
+  Easing
 } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
@@ -63,6 +66,10 @@ interface DocumentState {
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
   addMoveAnimation(appearanceId: AppearanceId): void
+  updateAnimationTrigger(animationId: AnimationId, trigger: AnimationTrigger): void
+  updateAnimationOffset(animationId: AnimationId, offset: number): void
+  updateAnimationDuration(animationId: AnimationId, duration: number): void
+  updateAnimationEasing(animationId: AnimationId, easing: Easing): void
   convertToMultiSlideObject(masterId: string): void
   convertToSingleAppearance(appearanceId: string): void
   undo(): void
@@ -340,6 +347,50 @@ export const useDocumentStore = create<DocumentState>()(
         state.document.animationsById[animation.id] = animation
         appearance.animationIds.push(animation.id)
         slide.animationOrder.push(animation.id)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationTrigger(animationId, trigger) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation) return
+        animation.trigger = trigger
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationOffset(animationId, offset) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation) return
+        animation.offset = offset
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationDuration(animationId, duration) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation) return
+        animation.duration = duration
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationEasing(animationId, easing) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation) return
+        animation.easing = easing
         pushHistory(state, state.document)
         state.isDirty = true
       })

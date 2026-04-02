@@ -1,0 +1,54 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  cursor: pointer;
+}
+
+.chevron {
+  margin-left: var(--space-sm);
+  color: var(--text-dim);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  left: 0;
+  z-index: 150;
+  min-width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-xs) 0;
+}
+
+.item {
+  display: block;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover {
+  background: var(--accent-dim);
+}

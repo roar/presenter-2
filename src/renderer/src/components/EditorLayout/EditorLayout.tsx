@@ -46,6 +46,10 @@ export function EditorLayout(): React.JSX.Element {
   const addSlide = useDocumentStore((s) => s.addSlide)
   const copyElement = useDocumentStore((s) => s.copyElement)
   const pasteElement = useDocumentStore((s) => s.pasteElement)
+  const updateAnimationTrigger = useDocumentStore((s) => s.updateAnimationTrigger)
+  const updateAnimationOffset = useDocumentStore((s) => s.updateAnimationOffset)
+  const updateAnimationDuration = useDocumentStore((s) => s.updateAnimationDuration)
+  const updateAnimationEasing = useDocumentStore((s) => s.updateAnimationEasing)
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
@@ -133,7 +137,10 @@ export function EditorLayout(): React.JSX.Element {
                 key={animation.id}
                 animation={animation}
                 isSelected={false}
-                onClick={() => {}}
+                onTriggerChange={(trigger) => updateAnimationTrigger(animation.id, trigger)}
+                onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}
+                onDurationChange={(duration) => updateAnimationDuration(animation.id, duration)}
+                onEasingChange={(easing) => updateAnimationEasing(animation.id, easing)}
               />
             ))}
           </LayoutPanel>

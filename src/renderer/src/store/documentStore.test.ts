@@ -309,6 +309,154 @@ describe('documentStore', () => {
     })
   })
 
+  describe('updateAnimationTrigger', () => {
+    it('updates the trigger for an existing animation', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const animation: Presentation['animationsById'][string] = {
+        id: 'anim-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [animation.id]
+      appearance.animationIds = [animation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [animation.id]: animation }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationTrigger(animation.id, 'after-previous')
+
+      const updated = useDocumentStore.getState().document?.animationsById[animation.id]
+      expect(updated?.trigger).toBe('after-previous')
+    })
+  })
+
+  describe('updateAnimationOffset', () => {
+    it('updates the delay for an existing animation', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const animation: Presentation['animationsById'][string] = {
+        id: 'anim-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [animation.id]
+      appearance.animationIds = [animation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [animation.id]: animation }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationOffset(animation.id, 1.25)
+
+      const updated = useDocumentStore.getState().document?.animationsById[animation.id]
+      expect(updated?.offset).toBe(1.25)
+    })
+  })
+
+  describe('updateAnimationDuration', () => {
+    it('updates the duration for an existing animation', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const animation: Presentation['animationsById'][string] = {
+        id: 'anim-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [animation.id]
+      appearance.animationIds = [animation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [animation.id]: animation }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationDuration(animation.id, 2.5)
+
+      const updated = useDocumentStore.getState().document?.animationsById[animation.id]
+      expect(updated?.duration).toBe(2.5)
+    })
+  })
+
+  describe('updateAnimationEasing', () => {
+    it('updates the easing for an existing animation', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const animation: Presentation['animationsById'][string] = {
+        id: 'anim-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', fromOffset: { x: 0, y: 100 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [animation.id]
+      appearance.animationIds = [animation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [animation.id]: animation }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationEasing(animation.id, 'ease-out')
+
+      const updated = useDocumentStore.getState().document?.animationsById[animation.id]
+      expect(updated?.easing).toBe('ease-out')
+    })
+  })
+
   describe('copyElement / pasteElement', () => {
     function makeDocWithElement() {
       const slide = makeSlide('s-1')
