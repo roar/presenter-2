@@ -89,6 +89,10 @@ export function EditorLayout(): React.JSX.Element {
   const updateAnimationEasing = useDocumentStore((s) => s.updateAnimationEasing)
   const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
+  const updateSlideTransitionTrigger = useDocumentStore((s) => s.updateSlideTransitionTrigger)
+  const updateSlideTransitionDuration = useDocumentStore((s) => s.updateSlideTransitionDuration)
+  const updateSlideTransitionEasing = useDocumentStore((s) => s.updateSlideTransitionEasing)
+  const updateSlideTransitionKind = useDocumentStore((s) => s.updateSlideTransitionKind)
   const [timelineState, setTimelineState] = useState<{
     key: string
     time: number
@@ -277,8 +281,18 @@ export function EditorLayout(): React.JSX.Element {
                     slideNumber={idx + 1}
                     isSelected={selectedSlideId === id}
                     renderedSlide={allEntryStates[idx] ?? { slide, appearances: [] }}
+                    transition={slide.transition}
+                    transitionTrigger={slide.transitionTriggerId ? 'on-click' : 'none'}
                     onClick={() => selectSlide(id)}
                     onDelete={() => removeSlide(id)}
+                    onTransitionTriggerChange={(trigger) =>
+                      updateSlideTransitionTrigger(id, trigger)
+                    }
+                    onTransitionDurationChange={(duration) =>
+                      updateSlideTransitionDuration(id, duration)
+                    }
+                    onTransitionEasingChange={(easing) => updateSlideTransitionEasing(id, easing)}
+                    onTransitionKindChange={(kind) => updateSlideTransitionKind(id, kind)}
                   />
                 )
               })}

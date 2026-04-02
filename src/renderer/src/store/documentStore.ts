@@ -11,7 +11,8 @@ import type {
   AnimationId,
   AnimationTrigger,
   Easing,
-  Position
+  Position,
+  SlideTransition
 } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
@@ -74,6 +75,10 @@ interface DocumentState {
   updateAnimationEasing(animationId: AnimationId, easing: Easing): void
   updateAnimationNumericTo(animationId: AnimationId, value: number): void
   updateAnimationMoveDelta(animationId: AnimationId, delta: Position): void
+  updateSlideTransitionTrigger(slideId: SlideId, trigger: 'none' | 'on-click'): void
+  updateSlideTransitionDuration(slideId: SlideId, duration: number): void
+  updateSlideTransitionEasing(slideId: SlideId, easing: Easing): void
+  updateSlideTransitionKind(slideId: SlideId, kind: SlideTransition['kind']): void
   convertToMultiSlideObject(masterId: string): void
   convertToSingleAppearance(appearanceId: string): void
   undo(): void
@@ -92,6 +97,20 @@ function pushHistory(state: DocumentState, doc: Presentation): void {
   state.history = state.history.slice(0, state.historyIndex + 1)
   state.history.push(snapshot(doc))
   state.historyIndex = state.history.length - 1
+}
+
+const DEFAULT_SLIDE_TRANSITION: SlideTransition = {
+  kind: 'fade-through-color',
+  duration: 0.5,
+  easing: 'ease-in-out'
+}
+
+function ensureSlideTransition(slide: Slide): SlideTransition {
+  if (!slide.transition) {
+    slide.transition = { ...DEFAULT_SLIDE_TRANSITION }
+  }
+
+  return slide.transition
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -427,6 +446,54 @@ export const useDocumentStore = create<DocumentState>()(
         const animation = state.document.animationsById[animationId]
         if (!animation || animation.effect.type !== 'move') return
         animation.effect.delta = delta
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideTransitionTrigger(slideId, trigger) {
+      set((state) => {
+        if (!state.document) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        if (trigger === 'none') {
+          delete slide.transitionTriggerId
+        } else {
+          slide.transitionTriggerId = `transition:${slideId}`
+        }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideTransitionDuration(slideId, duration) {
+      set((state) => {
+        if (!state.document) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        ensureSlideTransition(slide).duration = duration
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideTransitionEasing(slideId, easing) {
+      set((state) => {
+        if (!state.document) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        ensureSlideTransition(slide).easing = easing
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideTransitionKind(slideId, kind) {
+      set((state) => {
+        if (!state.document) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        ensureSlideTransition(slide).kind = kind
         pushHistory(state, state.document)
         state.isDirty = true
       })

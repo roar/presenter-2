@@ -567,6 +567,99 @@ describe('documentStore', () => {
     })
   })
 
+  describe('updateSlideTransitionTrigger', () => {
+    it('updates the slide transition trigger', () => {
+      const slide = makeSlide('s-1')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide }
+        })
+      )
+
+      useDocumentStore.getState().updateSlideTransitionTrigger(slide.id, 'on-click')
+
+      const updated = useDocumentStore.getState().document?.slidesById[slide.id]
+      expect(updated?.transitionTriggerId).toBe(`transition:${slide.id}`)
+    })
+
+    it('clears the trigger when set to none', () => {
+      const slide = makeSlide('s-1')
+      slide.transitionTriggerId = `transition:${slide.id}`
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide }
+        })
+      )
+
+      useDocumentStore.getState().updateSlideTransitionTrigger(slide.id, 'none')
+
+      const updated = useDocumentStore.getState().document?.slidesById[slide.id]
+      expect(updated?.transitionTriggerId).toBeUndefined()
+    })
+  })
+
+  describe('updateSlideTransitionDuration', () => {
+    it('creates and updates the slide transition duration', () => {
+      const slide = makeSlide('s-1')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide }
+        })
+      )
+
+      useDocumentStore.getState().updateSlideTransitionDuration(slide.id, 1.25)
+
+      const updated = useDocumentStore.getState().document?.slidesById[slide.id].transition
+      expect(updated).toMatchObject({
+        kind: 'fade-through-color',
+        duration: 1.25,
+        easing: 'ease-in-out'
+      })
+    })
+  })
+
+  describe('updateSlideTransitionEasing', () => {
+    it('updates the slide transition easing', () => {
+      const slide = makeSlide('s-1')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide }
+        })
+      )
+
+      useDocumentStore.getState().updateSlideTransitionEasing(slide.id, 'ease-out')
+
+      const updated = useDocumentStore.getState().document?.slidesById[slide.id].transition
+      expect(updated?.easing).toBe('ease-out')
+    })
+  })
+
+  describe('updateSlideTransitionKind', () => {
+    it('updates the slide transition kind', () => {
+      const slide = makeSlide('s-1')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide }
+        })
+      )
+
+      useDocumentStore.getState().updateSlideTransitionKind(slide.id, 'dissolve')
+
+      const updated = useDocumentStore.getState().document?.slidesById[slide.id].transition
+      expect(updated?.kind).toBe('dissolve')
+    })
+  })
+
   describe('copyElement / pasteElement', () => {
     function makeDocWithElement() {
       const slide = makeSlide('s-1')

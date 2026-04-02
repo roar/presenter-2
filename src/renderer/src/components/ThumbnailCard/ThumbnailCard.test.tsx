@@ -26,6 +26,7 @@ describe('ThumbnailCard', () => {
         slideNumber={3}
         isSelected={false}
         renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
         onClick={vi.fn()}
       />
     )
@@ -38,11 +39,12 @@ describe('ThumbnailCard', () => {
         slideNumber={2}
         isSelected={false}
         renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
         onClick={vi.fn()}
       />
     )
 
-    expect(screen.getByRole('button')).toHaveTextContent('2')
+    expect(screen.getByRole('button', { name: '2' })).toHaveTextContent('2')
   })
 
   it('marks as current when selected', () => {
@@ -51,10 +53,11 @@ describe('ThumbnailCard', () => {
         slideNumber={1}
         isSelected={true}
         renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
         onClick={vi.fn()}
       />
     )
-    expect(screen.getByRole('button').getAttribute('aria-current')).toBe('true')
+    expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe('true')
   })
 
   it('does not mark as current when not selected', () => {
@@ -63,10 +66,11 @@ describe('ThumbnailCard', () => {
         slideNumber={1}
         isSelected={false}
         renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
         onClick={vi.fn()}
       />
     )
-    expect(screen.getByRole('button').getAttribute('aria-current')).toBeNull()
+    expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBeNull()
   })
 
   it('calls onClick when clicked', async () => {
@@ -77,10 +81,69 @@ describe('ThumbnailCard', () => {
         slideNumber={1}
         isSelected={false}
         renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
         onClick={onClick}
       />
     )
-    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('button', { name: '1' }))
     expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  it('shows a delete slide context menu item on right-click', async () => {
+    const user = userEvent.setup()
+    render(
+      <ThumbnailCard
+        slideNumber={1}
+        isSelected={false}
+        renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
+        onClick={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: '1' }) })
+
+    expect(screen.getByRole('menuitem', { name: 'Delete slide' })).toBeInTheDocument()
+  })
+
+  it('calls onDelete from the context menu', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn()
+
+    render(
+      <ThumbnailCard
+        slideNumber={1}
+        isSelected={false}
+        renderedSlide={makeRenderedSlide()}
+        transitionTrigger="none"
+        onClick={vi.fn()}
+        onDelete={onDelete}
+      />
+    )
+
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: '1' }) })
+    await user.click(screen.getByRole('menuitem', { name: 'Delete slide' }))
+
+    expect(onDelete).toHaveBeenCalledOnce()
+  })
+
+  it('renders the slide transition controls beneath the thumbnail', () => {
+    render(
+      <ThumbnailCard
+        slideNumber={1}
+        isSelected={false}
+        renderedSlide={makeRenderedSlide()}
+        transitionTrigger="on-click"
+        transition={{ kind: 'dissolve', duration: 0.75, easing: 'ease-out' }}
+        onClick={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Transition')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'On click' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Transition duration' })).toHaveValue('0.75')
+    expect(screen.getByRole('button', { name: 'Ease out' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Dissolve' })).toBeInTheDocument()
   })
 })

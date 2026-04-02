@@ -53,6 +53,7 @@ function makePresentation(...slides: Slide[]): Presentation {
 }
 
 const addSlide = vi.fn()
+const removeSlide = vi.fn()
 const selectSlide = vi.fn()
 
 function mockStore(document: Presentation | null, selectedSlideId: string | null = null): void {
@@ -62,6 +63,7 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       previewPatch: null,
       ui: { selectedSlideId, selectedElementIds: [] },
       addSlide,
+      removeSlide,
       selectSlide,
       setPreviewPatch: vi.fn(),
       copyElement: vi.fn(),
@@ -71,7 +73,11 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       updateAnimationDuration: vi.fn(),
       updateAnimationEasing: vi.fn(),
       updateAnimationNumericTo: vi.fn(),
-      updateAnimationMoveDelta: vi.fn()
+      updateAnimationMoveDelta: vi.fn(),
+      updateSlideTransitionTrigger: vi.fn(),
+      updateSlideTransitionDuration: vi.fn(),
+      updateSlideTransitionEasing: vi.fn(),
+      updateSlideTransitionKind: vi.fn()
     })
   })
 }
@@ -93,6 +99,19 @@ describe('EditorLayout', () => {
     await user.click(screen.getByRole('button', { name: /new slide/i }))
     expect(addSlide).toHaveBeenCalledOnce()
     expect(addSlide).toHaveBeenCalledWith(expect.objectContaining({ id: expect.any(String) }))
+  })
+
+  it('removes a slide from the thumbnail context menu', async () => {
+    const user = userEvent.setup()
+    const slide = createSlide()
+    mockStore(makePresentation(slide), slide.id)
+
+    render(<EditorLayout />)
+
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: '1' }) })
+    await user.click(screen.getByRole('menuitem', { name: 'Delete slide' }))
+
+    expect(removeSlide).toHaveBeenCalledWith(slide.id)
   })
 
   it('renders a thumbnail for each slide', () => {
@@ -193,7 +212,11 @@ describe('EditorLayout', () => {
         updateAnimationDuration: vi.fn(),
         updateAnimationEasing: vi.fn(),
         updateAnimationNumericTo: vi.fn(),
-        updateAnimationMoveDelta: vi.fn()
+        updateAnimationMoveDelta: vi.fn(),
+        updateSlideTransitionTrigger: vi.fn(),
+        updateSlideTransitionDuration: vi.fn(),
+        updateSlideTransitionEasing: vi.fn(),
+        updateSlideTransitionKind: vi.fn()
       })
     })
 
