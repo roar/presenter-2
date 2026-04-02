@@ -18,9 +18,16 @@ const newPresentationMock = vi.fn()
 const insertElementMock = vi.fn()
 const loadDocumentMock = vi.fn()
 const updatePresentationTitleMock = vi.fn()
+const openPreviewMock = vi.fn()
 
 beforeEach(() => {
   vi.clearAllMocks()
+  Object.defineProperty(window, 'presenterPreview', {
+    configurable: true,
+    value: {
+      openPreview: openPreviewMock
+    }
+  })
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
     return selector({
       document: { id: 'pres-1', title: 'Deck A' },
@@ -47,6 +54,11 @@ describe('Toolbar', () => {
   it('renders Open button', () => {
     render(<Toolbar />)
     expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument()
+  })
+
+  it('renders Preview button', () => {
+    render(<Toolbar />)
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
   })
 
   it('shows the current presentation title in the toolbar', () => {
@@ -92,6 +104,15 @@ describe('Toolbar', () => {
     await user.click(within(dialog).getByRole('button', { name: /deck a/i }))
 
     expect(loadDocumentMock).toHaveBeenCalledWith(expect.anything(), 'pres-1', nullAuthContext)
+  })
+
+  it('opens the current presentation in the preview window', async () => {
+    const user = userEvent.setup()
+    render(<Toolbar />)
+
+    await user.click(screen.getByRole('button', { name: 'Preview' }))
+
+    expect(openPreviewMock).toHaveBeenCalledWith({ id: 'pres-1', title: 'Deck A' })
   })
 
   it('lets the user edit the presentation title and commits on blur', async () => {

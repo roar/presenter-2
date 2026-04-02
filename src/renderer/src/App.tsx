@@ -3,8 +3,15 @@ import { nullAuthContext } from '../../shared/auth/types'
 import { JsonFileRepository } from './repository/JsonFileRepository'
 import { useDocumentStore } from './store/documentStore'
 import { EditorLayout } from './components/EditorLayout/EditorLayout'
+import { PreviewWindowApp } from './components/PreviewWindowApp/PreviewWindowApp'
+
+function isPreviewWindow(): boolean {
+  return new URLSearchParams(window.location.search).get('window') === 'preview'
+}
 
 function App(): React.JSX.Element {
+  const previewMode = isPreviewWindow()
+
   const document = useDocumentStore((s) => s.document)
   const isDirty = useDocumentStore((s) => s.isDirty)
   const newPresentation = useDocumentStore((s) => s.newPresentation)
@@ -19,6 +26,7 @@ function App(): React.JSX.Element {
   }
 
   useEffect(() => {
+    if (previewMode) return
     if (hasInitializedRef.current) return
     hasInitializedRef.current = true
 
@@ -44,9 +52,10 @@ function App(): React.JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [loadDocument, newPresentation])
+  }, [loadDocument, newPresentation, previewMode])
 
   useEffect(() => {
+    if (previewMode) return
     if (!document || !isDirty) return
 
     const repository = repositoryRef.current
@@ -59,7 +68,11 @@ function App(): React.JSX.Element {
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [document, isDirty, saveDocument])
+  }, [document, isDirty, previewMode, saveDocument])
+
+  if (previewMode) {
+    return <PreviewWindowApp />
+  }
 
   return <EditorLayout />
 }

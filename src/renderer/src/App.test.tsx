@@ -24,6 +24,10 @@ vi.mock('./components/EditorLayout/EditorLayout', () => ({
   EditorLayout: () => <div data-testid="editor-layout" />
 }))
 
+vi.mock('./components/PreviewWindowApp/PreviewWindowApp', () => ({
+  PreviewWindowApp: () => <div data-testid="preview-window-app" />
+}))
+
 function makePresentation(): Presentation {
   return {
     id: 'pres-1',
@@ -59,7 +63,17 @@ describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    window.history.replaceState({}, '', '/')
     mockStore(null, false)
+  })
+
+  it('renders the preview window app in preview mode', () => {
+    window.history.replaceState({}, '', '/?window=preview')
+
+    const { getByTestId, queryByTestId } = render(<App />)
+
+    expect(getByTestId('preview-window-app')).toBeInTheDocument()
+    expect(queryByTestId('editor-layout')).not.toBeInTheDocument()
   })
 
   it('loads the most recent local presentation on startup when one exists', async () => {

@@ -7,6 +7,10 @@ import {
   PRESENTATION_FILE_CHANNELS,
   type PresentationFileMeta
 } from '../shared/persistence/presentationFileApi'
+import { PREVIEW_WINDOW_CHANNELS } from '../shared/preview/previewWindowApi'
+
+let previewWindow: BrowserWindow | null = null
+let currentPreviewPresentation: Presentation | null = null
 
 function getPresentationsDir(): string {
   return join(app.getPath('userData'), 'presentations')
@@ -89,6 +93,68 @@ function createWindow(): void {
   }
 }
 
+async function loadPreviewWindow(preview: BrowserWindow): Promise<void> {
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    await preview.loadURL(`${process.env['ELECTRON_RENDERER_URL']}?window=preview`)
+  } else {
+    await preview.loadFile(join(__dirname, '../renderer/index.html'), {
+      query: { window: 'preview' }
+    })
+  }
+}
+
+function postPreviewPresentation(): void {
+  if (!previewWindow || previewWindow.isDestroyed() || !currentPreviewPresentation) return
+  previewWindow.webContents.send(PREVIEW_WINDOW_CHANNELS.load, currentPreviewPresentation)
+}
+
+async function openPreviewWindow(presentation: Presentation): Promise<void> {
+  currentPreviewPresentation = presentation
+
+  if (previewWindow && !previewWindow.isDestroyed()) {
+    if (previewWindow.webContents.isLoading()) {
+      previewWindow.webContents.once('did-finish-load', () => {
+        postPreviewPresentation()
+      })
+    } else {
+      postPreviewPresentation()
+    }
+    previewWindow.show()
+    previewWindow.focus()
+    return
+  }
+
+  previewWindow = new BrowserWindow({
+    width: 1280,
+    height: 720,
+    show: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  previewWindow.on('closed', () => {
+    previewWindow = null
+  })
+
+  previewWindow.on('ready-to-show', () => {
+    previewWindow?.show()
+  })
+
+  previewWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  previewWindow.webContents.once('did-finish-load', () => {
+    postPreviewPresentation()
+  })
+
+  await loadPreviewWindow(previewWindow)
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.presenter-2')
 
@@ -106,6 +172,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle(PRESENTATION_FILE_CHANNELS.delete, async (_event, id: string) => {
     await deletePresentationFile(id)
+  })
+
+  ipcMain.handle(PREVIEW_WINDOW_CHANNELS.open, async (_event, presentation: Presentation) => {
+    await openPreviewWindow(presentation)
+  })
+
+  ipcMain.handle(PREVIEW_WINDOW_CHANNELS.getCurrent, () => {
+    return currentPreviewPresentation
   })
 
   app.on('browser-window-created', (_, window) => {

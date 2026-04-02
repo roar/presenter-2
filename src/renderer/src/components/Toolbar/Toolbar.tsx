@@ -71,6 +71,11 @@ export function Toolbar(): React.JSX.Element {
     setOpenPresentationPopupOpen(true)
   }
 
+  function handlePreview(): void {
+    if (!document || typeof window.presenterPreview?.openPreview !== 'function') return
+    void window.presenterPreview.openPreview(document)
+  }
+
   function handleTitleBlur(): void {
     const nextTitle = draftTitle.trim()
     setIsEditingTitle(false)
@@ -91,6 +96,9 @@ export function Toolbar(): React.JSX.Element {
           </Button>
           <Button variant="ghost" onClick={handleOpenPresentationPopup}>
             Open
+          </Button>
+          <Button variant="ghost" onClick={handlePreview}>
+            Preview
           </Button>
           <Button variant="ghost" onClick={() => setShapePickerOpen(true)}>
             Insert Shape
