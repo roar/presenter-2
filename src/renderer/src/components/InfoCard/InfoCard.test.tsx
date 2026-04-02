@@ -31,7 +31,10 @@ describe('InfoCard', () => {
       </InfoCard>
     )
 
-    expect(screen.getByRole('button')).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByText('Header').closest('[data-selected="true"]')).toHaveAttribute(
+      'data-selected',
+      'true'
+    )
   })
 
   it('calls onClick when clicked', async () => {
@@ -44,9 +47,24 @@ describe('InfoCard', () => {
       </InfoCard>
     )
 
-    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByText('Body'))
 
     expect(onClick).toHaveBeenCalledOnce()
+  })
+
+  it('forwards context menu events when interactive', async () => {
+    const user = userEvent.setup()
+    const onContextMenu = vi.fn()
+
+    render(
+      <InfoCard header="Header" isSelected={false} onClick={vi.fn()} onContextMenu={onContextMenu}>
+        <div>Body</div>
+      </InfoCard>
+    )
+
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('Body') })
+
+    expect(onContextMenu).toHaveBeenCalledOnce()
   })
 
   it('renders a non-interactive wrapper when onClick is omitted', () => {
@@ -56,7 +74,6 @@ describe('InfoCard', () => {
       </InfoCard>
     )
 
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.getByText('Header')).toBeInTheDocument()
   })
 })

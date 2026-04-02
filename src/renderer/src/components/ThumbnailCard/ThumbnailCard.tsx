@@ -45,18 +45,15 @@ export function ThumbnailCard({
 
   return (
     <>
-      <InfoCard header={slideNumber} isSelected={isSelected} onContextMenu={handleContextMenu}>
-        <button
-          type="button"
-          className={styles.thumbnailButton}
-          aria-label={String(slideNumber)}
-          onClick={onClick}
-          onContextMenu={handleContextMenu}
-        >
-          <div className={styles.thumbnail}>
-            <SlideThumbnail renderedSlide={renderedSlide} />
-          </div>
-        </button>
+      <InfoCard
+        header={slideNumber}
+        isSelected={isSelected}
+        onClick={onClick}
+        onContextMenu={handleContextMenu}
+      >
+        <div className={styles.thumbnail}>
+          <SlideThumbnail renderedSlide={renderedSlide} />
+        </div>
         <SlideTransitionCard
           trigger={transitionTrigger}
           transition={transition}

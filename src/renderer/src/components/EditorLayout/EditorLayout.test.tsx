@@ -56,17 +56,19 @@ const addSlide = vi.fn()
 const removeSlide = vi.fn()
 const selectSlide = vi.fn()
 const selectElements = vi.fn()
+const selectAnimation = vi.fn()
 
 function mockStore(document: Presentation | null, selectedSlideId: string | null = null): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
     return selector({
       document,
       previewPatch: null,
-      ui: { selectedSlideId, selectedElementIds: [] },
+      ui: { selectedSlideId, selectedElementIds: [], selectedAnimationId: null },
       addSlide,
       removeSlide,
       selectSlide,
       selectElements,
+      selectAnimation,
       setPreviewPatch: vi.fn(),
       copyElement: vi.fn(),
       pasteElement: vi.fn(),
@@ -112,7 +114,7 @@ describe('EditorLayout', () => {
 
     await user.pointer({
       keys: '[MouseRight]',
-      target: screen.getByRole('button', { name: '1' })
+      target: screen.getByText('1')
     })
     await user.click(screen.getByRole('menuitem', { name: 'Delete slide' }))
 
@@ -124,7 +126,7 @@ describe('EditorLayout', () => {
     const s2 = createSlide()
     mockStore(makePresentation(s1, s2))
     render(<EditorLayout />)
-    expect(screen.getAllByRole('button', { name: /^\d+$/ })).toHaveLength(2)
+    expect(screen.getAllByText(/^\d+$/)).toHaveLength(2)
   })
 
   it('renders the requested panel layout', () => {
@@ -214,10 +216,11 @@ describe('EditorLayout', () => {
       return selector({
         document,
         previewPatch: null,
-        ui: { selectedSlideId: slide.id, selectedElementIds: [] },
+        ui: { selectedSlideId: slide.id, selectedElementIds: [], selectedAnimationId: null },
         addSlide,
         selectSlide,
         selectElements,
+        selectAnimation,
         setPreviewPatch: vi.fn(),
         copyElement: vi.fn(),
         pasteElement: vi.fn(),
@@ -307,7 +310,7 @@ describe('EditorLayout', () => {
     expect(screen.getByRole('img', { name: 'Airplane preview' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Title preview' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /airplane/i }))
+    await user.click(screen.getAllByText('Airplane')[0])
 
     expect(selectElements).toHaveBeenCalledWith([master1.id])
   })

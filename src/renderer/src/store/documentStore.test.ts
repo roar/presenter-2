@@ -30,7 +30,13 @@ function makeSlide(id: string): Slide {
 beforeEach(() => {
   useDocumentStore.setState({
     document: null,
-    ui: { selectedSlideId: null, selectedElementIds: [], zoom: 1, clipboard: null },
+    ui: {
+      selectedSlideId: null,
+      selectedElementIds: [],
+      selectedAnimationId: null,
+      zoom: 1,
+      clipboard: null
+    },
     history: [],
     historyIndex: -1,
     isDirty: false,
@@ -320,12 +326,25 @@ describe('documentStore', () => {
   })
 
   describe('selectSlide', () => {
-    it('sets the selected slide and clears element selection', () => {
+    it('sets the selected slide and clears element and animation selection', () => {
       useDocumentStore.getState().selectElements(['e-1'])
+      useDocumentStore.getState().selectAnimation('anim-1')
       useDocumentStore.getState().selectSlide('s-1')
 
       const { ui } = useDocumentStore.getState()
       expect(ui.selectedSlideId).toBe('s-1')
+      expect(ui.selectedElementIds).toHaveLength(0)
+      expect(ui.selectedAnimationId).toBeNull()
+    })
+  })
+
+  describe('selectAnimation', () => {
+    it('sets the selected animation and clears element selection', () => {
+      useDocumentStore.getState().selectElements(['e-1'])
+      useDocumentStore.getState().selectAnimation('anim-1')
+
+      const { ui } = useDocumentStore.getState()
+      expect(ui.selectedAnimationId).toBe('anim-1')
       expect(ui.selectedElementIds).toHaveLength(0)
     })
   })

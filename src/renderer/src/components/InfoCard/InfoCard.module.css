@@ -5,7 +5,7 @@
   gap: var(--space-xs);
   width: 100%;
   padding: var(--space-xs);
-  background: var(--bg-panel);
+  background: linear-gradient(var(--accent-dim), var(--accent-dim)), var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-sizing: border-box;
@@ -32,4 +32,10 @@
 
 .selected {
   border-color: var(--accent);
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--accent) 16%, var(--bg-panel)),
+      color-mix(in srgb, var(--accent) 16%, var(--bg-panel))
+    ),
+    var(--bg-panel);
 }

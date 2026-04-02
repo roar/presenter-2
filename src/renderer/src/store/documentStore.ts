@@ -24,6 +24,7 @@ import { createAppearance, createPresentation, createSlide } from '../../../shar
 interface UiState {
   selectedSlideId: SlideId | null
   selectedElementIds: string[]
+  selectedAnimationId: AnimationId | null
   zoom: number
   clipboard: MsoMaster | null
 }
@@ -59,6 +60,7 @@ interface DocumentState {
   setDocument(doc: Presentation): void
   selectSlide(id: SlideId | null): void
   selectElements(ids: string[]): void
+  selectAnimation(id: AnimationId | null): void
   setZoom(zoom: number): void
   updatePresentationTitle(title: string): void
   addSlide(slide: Slide): void
@@ -171,6 +173,7 @@ export const useDocumentStore = create<DocumentState>()(
     ui: {
       selectedSlideId: null,
       selectedElementIds: [],
+      selectedAnimationId: null,
       zoom: 1,
       clipboard: null
     },
@@ -196,6 +199,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.isDirty = true
         state.ui.selectedSlideId = slide.id
         state.ui.selectedElementIds = []
+        state.ui.selectedAnimationId = null
       })
     },
 
@@ -207,6 +211,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.historyIndex = 0
         state.isDirty = false
         state.ui.selectedSlideId = presentation.slideOrder[0] ?? null
+        state.ui.selectedAnimationId = null
       })
     },
 
@@ -233,12 +238,21 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         state.ui.selectedSlideId = id
         state.ui.selectedElementIds = []
+        state.ui.selectedAnimationId = null
       })
     },
 
     selectElements(ids) {
       set((state) => {
         state.ui.selectedElementIds = ids
+        state.ui.selectedAnimationId = null
+      })
+    },
+
+    selectAnimation(id) {
+      set((state) => {
+        state.ui.selectedAnimationId = id
+        state.ui.selectedElementIds = []
       })
     },
 

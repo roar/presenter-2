@@ -45,7 +45,7 @@ describe('ThumbnailCard', () => {
     )
 
     expect(screen.getByText('2')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument()
+    expect(screen.getByText('Transition')).toBeInTheDocument()
   })
 
   it('marks as current when selected', () => {
@@ -89,7 +89,7 @@ describe('ThumbnailCard', () => {
         onClick={onClick}
       />
     )
-    await user.click(screen.getByRole('button', { name: '1' }))
+    await user.click(screen.getByText('1'))
     expect(onClick).toHaveBeenCalledOnce()
   })
 
@@ -106,7 +106,7 @@ describe('ThumbnailCard', () => {
       />
     )
 
-    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: '1' }) })
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('1') })
 
     expect(screen.getByRole('menuitem', { name: 'Delete slide' })).toBeInTheDocument()
   })
@@ -126,7 +126,7 @@ describe('ThumbnailCard', () => {
       />
     )
 
-    await user.pointer({ keys: '[MouseRight]', target: screen.getByRole('button', { name: '1' }) })
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('1') })
     await user.click(screen.getByRole('menuitem', { name: 'Delete slide' }))
 
     expect(onDelete).toHaveBeenCalledOnce()

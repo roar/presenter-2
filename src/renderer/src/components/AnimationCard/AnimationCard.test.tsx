@@ -132,6 +132,24 @@ describe('AnimationCard', () => {
     )
   })
 
+  it('calls onClick when the card body is clicked', async () => {
+    const user = userEvent.setup()
+    const onClick = vi.fn()
+
+    render(
+      <AnimationCard
+        animation={makeAnimation()}
+        objectName="Airplane"
+        isSelected={false}
+        onClick={onClick}
+      />
+    )
+
+    await user.click(screen.getByText('Delay'))
+
+    expect(onClick).toHaveBeenCalledOnce()
+  })
+
   it('renders the trigger as a dropdown and reports changes', async () => {
     const user = userEvent.setup()
     const onTriggerChange = vi.fn()

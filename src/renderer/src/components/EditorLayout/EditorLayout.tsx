@@ -82,8 +82,10 @@ export function EditorLayout(): React.JSX.Element {
   const patchedPresentation = useDocumentStore(selectPatchedPresentation)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
+  const selectedAnimationId = useDocumentStore((s) => s.ui.selectedAnimationId)
   const selectSlide = useDocumentStore((s) => s.selectSlide)
   const selectElements = useDocumentStore((s) => s.selectElements)
+  const selectAnimation = useDocumentStore((s) => s.selectAnimation)
   const addSlide = useDocumentStore((s) => s.addSlide)
   const removeSlide = useDocumentStore((s) => s.removeSlide)
   const copyElement = useDocumentStore((s) => s.copyElement)
@@ -329,7 +331,8 @@ export function EditorLayout(): React.JSX.Element {
                 key={animation.id}
                 animation={animation}
                 objectName={getAnimationObjectName(animation, document)}
-                isSelected={false}
+                isSelected={selectedAnimationId === animation.id}
+                onClick={() => selectAnimation(animation.id)}
                 onTriggerChange={(trigger) => updateAnimationTrigger(animation.id, trigger)}
                 onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}
                 onDurationChange={(duration) => updateAnimationDuration(animation.id, duration)}
