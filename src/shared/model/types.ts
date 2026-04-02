@@ -204,7 +204,6 @@ export type Easing =
   | 'ease-out'
   | 'ease-in-out'
   | { kind: 'cubic-bezier'; x1: number; y1: number; x2: number; y2: number }
-  | { kind: 'spring'; mass: number; stiffness: number; damping: number; initialVelocity: number }
   // points.length >= 2; points[0].x === 0, points[last].x === 1
   | { kind: 'curve'; points: SplinePoint[] }
 

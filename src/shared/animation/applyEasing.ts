@@ -38,39 +38,6 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number, t: number):
   return ((ay * u + by) * u + cy) * u
 }
 
-// Closed-form damped oscillation spring.
-// Uses angular frequency derived from stiffness/mass and the damping ratio.
-// Scaled so f(0)=0 and the settled value approaches 1.
-function applySpring(mass: number, stiffness: number, damping: number, progress: number): number {
-  if (progress <= 0) return 0
-  if (progress >= 1) return 1
-
-  const omega0 = Math.sqrt(stiffness / mass) // natural angular frequency
-  const zeta = damping / (2 * Math.sqrt(stiffness * mass)) // damping ratio
-  const t = progress
-
-  let value: number
-  if (zeta < 1) {
-    // Under-damped: oscillates before settling
-    const omegaD = omega0 * Math.sqrt(1 - zeta * zeta)
-    value =
-      1 -
-      Math.exp(-zeta * omega0 * t) *
-        (Math.cos(omegaD * t) + (zeta / Math.sqrt(1 - zeta * zeta)) * Math.sin(omegaD * t))
-  } else if (zeta === 1) {
-    // Critically damped
-    value = 1 - Math.exp(-omega0 * t) * (1 + omega0 * t)
-  } else {
-    // Over-damped
-    const alpha = omega0 * Math.sqrt(zeta * zeta - 1)
-    const r1 = -zeta * omega0 + alpha
-    const r2 = -zeta * omega0 - alpha
-    value = 1 - (r1 * Math.exp(r2 * t) - r2 * Math.exp(r1 * t)) / (r1 - r2)
-  }
-
-  return value
-}
-
 // General cubic bezier segment evaluator for piecewise spline curves.
 // Solves for the bezier parameter u where X(u) = targetX (Newton's method),
 // then returns Y(u). Control points are absolute coordinates.
@@ -142,10 +109,6 @@ export function applyEasing(easing: Easing, progress: number): number {
 
   if (easing.kind === 'cubic-bezier') {
     return cubicBezier(easing.x1, easing.y1, easing.x2, easing.y2, progress)
-  }
-
-  if (easing.kind === 'spring') {
-    return applySpring(easing.mass, easing.stiffness, easing.damping, progress)
   }
 
   if (easing.kind === 'curve') {

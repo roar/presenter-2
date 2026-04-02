@@ -72,30 +72,6 @@ describe('applyEasing', () => {
     })
   })
 
-  describe('spring', () => {
-    const spring = {
-      kind: 'spring' as const,
-      mass: 1,
-      stiffness: 100,
-      damping: 10,
-      initialVelocity: 0
-    }
-
-    it('returns 0 at progress 0', () => {
-      expect(applyEasing(spring, 0)).toBeCloseTo(0)
-    })
-
-    it('returns ~1 at progress 1', () => {
-      expect(applyEasing(spring, 1)).toBeCloseTo(1, 2)
-    })
-
-    it('may overshoot internally (progress between 0 and 1)', () => {
-      // Spring can overshoot — we just check it returns a number
-      const mid = applyEasing(spring, 0.5)
-      expect(typeof mid).toBe('number')
-    })
-  })
-
   describe('curve', () => {
     // Linear bezier: P0=(0,0), P1=(1/3,1/3), P2=(2/3,2/3), P3=(1,1)
     // Achieved by setting outHandle=(1/3,1/3) on the first point and
