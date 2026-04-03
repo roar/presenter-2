@@ -81,7 +81,17 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       updateSlideTransitionTrigger: vi.fn(),
       updateSlideTransitionDuration: vi.fn(),
       updateSlideTransitionEasing: vi.fn(),
-      updateSlideTransitionKind: vi.fn()
+      updateSlideTransitionKind: vi.fn(),
+      addColorConstant: vi.fn(),
+      nameColorConstant: vi.fn(),
+      updateColorConstantName: vi.fn(),
+      updateColorConstantValue: vi.fn(),
+      deleteColorConstant: vi.fn(),
+      updateSlideBackgroundColor: vi.fn(),
+      updateObjectFill: vi.fn(),
+      updateObjectStroke: vi.fn(),
+      updateTextColor: vi.fn(),
+      updateTextShadowColor: vi.fn()
     })
   })
 }
@@ -236,7 +246,17 @@ describe('EditorLayout', () => {
         updateSlideTransitionTrigger: vi.fn(),
         updateSlideTransitionDuration: vi.fn(),
         updateSlideTransitionEasing: vi.fn(),
-        updateSlideTransitionKind: vi.fn()
+        updateSlideTransitionKind: vi.fn(),
+        addColorConstant: vi.fn(),
+        nameColorConstant: vi.fn(),
+        updateColorConstantName: vi.fn(),
+        updateColorConstantValue: vi.fn(),
+        deleteColorConstant: vi.fn(),
+        updateSlideBackgroundColor: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateObjectStroke: vi.fn(),
+        updateTextColor: vi.fn(),
+        updateTextShadowColor: vi.fn()
       })
     })
 

@@ -4,6 +4,13 @@
   gap: var(--space-md);
 }
 
+.emptyCardText {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
 .cardRows {
   display: flex;
   flex-direction: column;
@@ -53,4 +60,201 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-sm);
+}
+
+.transformLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.transformGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md) var(--space-sm);
+}
+
+.transformField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.transformFieldLabel {
+  font-size: var(--text-xs);
+  color: color-mix(in srgb, var(--text) 72%, var(--text-dim));
+  letter-spacing: 0.01em;
+}
+
+.keepRatioRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.keepRatioLabel {
+  font-size: var(--text-md);
+  color: color-mix(in srgb, var(--text) 72%, var(--text-dim));
+}
+
+.keepRatioToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #1f9ae0;
+  color: #ffffff;
+  cursor: default;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.keepRatioCheck {
+  font-size: 28px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.rotationSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rotationRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.rotationDial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+.rotationArrow {
+  font-size: 38px;
+  line-height: 1;
+}
+
+.rotationInput {
+  width: 112px;
+}
+
+.colorList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.colorsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.colorsRoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.colorEditorList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.colorEditorRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+
+.colorEditorRow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.colorIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.colorValueEditor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.colorPickerLarge {
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+
+.colorHex {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.colorRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.colorSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.colorName {
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.colorValue {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.colorPicker {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+
+.colorUsage {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
 }

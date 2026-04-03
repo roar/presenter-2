@@ -248,6 +248,7 @@ export function renderAllSlideEntryStates(
         return {
           appearance,
           master,
+          colorConstantsById: presentation.colorConstantsById,
           visible: propagated.visible,
           opacity: propagated.opacity,
           transform,
@@ -257,6 +258,6 @@ export function renderAllSlideEntryStates(
       }
     )
 
-    return { slide, appearances }
+    return { slide, appearances, colorConstantsById: presentation.colorConstantsById }
   })
 }

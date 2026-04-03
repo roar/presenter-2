@@ -13,6 +13,7 @@ export function createPresentation(): Presentation {
   return {
     id: crypto.randomUUID(),
     title: 'Untitled Presentation',
+    colorConstantsById: {},
     slideOrder: [],
     slidesById: {},
     mastersById: {},

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { RenderedSlide, RenderedAppearance } from '@shared/animation/types'
 import { SLIDE_WIDTH, SLIDE_HEIGHT } from '@shared/model/types'
+import { resolveColorValue } from '@shared/model/colors'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
 import { ShapeElementRenderer } from '../ShapeElementRenderer/ShapeElementRenderer'
@@ -21,6 +22,7 @@ function renderAppearance(ra: RenderedAppearance): React.ReactNode {
 export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX.Element {
   const { slide, appearances } = renderedSlide
   const bg = slide.background
+  const backgroundColor = resolveColorValue(bg.color, renderedSlide.colorConstantsById)
 
   return (
     <div
@@ -29,7 +31,7 @@ export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX
         width: SLIDE_WIDTH,
         height: SLIDE_HEIGHT,
         overflow: 'hidden',
-        background: bg.color ?? bg.image ?? undefined,
+        background: backgroundColor ?? bg.image ?? undefined,
         ...style
       }}
     >

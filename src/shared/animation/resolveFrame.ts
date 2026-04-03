@@ -7,6 +7,7 @@ import type {
   RenderedAppearance
 } from './types'
 import { applyEasing } from './applyEasing'
+import { resolveColorValue } from '../model/colors'
 
 // ─── Lerp helpers ─────────────────────────────────────────────────────────────
 
@@ -28,6 +29,13 @@ function lerpColor(a: string, b: string, t: number): string {
   const bl = Math.round(lerp(ca[2], cb[2], t))
   const al = lerp(ca[3], cb[3], t)
   return `rgba(${r}, ${g}, ${bl}, ${al.toFixed(4)})`
+}
+
+function resolveShadowColor(
+  shadow: TextShadow,
+  colorConstantsById?: Record<string, { value: string }>
+): string {
+  return resolveColorValue(shadow.color, colorConstantsById) ?? 'rgba(0,0,0,0)'
 }
 
 function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>) {
@@ -194,6 +202,7 @@ function resolveAppearanceState(
   scheduledAnimations: ScheduledAnimationEntry[],
   animationsById: Record<string, TargetedAnimation>,
   time: number,
+  colorConstantsById: Record<string, { value: string }> | undefined,
   baseState?: PropagatedState
 ): RenderedAppearance {
   // Animations that target this appearance and have been scheduled
@@ -269,7 +278,11 @@ function resolveAppearanceState(
           offsetX: lerp(from.offsetX, effect.to.offsetX, progress),
           offsetY: lerp(from.offsetY, effect.to.offsetY, progress),
           blur: lerp(from.blur, effect.to.blur, progress),
-          color: lerpColor(from.color, effect.to.color, progress)
+          color: lerpColor(
+            resolveShadowColor(from, colorConstantsById),
+            resolveShadowColor(effect.to, colorConstantsById),
+            progress
+          )
         }
         if (completed) textShadow = effect.to
       } else if (effect.type === 'line-draw') {
@@ -282,7 +295,16 @@ function resolveAppearanceState(
   const translatePart = `translate(${translateX}px, ${translateY}px)`
   const transform = scale !== null ? `${translatePart} scale(${scale})` : translatePart
 
-  return { appearance, master, visible, opacity, transform, textShadow, strokeDashoffset }
+  return {
+    appearance,
+    master,
+    colorConstantsById,
+    visible,
+    opacity,
+    transform,
+    textShadow,
+    strokeDashoffset
+  }
 }
 
 // ─── Slide rendering ──────────────────────────────────────────────────────────
@@ -313,6 +335,7 @@ function renderSlide(
       scheduledAnimations,
       animationsById,
       time,
+      presentation.colorConstantsById,
       baseState
     )
     if (msoMasterIds.has(master.id)) {
@@ -334,7 +357,11 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
   if (slideOrder.length === 0) {
     const emptySlide = { id: '', appearanceIds: [], animationOrder: [], background: {} }
     return {
-      front: { slide: emptySlide, appearances: [] },
+      front: {
+        slide: emptySlide,
+        appearances: [],
+        colorConstantsById: presentation.colorConstantsById
+      },
       behind: null,
       transition: null,
       msoAppearances: []
@@ -394,7 +421,11 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
     masterAppearanceIds
   )
 
-  const front: RenderedSlide = { slide: slidesById[frontSlideId], appearances: frontRegular }
+  const front: RenderedSlide = {
+    slide: slidesById[frontSlideId],
+    appearances: frontRegular,
+    colorConstantsById: presentation.colorConstantsById
+  }
 
   let behind: RenderedSlide | null = null
   if (activeTransition && activeIndex > 0) {
@@ -406,7 +437,11 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
       time,
       masterAppearanceIds
     )
-    behind = { slide: slidesById[behindSlideId], appearances: behindRegular }
+    behind = {
+      slide: slidesById[behindSlideId],
+      appearances: behindRegular,
+      colorConstantsById: presentation.colorConstantsById
+    }
   }
 
   // MSO appearances come from the front slide (they're the same master across slides)

@@ -7,6 +7,7 @@ function makePresentation(overrides?: Partial<Presentation>): Presentation {
   return {
     id: 'pres-1',
     title: 'Test presentation',
+    colorConstantsById: {},
     slideOrder: [],
     slidesById: {},
     mastersById: {},
@@ -163,6 +164,126 @@ describe('documentStore', () => {
       }
       expect(animation.effect.delta).toEqual({ x: 24, y: 48 })
       expect(useDocumentStore.getState().isDirty).toBe(true)
+    })
+  })
+
+  describe('color constants', () => {
+    it('normalizes raw colors into named color constants when setting the document', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1'],
+          slidesById: {
+            's-1': { id: 's-1', appearanceIds: [], animationOrder: [], background: { color: '#123456' } }
+          }
+        })
+      )
+
+      const document = useDocumentStore.getState().document
+      expect(document).toBeTruthy()
+      const colorConstants = Object.values(document?.colorConstantsById ?? {})
+      expect(colorConstants).toHaveLength(1)
+      expect(colorConstants[0]?.value).toBe('#123456')
+      expect(document?.slidesById['s-1'].background.color).toEqual({
+        kind: 'constant',
+        colorId: colorConstants[0]?.id
+      })
+    })
+
+    it('adds a named color constant', () => {
+      useDocumentStore.getState().setDocument(makePresentation())
+
+      useDocumentStore.getState().addColorConstant()
+
+      const colorConstants = Object.values(useDocumentStore.getState().document?.colorConstantsById ?? {})
+      expect(colorConstants).toHaveLength(1)
+      expect(colorConstants[0]?.name).toBe('Color 1')
+    })
+
+    it('updates a named color constant name and value', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          colorConstantsById: {
+            'color-1': { id: 'color-1', name: 'Primary', value: '#112233' }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateColorConstantName('color-1', 'Accent')
+      useDocumentStore.getState().updateColorConstantValue('color-1', '#445566')
+
+      const colorConstant = useDocumentStore.getState().document?.colorConstantsById?.['color-1']
+      expect(colorConstant).toEqual({ id: 'color-1', name: 'Accent', value: '#445566' })
+    })
+
+    it('creates or reuses a named color constant for a chosen raw color', () => {
+      useDocumentStore.getState().setDocument(makePresentation())
+
+      const colorId = useDocumentStore.getState().nameColorConstant('#112233', 'Primary')
+
+      expect(colorId).toBeTruthy()
+      expect(useDocumentStore.getState().document?.colorConstantsById?.[colorId!]).toEqual({
+        id: colorId,
+        name: 'Primary',
+        value: '#112233'
+      })
+    })
+
+    it('deletes an in-use color constant and detaches usages back to raw colors', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          colorConstantsById: {
+            'color-1': { id: 'color-1', name: 'Primary', value: '#112233' }
+          },
+          slideOrder: ['s-1'],
+          slidesById: {
+            's-1': {
+              id: 's-1',
+              appearanceIds: [],
+              animationOrder: [],
+              background: { color: { kind: 'constant', colorId: 'color-1' } }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().deleteColorConstant('color-1')
+
+      expect(useDocumentStore.getState().document?.colorConstantsById?.['color-1']).toBeUndefined()
+      expect(useDocumentStore.getState().document?.slidesById['s-1'].background.color).toBe('#112233')
+    })
+
+    it('updates slide and object color properties with named color references', () => {
+      const master = createMsoMaster('shape')
+      const slide = makeSlide('s-1')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          colorConstantsById: {
+            'color-1': { id: 'color-1', name: 'Primary', value: '#112233' }
+          },
+          slideOrder: ['s-1'],
+          slidesById: { 's-1': slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().updateSlideBackgroundColor('s-1', {
+        kind: 'constant',
+        colorId: 'color-1'
+      })
+      useDocumentStore.getState().updateObjectFill(master.id, {
+        kind: 'constant',
+        colorId: 'color-1'
+      })
+
+      expect(useDocumentStore.getState().document?.slidesById['s-1'].background.color).toEqual({
+        kind: 'constant',
+        colorId: 'color-1'
+      })
+      expect(useDocumentStore.getState().document?.mastersById[master.id].objectStyle.defaultState.fill).toEqual({
+        kind: 'constant',
+        colorId: 'color-1'
+      })
     })
   })
 

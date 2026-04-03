@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import type { FrameState } from '@shared/animation/types'
 import { SLIDE_WIDTH, SLIDE_HEIGHT } from '@shared/model/types'
+import { resolveColorValue } from '@shared/model/colors'
 import { SlideLayer } from '../SlideLayer/SlideLayer'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
@@ -35,7 +36,10 @@ export function SlideRenderer({ frame }: SlideRendererProps): React.JSX.Element 
   }, [])
 
   const { front, behind, transition, msoAppearances } = frame
-  const frameBackground = front.slide.background.color ?? front.slide.background.image ?? '#ffffff'
+  const frameBackground =
+    resolveColorValue(front.slide.background.color, front.colorConstantsById) ??
+    front.slide.background.image ??
+    '#ffffff'
   const { behindOpacity, frontOpacity, frontTranslateX } = getTransitionLayerStyles(transition)
 
   return (

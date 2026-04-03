@@ -1,4 +1,5 @@
 import type { RenderedAppearance } from '@shared/animation/types'
+import { resolveColorValue } from '@shared/model/colors'
 
 interface ShapeElementRendererProps {
   rendered: RenderedAppearance
@@ -8,6 +9,7 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
   const { master, visible, opacity, transform, strokeDashoffset } = rendered
   const { transform: t, objectStyle, geometry } = master
   const style = objectStyle.defaultState
+  const colorConstantsById = rendered.colorConstantsById
   const pathData = geometry?.pathData ?? ''
   const viewBox =
     geometry?.type === 'path' && geometry.baseWidth && geometry.baseHeight
@@ -31,8 +33,8 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
     >
       <path
         d={pathData}
-        fill={style.fill ?? 'none'}
-        stroke={style.stroke ?? 'none'}
+        fill={resolveColorValue(style.fill, colorConstantsById) ?? 'none'}
+        stroke={resolveColorValue(style.stroke, colorConstantsById) ?? 'none'}
         strokeWidth={style.strokeWidth ?? 0}
         pathLength={strokeDashoffset !== null ? 1 : undefined}
         strokeDasharray={strokeDashoffset !== null ? '1' : undefined}

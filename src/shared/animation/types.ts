@@ -8,7 +8,9 @@ import type {
   MsoMaster,
   SlideTransition,
   TextShadow,
-  AnimationId
+  AnimationId,
+  ColorConstant,
+  ColorConstantId
 } from '../model/types'
 
 export interface PresentationTimeline {
@@ -41,11 +43,13 @@ export interface FrameState {
 export interface RenderedSlide {
   slide: Slide
   appearances: RenderedAppearance[]
+  colorConstantsById?: Record<ColorConstantId, ColorConstant>
 }
 
 export interface RenderedAppearance {
   appearance: Appearance
   master: MsoMaster
+  colorConstantsById?: Record<ColorConstantId, ColorConstant>
   visible: boolean
   opacity: number // 0–1
   transform: string // CSS transform string (translate, scale, etc.)

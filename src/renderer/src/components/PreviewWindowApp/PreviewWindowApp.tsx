@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Presentation } from '@shared/model/types'
+import { resolveColorValue } from '@shared/model/colors'
 import { buildTimeline } from '@shared/animation/buildTimeline'
 import { createPlaybackPresentation } from '@shared/animation/createPlaybackPresentation'
 import { resolveFrame } from '@shared/animation/resolveFrame'
@@ -123,7 +124,10 @@ export function PreviewWindowApp(): React.JSX.Element {
   const frame = playbackPresentation
     ? resolveFrame(buildTimeline(playbackPresentation, triggerTimes), currentTime)
     : null
-  const frameBackground = frame?.front.slide.background.color ?? frame?.front.slide.background.image
+  const frameBackground =
+    (frame
+      ? resolveColorValue(frame.front.slide.background.color, frame.front.colorConstantsById)
+      : undefined) ?? frame?.front.slide.background.image
 
   useEffect(() => {
     const background = frameBackground ?? '#ffffff'

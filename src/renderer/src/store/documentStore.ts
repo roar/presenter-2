@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
+  Color,
   Presentation,
   Slide,
   SlideId,
@@ -14,10 +15,16 @@ import type {
   Position,
   SlideTransition
 } from '../../../shared/model/types'
+import type { ColorConstantId } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
 import { createAppearance, createPresentation, createSlide } from '../../../shared/model/factories'
+import {
+  createOrReuseColorConstant,
+  deleteColorConstant,
+  ensurePresentationColorConstants
+} from '../../../shared/model/colors'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
 
@@ -81,6 +88,16 @@ interface DocumentState {
   updateSlideTransitionDuration(slideId: SlideId, duration: number): void
   updateSlideTransitionEasing(slideId: SlideId, easing: Easing): void
   updateSlideTransitionKind(slideId: SlideId, kind: SlideTransition['kind']): void
+  addColorConstant(): void
+  nameColorConstant(value: string, name: string): ColorConstantId | null
+  updateColorConstantName(colorId: ColorConstantId, name: string): void
+  updateColorConstantValue(colorId: ColorConstantId, value: string): void
+  deleteColorConstant(colorId: ColorConstantId): void
+  updateSlideBackgroundColor(slideId: SlideId, color: Color | undefined): void
+  updateObjectFill(masterId: string, color: Color | undefined): void
+  updateObjectStroke(masterId: string, color: Color | undefined): void
+  updateTextColor(masterId: string, color: Color | undefined): void
+  updateTextShadowColor(masterId: string, color: Color | undefined): void
   convertToMultiSlideObject(masterId: string): void
   convertToSingleAppearance(appearanceId: string): void
   undo(): void
@@ -193,6 +210,7 @@ export const useDocumentStore = create<DocumentState>()(
         const slide = createSlide()
         presentation.slideOrder = [slide.id]
         presentation.slidesById[slide.id] = slide
+        ensurePresentationColorConstants(presentation)
         state.document = presentation
         state.history = [snapshot(presentation)]
         state.historyIndex = 0
@@ -205,6 +223,7 @@ export const useDocumentStore = create<DocumentState>()(
 
     async loadDocument(repo, id, auth = nullAuthContext) {
       const presentation = await repo.load(id, auth)
+      ensurePresentationColorConstants(presentation)
       set((state) => {
         state.document = presentation
         state.history = [snapshot(presentation)]
@@ -228,6 +247,7 @@ export const useDocumentStore = create<DocumentState>()(
 
     setDocument(doc) {
       set((state) => {
+        ensurePresentationColorConstants(doc)
         state.document = doc
         pushHistory(state, doc)
         state.isDirty = true
@@ -303,6 +323,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.document.mastersById[master.id] = master
         state.document.appearancesById[appearance.id] = appearance
         slide.appearanceIds.push(appearance.id)
+        ensurePresentationColorConstants(state.document)
         pushHistory(state, state.document)
         state.isDirty = true
       })
@@ -366,6 +387,7 @@ export const useDocumentStore = create<DocumentState>()(
           state.document.appearancesById[appearance.id] = appearance
           slide.appearanceIds.push(appearance.id)
         }
+        ensurePresentationColorConstants(state.document)
         pushHistory(state, state.document)
         state.isDirty = true
       })
@@ -508,6 +530,113 @@ export const useDocumentStore = create<DocumentState>()(
         const slide = state.document.slidesById[slideId]
         if (!slide) return
         ensureSlideTransition(slide).kind = kind
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    addColorConstant() {
+      set((state) => {
+        if (!state.document) return
+        state.document.colorConstantsById ??= {}
+        const nextIndex = Object.keys(state.document.colorConstantsById).length + 1
+        const id = crypto.randomUUID()
+        state.document.colorConstantsById[id] = {
+          id,
+          name: `Color ${nextIndex}`,
+          value: '#000000'
+        }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    nameColorConstant(value, name) {
+      let colorId: ColorConstantId | null = null
+
+      set((state) => {
+        if (!state.document) return
+        colorId = createOrReuseColorConstant(state.document, value, name)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+
+      return colorId
+    },
+
+    updateColorConstantName(colorId, name) {
+      set((state) => {
+        if (!state.document?.colorConstantsById?.[colorId]) return
+        state.document.colorConstantsById[colorId].name = name
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateColorConstantValue(colorId, value) {
+      set((state) => {
+        if (!state.document?.colorConstantsById?.[colorId]) return
+        state.document.colorConstantsById[colorId].value = value
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    deleteColorConstant(colorId) {
+      set((state) => {
+        if (!state.document?.colorConstantsById?.[colorId]) return
+        deleteColorConstant(state.document, colorId)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideBackgroundColor(slideId, color) {
+      set((state) => {
+        const slide = state.document?.slidesById[slideId]
+        if (!slide || !state.document) return
+        slide.background.color = color
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateObjectFill(masterId, color) {
+      set((state) => {
+        const master = state.document?.mastersById[masterId]
+        if (!master || !state.document) return
+        master.objectStyle.defaultState.fill = color
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateObjectStroke(masterId, color) {
+      set((state) => {
+        const master = state.document?.mastersById[masterId]
+        if (!master || !state.document) return
+        master.objectStyle.defaultState.stroke = color
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateTextColor(masterId, color) {
+      set((state) => {
+        const master = state.document?.mastersById[masterId]
+        if (!master?.textStyle || !state.document) return
+        master.textStyle.defaultState.color = color
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateTextShadowColor(masterId, color) {
+      set((state) => {
+        const master = state.document?.mastersById[masterId]
+        const textShadow = master?.textStyle?.defaultState.textShadow
+        if (!textShadow || !state.document) return
+        textShadow.color = color ?? textShadow.color
         pushHistory(state, state.document)
         state.isDirty = true
       })

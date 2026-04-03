@@ -1,4 +1,5 @@
 import type { RenderedAppearance } from '@shared/animation/types'
+import { resolveColorValue } from '@shared/model/colors'
 
 interface TextElementRendererProps {
   rendered: RenderedAppearance
@@ -8,6 +9,7 @@ export function TextElementRenderer({ rendered }: TextElementRendererProps): Rea
   const { master, visible, opacity, transform, textShadow } = rendered
   const { transform: t, textStyle } = master
   const style = textStyle?.defaultState ?? {}
+  const colorConstantsById = rendered.colorConstantsById
 
   // Prefer animated textShadow over the master's static default
   const shadow = textShadow ?? (style.textShadow ? style.textShadow : null)
@@ -28,9 +30,11 @@ export function TextElementRenderer({ rendered }: TextElementRendererProps): Rea
         fontSize: style.fontSize,
         fontWeight: style.fontWeight,
         fontFamily: style.fontFamily,
-        color: style.color,
+        color: resolveColorValue(style.color, colorConstantsById),
         textShadow: shadow
-          ? `${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blur}px ${shadow.color}`
+          ? `${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blur}px ${
+              resolveColorValue(shadow.color, colorConstantsById) ?? 'rgba(0,0,0,0)'
+            }`
           : undefined
       }}
     >

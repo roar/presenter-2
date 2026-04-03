@@ -7,6 +7,7 @@ import {
   createPresentation,
   createSlide
 } from '@shared/model/factories'
+import { ensurePresentationColorConstants } from '@shared/model/colors'
 import type { Presentation, TargetedAnimation } from '@shared/model/types'
 import { PropertiesPanel } from './PropertiesPanel'
 
@@ -31,6 +32,16 @@ function makeDocument(): {
     strokeWidth: 3,
     opacity: 0.8
   }
+  shapeMaster.textStyle = {
+    defaultState: {
+      fontFamily: 'Helvetica Neue',
+      fontSize: 32,
+      fontWeight: 700,
+      color: '#3366ff',
+      textShadow: { offsetX: 2, offsetY: 4, blur: 6, color: '#111111' }
+    },
+    namedStates: {}
+  }
 
   const appearance = createAppearance(shapeMaster.id, slide.id)
   const animation: TargetedAnimation = {
@@ -52,6 +63,7 @@ function makeDocument(): {
   document.mastersById[shapeMaster.id] = shapeMaster
   document.appearancesById[appearance.id] = appearance
   document.animationsById[animation.id] = animation
+  ensurePresentationColorConstants(document)
 
   return { document, slideId: slide.id, shapeMasterId: shapeMaster.id, animation }
 }
@@ -71,6 +83,10 @@ describe('PropertiesPanel', () => {
       />
     )
 
+    expect(screen.getByRole('tab', { name: 'Properties' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
     expect(screen.getByRole('button', { name: 'Presentation' })).toHaveAttribute(
       'aria-expanded',
       'false'
@@ -104,7 +120,8 @@ describe('PropertiesPanel', () => {
     expect(screen.getByRole('button', { name: 'Slide' })).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('shows object property cards when an object is selected', () => {
+  it('shows object style cards in the object tab when an object is selected', async () => {
+    const user = userEvent.setup()
     const { document, slideId, shapeMasterId } = makeDocument()
 
     render(
@@ -118,6 +135,9 @@ describe('PropertiesPanel', () => {
       />
     )
 
+    await user.click(screen.getByRole('tab', { name: 'Object' }))
+
+    expect(screen.getByRole('tab', { name: 'Object' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('button', { name: 'Object' })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('Transform')).toBeInTheDocument()
     expect(screen.getByText('Fill')).toBeInTheDocument()
@@ -151,5 +171,124 @@ describe('PropertiesPanel', () => {
     expect(screen.getByText('Timing')).toBeInTheDocument()
     expect(screen.getByText('Effect')).toBeInTheDocument()
     expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
+  })
+
+  it('shows text styles in the text tab', async () => {
+    const user = userEvent.setup()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+      />
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Text' }))
+
+    expect(screen.getByRole('button', { name: 'Text' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Typography')).toBeInTheDocument()
+    expect(screen.getByText('Effects')).toBeInTheDocument()
+  })
+
+  it('shows derived color constants in the colors tab', async () => {
+    const user = userEvent.setup()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+      />
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Colors' }))
+
+    expect(screen.getByRole('tab', { name: 'Colors' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByDisplayValue('#ff0000')).toBeInTheDocument()
+  })
+
+  it('shows the selected named color beside the object fill field', async () => {
+    const user = userEvent.setup()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+      />
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Object' }))
+
+    expect(screen.getAllByText('Color 2')).toHaveLength(2)
+  })
+
+  it('uses the registry color picker for slide background selection', async () => {
+    const user = userEvent.setup()
+    const { document, slideId } = makeDocument()
+    const onSlideBackgroundColorChange = vi.fn()
+    const colorConstants = Object.values(document.colorConstantsById ?? {})
+    const secondColor = colorConstants.find((color) => color.name === 'Color 2')
+    if (!secondColor) {
+      throw new Error('Expected second color constant')
+    }
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={null}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onSlideBackgroundColorChange={onSlideBackgroundColorChange}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Color 1' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Color 2' }))
+
+    expect(onSlideBackgroundColorChange).toHaveBeenCalledWith(slideId, {
+      kind: 'constant',
+      colorId: secondColor.id
+    })
+  })
+
+  it('deletes an in-use named color after confirmation', async () => {
+    const user = userEvent.setup()
+    const { document, slideId, shapeMasterId } = makeDocument()
+    const onDeleteColorConstant = vi.fn()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onDeleteColorConstant={onDeleteColorConstant}
+      />
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Colors' }))
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+
+    expect(window.confirm).toHaveBeenCalled()
+    expect(onDeleteColorConstant).toHaveBeenCalled()
   })
 })

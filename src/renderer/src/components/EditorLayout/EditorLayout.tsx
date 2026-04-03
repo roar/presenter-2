@@ -101,6 +101,16 @@ export function EditorLayout(): React.JSX.Element {
   const updateSlideTransitionDuration = useDocumentStore((s) => s.updateSlideTransitionDuration)
   const updateSlideTransitionEasing = useDocumentStore((s) => s.updateSlideTransitionEasing)
   const updateSlideTransitionKind = useDocumentStore((s) => s.updateSlideTransitionKind)
+  const addColorConstant = useDocumentStore((s) => s.addColorConstant)
+  const nameColorConstant = useDocumentStore((s) => s.nameColorConstant)
+  const updateColorConstantName = useDocumentStore((s) => s.updateColorConstantName)
+  const updateColorConstantValue = useDocumentStore((s) => s.updateColorConstantValue)
+  const deleteColorConstant = useDocumentStore((s) => s.deleteColorConstant)
+  const updateSlideBackgroundColor = useDocumentStore((s) => s.updateSlideBackgroundColor)
+  const updateObjectFill = useDocumentStore((s) => s.updateObjectFill)
+  const updateObjectStroke = useDocumentStore((s) => s.updateObjectStroke)
+  const updateTextColor = useDocumentStore((s) => s.updateTextColor)
+  const updateTextShadowColor = useDocumentStore((s) => s.updateTextShadowColor)
   const [timelineState, setTimelineState] = useState<{
     key: string
     time: number
@@ -414,6 +424,16 @@ export function EditorLayout(): React.JSX.Element {
               onSlideTransitionDurationChange={updateSlideTransitionDuration}
               onSlideTransitionEasingChange={updateSlideTransitionEasing}
               onSlideTransitionKindChange={updateSlideTransitionKind}
+              onAddColorConstant={addColorConstant}
+              onNameColorConstant={nameColorConstant}
+              onColorConstantNameChange={updateColorConstantName}
+              onColorConstantValueChange={updateColorConstantValue}
+              onDeleteColorConstant={deleteColorConstant}
+              onSlideBackgroundColorChange={updateSlideBackgroundColor}
+              onObjectFillChange={updateObjectFill}
+              onObjectStrokeChange={updateObjectStroke}
+              onTextColorChange={updateTextColor}
+              onTextShadowColorChange={updateTextShadowColor}
             />
           </LayoutPanel>
         </div>

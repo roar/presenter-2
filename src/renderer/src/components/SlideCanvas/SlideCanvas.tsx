@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
+import { resolveColorValue } from '@shared/model/colors'
 import type { Transform } from '@shared/model/types'
 import {
   computeMsoExitStateChains,
@@ -209,7 +210,9 @@ export function SlideCanvas(): React.JSX.Element {
             style={{
               width: SLIDE_WIDTH,
               height: SLIDE_HEIGHT,
-              backgroundColor: slide.background.color ?? '#ffffff',
+              backgroundColor:
+                resolveColorValue(slide.background.color, patchedPresentation.colorConstantsById) ??
+                '#ffffff',
               transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
               userSelect: draggingMasterId != null ? 'none' : undefined
             }}

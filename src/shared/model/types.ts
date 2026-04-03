@@ -15,12 +15,14 @@ export type TextDecorationId = string
 export type BlockId = string
 export type RunId = string
 export type UserId = string // Clerk user ID (e.g. "user_2abc...")
+export type ColorConstantId = string
 
 // ─── Presentation (normalised document model) ─────────────────────────────────
 
 export interface Presentation {
   id: PresentationId
   title: string
+  colorConstantsById?: Record<ColorConstantId, ColorConstant>
   slideOrder: SlideId[]
   slidesById: Record<SlideId, Slide>
   mastersById: Record<MasterId, MsoMaster>
@@ -97,7 +99,15 @@ export interface Transform {
 
 // ─── Style ────────────────────────────────────────────────────────────────────
 
-export type Color = string // CSS color value
+export interface ColorConstant {
+  id: ColorConstantId
+  name: string
+  value: string
+}
+
+export type ColorReference = { kind: 'constant'; colorId: ColorConstantId }
+
+export type Color = string | ColorReference
 
 // Container/graphic properties — apply to the bounding box of any master type.
 export interface ObjectStyleProperties {
@@ -246,7 +256,7 @@ export interface TextShadow {
   offsetX: number // points
   offsetY: number // points
   blur: number // points
-  color: string // CSS color string
+  color: Color
 }
 
 // ─── Slide dimensions ─────────────────────────────────────────────────────────

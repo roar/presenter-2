@@ -1,0 +1,43 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: var(--space-xs) 0 0;
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.root::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  flex: 0 0 auto;
+  padding: var(--space-sm) var(--space-sm) calc(var(--space-sm) + var(--space-xs));
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+
+.selected {
+  color: var(--text);
+}
+
+.selected::after {
+  content: '';
+  position: absolute;
+  left: var(--space-sm);
+  right: var(--space-sm);
+  bottom: var(--space-xs);
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}

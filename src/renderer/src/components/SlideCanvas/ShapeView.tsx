@@ -1,4 +1,5 @@
 import type { RenderedAppearance } from '@shared/animation/types'
+import { resolveColorValue } from '@shared/model/colors'
 import type { Appearance, MsoMaster } from '@shared/model/types'
 
 interface ShapeViewProps {
@@ -14,6 +15,7 @@ export function ShapeView({ master, appearance, rendered }: ShapeViewProps): Rea
   const opacity = rendered?.opacity ?? style.opacity
   const baseTransform = rendered?.transform
   const rotationTransform = t.rotation !== 0 ? `rotate(${t.rotation}deg)` : ''
+  const colorConstantsById = rendered?.colorConstantsById
 
   const svgStyle: React.CSSProperties = {
     position: 'absolute',
@@ -28,8 +30,8 @@ export function ShapeView({ master, appearance, rendered }: ShapeViewProps): Rea
   }
 
   const shapeProps = {
-    fill: style.fill ?? 'none',
-    stroke: style.stroke ?? 'none',
+    fill: resolveColorValue(style.fill, colorConstantsById) ?? 'none',
+    stroke: resolveColorValue(style.stroke, colorConstantsById) ?? 'none',
     strokeWidth: style.strokeWidth ?? 0
   }
 
