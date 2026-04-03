@@ -19,7 +19,8 @@ export function ImageElementRenderer({ rendered }: ImageElementRendererProps): R
         top: t.y,
         width: t.width,
         height: t.height,
-        transform: `rotate(${t.rotation}deg) ${transform}`,
+        transform: `${transform} rotate(${t.rotation}deg)`,
+        transformOrigin: 'center center',
         opacity,
         visibility: visible ? 'visible' : 'hidden',
         objectFit: 'contain'

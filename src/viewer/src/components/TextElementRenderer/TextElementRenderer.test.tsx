@@ -52,4 +52,19 @@ describe('TextElementRenderer', () => {
     const el = screen.getByText('Hello world')
     expect(el.parentElement!.style.opacity).toBe('0.5')
   })
+
+  it('keeps rotation centered after animation translation', () => {
+    const master = makeMaster()
+    master.transform.rotation = 30
+
+    render(
+      <TextElementRenderer
+        rendered={makeRendered({ master, transform: 'translate(12px, 18px)' })}
+      />
+    )
+    const el = screen.getByText('Hello world')
+
+    expect(el.parentElement!.style.transform).toBe('translate(12px, 18px) rotate(30deg)')
+    expect(el.parentElement!.style.transformOrigin).toBe('center center')
+  })
 })

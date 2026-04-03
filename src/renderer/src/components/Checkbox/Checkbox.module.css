@@ -1,0 +1,49 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  color: var(--text);
+}
+
+.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.input:focus-visible + .box {
+  outline: 2px solid var(--accent, #1f9ae0);
+  outline-offset: 2px;
+}
+
+.input:checked + .box {
+  background: var(--accent, #1f9ae0);
+  border-color: var(--accent, #1f9ae0);
+  color: #ffffff;
+}
+
+.label {
+  font-size: var(--text-sm);
+  color: color-mix(in srgb, var(--text) 72%, var(--text-dim));
+}

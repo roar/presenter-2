@@ -68,6 +68,21 @@ describe('ShapeElementRenderer', () => {
     expect(svg.style.opacity).toBe('0.6')
   })
 
+  it('applies animation translation before rotation around the element center', () => {
+    const master = makeMaster()
+    master.transform.rotation = 45
+
+    const { container } = render(
+      <ShapeElementRenderer
+        rendered={makeRendered({ master, transform: 'translate(30px, 40px)' })}
+      />
+    )
+    const svg = container.querySelector('svg') as HTMLElement
+
+    expect(svg.style.transform).toBe('translate(30px, 40px) rotate(45deg)')
+    expect(svg.style.transformOrigin).toBe('center center')
+  })
+
   it('applies strokeDashoffset and pathLength when set', () => {
     const { container } = render(
       <ShapeElementRenderer rendered={makeRendered({ strokeDashoffset: 0.4 })} />

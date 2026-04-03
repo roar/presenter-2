@@ -88,6 +88,7 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       updateColorConstantValue: vi.fn(),
       deleteColorConstant: vi.fn(),
       updateSlideBackgroundColor: vi.fn(),
+      updateMasterTransform: vi.fn(),
       updateObjectFill: vi.fn(),
       updateObjectStroke: vi.fn(),
       updateTextColor: vi.fn(),
@@ -253,6 +254,7 @@ describe('EditorLayout', () => {
         updateColorConstantValue: vi.fn(),
         deleteColorConstant: vi.fn(),
         updateSlideBackgroundColor: vi.fn(),
+        updateMasterTransform: vi.fn(),
         updateObjectFill: vi.fn(),
         updateObjectStroke: vi.fn(),
         updateTextColor: vi.fn(),
@@ -264,6 +266,71 @@ describe('EditorLayout', () => {
 
     expect(screen.getAllByText('Move: Airplane')).not.toHaveLength(0)
     expect(screen.getByText('On click')).toBeInTheDocument()
+  })
+
+  it('shows patched transform values in the properties panel while dragging', () => {
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.transform = { x: 100, y: 200, width: 120, height: 80, rotation: 0 }
+    const appearance = createAppearance(master.id, slide.id)
+    slide.appearanceIds = [appearance.id]
+
+    const document = {
+      ...makePresentation(slide),
+      slideOrder: [slide.id],
+      slidesById: { [slide.id]: slide },
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document,
+        previewPatch: {
+          masterId: master.id,
+          transform: { ...master.transform, x: 180, y: 260 }
+        },
+        ui: {
+          selectedSlideId: slide.id,
+          selectedElementIds: [master.id],
+          selectedAnimationId: null
+        },
+        addSlide,
+        removeSlide,
+        selectSlide,
+        selectElements,
+        selectAnimation,
+        setPreviewPatch: vi.fn(),
+        copyElement: vi.fn(),
+        pasteElement: vi.fn(),
+        updateAnimationTrigger: vi.fn(),
+        updateAnimationOffset: vi.fn(),
+        updateAnimationDuration: vi.fn(),
+        updateAnimationEasing: vi.fn(),
+        updateAnimationNumericTo: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateSlideTransitionTrigger: vi.fn(),
+        updateSlideTransitionDuration: vi.fn(),
+        updateSlideTransitionEasing: vi.fn(),
+        updateSlideTransitionKind: vi.fn(),
+        addColorConstant: vi.fn(),
+        nameColorConstant: vi.fn(),
+        updateColorConstantName: vi.fn(),
+        updateColorConstantValue: vi.fn(),
+        deleteColorConstant: vi.fn(),
+        updateSlideBackgroundColor: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateObjectStroke: vi.fn(),
+        updateTextColor: vi.fn(),
+        updateTextShadowColor: vi.fn()
+      })
+    })
+
+    render(<EditorLayout />)
+
+    expect(screen.getByRole('textbox', { name: 'Transform x' })).toHaveValue('180')
+    expect(screen.getByRole('textbox', { name: 'Transform y' })).toHaveValue('260')
   })
 
   it('renders the single-slide timeline for the selected slide', () => {

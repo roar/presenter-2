@@ -173,7 +173,12 @@ describe('documentStore', () => {
         makePresentation({
           slideOrder: ['s-1'],
           slidesById: {
-            's-1': { id: 's-1', appearanceIds: [], animationOrder: [], background: { color: '#123456' } }
+            's-1': {
+              id: 's-1',
+              appearanceIds: [],
+              animationOrder: [],
+              background: { color: '#123456' }
+            }
           }
         })
       )
@@ -194,7 +199,9 @@ describe('documentStore', () => {
 
       useDocumentStore.getState().addColorConstant()
 
-      const colorConstants = Object.values(useDocumentStore.getState().document?.colorConstantsById ?? {})
+      const colorConstants = Object.values(
+        useDocumentStore.getState().document?.colorConstantsById ?? {}
+      )
       expect(colorConstants).toHaveLength(1)
       expect(colorConstants[0]?.name).toBe('Color 1')
     })
@@ -221,7 +228,10 @@ describe('documentStore', () => {
       const colorId = useDocumentStore.getState().nameColorConstant('#112233', 'Primary')
 
       expect(colorId).toBeTruthy()
-      expect(useDocumentStore.getState().document?.colorConstantsById?.[colorId!]).toEqual({
+      if (!colorId) {
+        throw new Error('Expected color id')
+      }
+      expect(useDocumentStore.getState().document?.colorConstantsById?.[colorId]).toEqual({
         id: colorId,
         name: 'Primary',
         value: '#112233'
@@ -249,7 +259,9 @@ describe('documentStore', () => {
       useDocumentStore.getState().deleteColorConstant('color-1')
 
       expect(useDocumentStore.getState().document?.colorConstantsById?.['color-1']).toBeUndefined()
-      expect(useDocumentStore.getState().document?.slidesById['s-1'].background.color).toBe('#112233')
+      expect(useDocumentStore.getState().document?.slidesById['s-1'].background.color).toBe(
+        '#112233'
+      )
     })
 
     it('updates slide and object color properties with named color references', () => {
@@ -280,7 +292,9 @@ describe('documentStore', () => {
         kind: 'constant',
         colorId: 'color-1'
       })
-      expect(useDocumentStore.getState().document?.mastersById[master.id].objectStyle.defaultState.fill).toEqual({
+      expect(
+        useDocumentStore.getState().document?.mastersById[master.id].objectStyle.defaultState.fill
+      ).toEqual({
         kind: 'constant',
         colorId: 'color-1'
       })
@@ -521,6 +535,34 @@ describe('documentStore', () => {
       useDocumentStore.getState().moveElement('nonexistent-id', 100, 100)
 
       expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore)
+    })
+  })
+
+  describe('updateMasterTransform', () => {
+    it('updates only the requested transform fields', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      master.transform = { x: 10, y: 20, width: 30, height: 40, rotation: 45 }
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().updateMasterTransform(master.id, { width: 120, height: 160 })
+
+      expect(useDocumentStore.getState().document?.mastersById[master.id].transform).toEqual({
+        x: 10,
+        y: 20,
+        width: 120,
+        height: 160,
+        rotation: 45
+      })
     })
   })
 

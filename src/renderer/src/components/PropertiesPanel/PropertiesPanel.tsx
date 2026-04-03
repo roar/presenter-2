@@ -12,15 +12,18 @@ import type {
   Slide,
   SlideId,
   SlideTransition,
+  Transform,
   TargetedAnimation
 } from '@shared/model/types'
-import { getColorConstantUsageCount, resolveColorValue } from '@shared/model/colors'
+import { getColorConstantUsageCount } from '@shared/model/colors'
 import { Button } from '../Button/Button'
+import { Checkbox } from '../Checkbox/Checkbox'
 import { ColorField } from '../ColorField/ColorField'
 import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
 import { NumberInput } from '../NumberInput/NumberInput'
 import { CollapsibleSection } from '../CollapsibleSection/CollapsibleSection'
 import { PropertyCard } from '../PropertyCard/PropertyCard'
+import { RotationWheel } from '../RotationWheel/RotationWheel'
 import { Tabs } from '../Tabs/Tabs'
 import { TextInput } from '../TextInput/TextInput'
 import { getMasterDisplayName } from '../../utils/getMasterDisplayName'
@@ -52,6 +55,7 @@ interface PropertiesPanelProps {
   onColorConstantValueChange?: (colorId: ColorConstantId, value: string) => void
   onDeleteColorConstant?: (colorId: ColorConstantId) => void
   onSlideBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void
+  onObjectTransformChange?: (masterId: string, transform: Partial<Transform>) => void
   onObjectFillChange?: (masterId: string, color: Color | undefined) => void
   onObjectStrokeChange?: (masterId: string, color: Color | undefined) => void
   onTextColorChange?: (masterId: string, color: Color | undefined) => void
@@ -110,27 +114,42 @@ function formatAnimationType(animation: TargetedAnimation): string {
   return type.charAt(0).toUpperCase() + type.slice(1)
 }
 
-function ReadOnlyNumberField({
+function EditableNumberField({
   label,
   value,
-  ariaLabel
+  ariaLabel,
+  onCommit
 }: {
   label: string
   value: number
   ariaLabel: string
+  onCommit: (value: number) => void
 }): React.JSX.Element {
   return (
     <label className={styles.transformField}>
       <span className={styles.transformFieldLabel}>{label}</span>
-      <NumberInput
-        aria-label={ariaLabel}
-        value={value}
-        decimals={0}
-        readOnly={true}
-        onCommit={() => {}}
-      />
+      <NumberInput aria-label={ariaLabel} value={value} decimals={0} onCommit={onCommit} />
     </label>
   )
+}
+
+function buildTransformPatch(
+  master: MsoMaster,
+  field: keyof Transform,
+  nextValue: number,
+  keepRatio: boolean
+): Partial<Transform> {
+  if (field === 'width' && keepRatio && master.transform.width !== 0) {
+    const ratio = master.transform.height / master.transform.width
+    return { width: nextValue, height: Math.round(nextValue * ratio) }
+  }
+
+  if (field === 'height' && keepRatio && master.transform.height !== 0) {
+    const ratio = master.transform.width / master.transform.height
+    return { height: nextValue, width: Math.round(nextValue * ratio) }
+  }
+
+  return { [field]: nextValue }
 }
 
 function ColorConstantRow({
@@ -413,7 +432,12 @@ function buildAnimationSection(
   }
 }
 
-function buildObjectSection(master: MsoMaster): SectionDefinition {
+function buildObjectSection(
+  master: MsoMaster,
+  keepRatio: boolean,
+  onKeepRatioChange: (checked: boolean) => void,
+  onTransformChange?: (masterId: string, transform: Partial<Transform>) => void
+): SectionDefinition {
   return {
     id: 'object',
     title: 'Object',
@@ -426,6 +450,72 @@ function buildObjectSection(master: MsoMaster): SectionDefinition {
             <PropertyRow label="Multi-slide" value={master.isMultiSlideObject ?? false} />
           </div>
         </PropertyCard>
+        <PropertyCard title="Transform">
+          <div className={styles.transformLayout}>
+            <div className={styles.transformGrid}>
+              <EditableNumberField
+                label="X"
+                value={master.transform.x}
+                ariaLabel="Transform x"
+                onCommit={(value) => onTransformChange?.(master.id, { x: value })}
+              />
+              <EditableNumberField
+                label="Y"
+                value={master.transform.y}
+                ariaLabel="Transform y"
+                onCommit={(value) => onTransformChange?.(master.id, { y: value })}
+              />
+              <EditableNumberField
+                label="Width"
+                value={master.transform.width}
+                ariaLabel="Transform width"
+                onCommit={(value) =>
+                  onTransformChange?.(
+                    master.id,
+                    buildTransformPatch(master, 'width', value, keepRatio)
+                  )
+                }
+              />
+              <EditableNumberField
+                label="Height"
+                value={master.transform.height}
+                ariaLabel="Transform height"
+                onCommit={(value) =>
+                  onTransformChange?.(
+                    master.id,
+                    buildTransformPatch(master, 'height', value, keepRatio)
+                  )
+                }
+              />
+            </div>
+            <div className={styles.keepRatioRow}>
+              <Checkbox
+                checked={keepRatio}
+                label="Keep ratio"
+                onChange={onKeepRatioChange}
+                aria-label="Keep ratio"
+              />
+            </div>
+            <div className={styles.rotationSection}>
+              <span className={styles.transformFieldLabel}>Rotation</span>
+              <div className={styles.rotationRow}>
+                <RotationWheel
+                  value={master.transform.rotation}
+                  ariaLabel="Transform rotation wheel"
+                  onCommit={(value) => onTransformChange?.(master.id, { rotation: value })}
+                />
+                <div className={styles.rotationInput}>
+                  <NumberInput
+                    aria-label="Transform rotation"
+                    value={master.transform.rotation}
+                    decimals={0}
+                    onCommit={(value) => onTransformChange?.(master.id, { rotation: value })}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </PropertyCard>
       </>
     )
   }
@@ -433,7 +523,6 @@ function buildObjectSection(master: MsoMaster): SectionDefinition {
 
 function buildObjectStyleSection(
   master: MsoMaster,
-  document: Presentation | null,
   colorConstants: ColorConstant[],
   onFillChange?: (masterId: string, color: Color | undefined) => void,
   onStrokeChange?: (masterId: string, color: Color | undefined) => void,
@@ -446,52 +535,6 @@ function buildObjectStyleSection(
     title: 'Object',
     content: (
       <>
-        <PropertyCard title="Transform">
-          <div className={styles.transformLayout}>
-            <div className={styles.transformGrid}>
-              <ReadOnlyNumberField label="X" value={master.transform.x} ariaLabel="Transform x" />
-              <ReadOnlyNumberField label="Y" value={master.transform.y} ariaLabel="Transform y" />
-              <ReadOnlyNumberField
-                label="Width"
-                value={master.transform.width}
-                ariaLabel="Transform width"
-              />
-              <ReadOnlyNumberField
-                label="Height"
-                value={master.transform.height}
-                ariaLabel="Transform height"
-              />
-            </div>
-            <div className={styles.keepRatioRow}>
-              <span className={styles.keepRatioLabel}>Keep Ratio</span>
-              <button
-                type="button"
-                className={styles.keepRatioToggle}
-                aria-pressed="true"
-                aria-label="Keep ratio enabled"
-              >
-                <span className={styles.keepRatioCheck}>✓</span>
-              </button>
-            </div>
-            <div className={styles.rotationSection}>
-              <span className={styles.transformFieldLabel}>Rotation</span>
-              <div className={styles.rotationRow}>
-                <div className={styles.rotationDial} aria-hidden="true">
-                  <span className={styles.rotationArrow}>↑</span>
-                </div>
-                <div className={styles.rotationInput}>
-                  <NumberInput
-                    aria-label="Transform rotation"
-                    value={master.transform.rotation}
-                    decimals={0}
-                    readOnly={true}
-                    onCommit={() => {}}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </PropertyCard>
         <PropertyCard title="Fill">
           <div className={styles.control}>
             <ColorField
@@ -689,12 +732,14 @@ export function PropertiesPanel({
   onColorConstantValueChange,
   onDeleteColorConstant,
   onSlideBackgroundColorChange,
+  onObjectTransformChange,
   onObjectFillChange,
   onObjectStrokeChange,
   onTextColorChange,
   onTextShadowColorChange
 }: PropertiesPanelProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<InspectorTab>('properties')
+  const [keepRatio, setKeepRatio] = useState(true)
   const selectionKey = selectedAnimation
     ? `animation:${selectedAnimation.id}`
     : selectedMaster
@@ -719,7 +764,7 @@ export function PropertiesPanel({
         nextSections.push(buildPresentationSection(document))
       }
       if (selectedSlide) {
-          nextSections.push(
+        nextSections.push(
           buildSlideSection(
             document,
             selectedSlide,
@@ -748,14 +793,15 @@ export function PropertiesPanel({
           )
         )
       } else if (selectedMaster) {
-        nextSections.push(buildObjectSection(selectedMaster))
+        nextSections.push(
+          buildObjectSection(selectedMaster, keepRatio, setKeepRatio, onObjectTransformChange)
+        )
       }
     } else if (activeTab === 'object') {
       if (selectedMaster) {
         nextSections.push(
           buildObjectStyleSection(
             selectedMaster,
-            document,
             colorConstants,
             onObjectFillChange,
             onObjectStrokeChange,
@@ -812,6 +858,7 @@ export function PropertiesPanel({
     onNameColorConstant,
     onColorConstantNameChange,
     onColorConstantValueChange,
+    onObjectTransformChange,
     onObjectFillChange,
     onObjectStrokeChange,
     onSlideTransitionDurationChange,
@@ -821,6 +868,7 @@ export function PropertiesPanel({
     onSlideTransitionTriggerChange,
     onTextColorChange,
     onTextShadowColorChange,
+    keepRatio,
     selectedAnimation,
     selectedAnimationObjectName,
     selectedMaster,
@@ -865,7 +913,9 @@ export function PropertiesPanel({
         onChange={setActiveTab}
       />
       {activeTab === 'colors'
-        ? sections.map((section) => <React.Fragment key={section.id}>{section.content}</React.Fragment>)
+        ? sections.map((section) => (
+            <React.Fragment key={section.id}>{section.content}</React.Fragment>
+          ))
         : sections.map((section) => (
             <CollapsibleSection
               key={section.id}

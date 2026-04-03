@@ -25,7 +25,8 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
         width: t.width,
         height: t.height,
         overflow: 'visible',
-        transform: `rotate(${t.rotation}deg) ${transform}`,
+        transform: `${transform} rotate(${t.rotation}deg)`,
+        transformOrigin: 'center center',
         opacity,
         visibility: visible ? 'visible' : 'hidden'
       }}

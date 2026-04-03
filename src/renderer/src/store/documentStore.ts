@@ -74,6 +74,7 @@ interface DocumentState {
   removeSlide(id: SlideId): void
   insertElement(slideId: SlideId, master: MsoMaster): void
   moveElement(masterId: string, x: number, y: number): void
+  updateMasterTransform(masterId: string, transform: Partial<Transform>): void
   moveSlide(fromIndex: number, toIndex: number): void
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
@@ -336,6 +337,17 @@ export const useDocumentStore = create<DocumentState>()(
         if (!master) return
         master.transform.x = x
         master.transform.y = y
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateMasterTransform(masterId, transform) {
+      set((state) => {
+        if (!state.document) return
+        const master = state.document.mastersById[masterId]
+        if (!master) return
+        Object.assign(master.transform, transform)
         pushHistory(state, state.document)
         state.isDirty = true
       })

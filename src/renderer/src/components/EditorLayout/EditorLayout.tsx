@@ -107,6 +107,7 @@ export function EditorLayout(): React.JSX.Element {
   const updateColorConstantValue = useDocumentStore((s) => s.updateColorConstantValue)
   const deleteColorConstant = useDocumentStore((s) => s.deleteColorConstant)
   const updateSlideBackgroundColor = useDocumentStore((s) => s.updateSlideBackgroundColor)
+  const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const updateObjectFill = useDocumentStore((s) => s.updateObjectFill)
   const updateObjectStroke = useDocumentStore((s) => s.updateObjectStroke)
   const updateTextColor = useDocumentStore((s) => s.updateTextColor)
@@ -195,8 +196,8 @@ export function EditorLayout(): React.JSX.Element {
       ? (document.animationsById[selectedAnimationId] ?? null)
       : null
   const selectedMaster =
-    selectedElementIds[0] != null && document != null
-      ? (document.mastersById[selectedElementIds[0]] ?? null)
+    selectedElementIds[0] != null && patchedPresentation != null
+      ? (patchedPresentation.mastersById[selectedElementIds[0]] ?? null)
       : null
   const selectedAnimationObjectName = selectedAnimation
     ? getAnimationObjectName(selectedAnimation, document)
@@ -430,6 +431,7 @@ export function EditorLayout(): React.JSX.Element {
               onColorConstantValueChange={updateColorConstantValue}
               onDeleteColorConstant={deleteColorConstant}
               onSlideBackgroundColorChange={updateSlideBackgroundColor}
+              onObjectTransformChange={updateMasterTransform}
               onObjectFillChange={updateObjectFill}
               onObjectStrokeChange={updateObjectStroke}
               onTextColorChange={updateTextColor}

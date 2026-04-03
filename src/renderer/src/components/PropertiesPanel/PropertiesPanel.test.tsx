@@ -83,10 +83,7 @@ describe('PropertiesPanel', () => {
       />
     )
 
-    expect(screen.getByRole('tab', { name: 'Properties' })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    )
+    expect(screen.getByRole('tab', { name: 'Properties' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('button', { name: 'Presentation' })).toHaveAttribute(
       'aria-expanded',
       'false'
@@ -139,9 +136,91 @@ describe('PropertiesPanel', () => {
 
     expect(screen.getByRole('tab', { name: 'Object' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('button', { name: 'Object' })).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('Transform')).toBeInTheDocument()
     expect(screen.getByText('Fill')).toBeInTheDocument()
     expect(screen.getByText('Stroke')).toBeInTheDocument()
+    expect(screen.queryByText('Transform')).not.toBeInTheDocument()
+  })
+
+  it('commits object transform changes from the object tab', async () => {
+    const user = userEvent.setup()
+    const onObjectTransformChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectTransformChange={onObjectTransformChange}
+      />
+    )
+
+    const xInput = screen.getByRole('textbox', { name: 'Transform x' })
+
+    await user.clear(xInput)
+    await user.type(xInput, '25')
+    await user.tab()
+
+    expect(onObjectTransformChange).toHaveBeenCalledWith(shapeMasterId, { x: 25 })
+  })
+
+  it('keeps aspect ratio when width changes and keep ratio is enabled', async () => {
+    const user = userEvent.setup()
+    const onObjectTransformChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectTransformChange={onObjectTransformChange}
+      />
+    )
+
+    const widthInput = screen.getByRole('textbox', { name: 'Transform width' })
+
+    await user.clear(widthInput)
+    await user.type(widthInput, '200')
+    await user.tab()
+
+    expect(onObjectTransformChange).toHaveBeenCalledWith(shapeMasterId, {
+      width: 200,
+      height: 160
+    })
+  })
+
+  it('disables ratio locking through the shared checkbox', async () => {
+    const user = userEvent.setup()
+    const onObjectTransformChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectTransformChange={onObjectTransformChange}
+      />
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Keep ratio' }))
+
+    const widthInput = screen.getByRole('textbox', { name: 'Transform width' })
+    await user.clear(widthInput)
+    await user.type(widthInput, '200')
+    await user.tab()
+
+    expect(onObjectTransformChange).toHaveBeenCalledWith(shapeMasterId, { width: 200 })
   })
 
   it('shows animation property cards when an animation is selected', () => {
