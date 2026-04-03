@@ -199,6 +199,45 @@ describe('EditorLayout', () => {
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
+  it('collapses and restores a side panel using its header control and rail', async () => {
+    const user = userEvent.setup()
+    const slide = createSlide()
+    mockStore(makePresentation(slide), slide.id)
+
+    render(<EditorLayout />)
+
+    await user.click(screen.getByRole('button', { name: 'Collapse Slides panel' }))
+
+    expect(screen.queryByTestId('slides-panel')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Expand Slides panel' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Expand Slides panel' }))
+
+    expect(screen.getByTestId('slides-panel')).toBeInTheDocument()
+  })
+
+  it('toggles focus canvas mode and restores panels', async () => {
+    const user = userEvent.setup()
+    const slide = createSlide()
+    mockStore(makePresentation(slide), slide.id)
+
+    render(<EditorLayout />)
+
+    await user.click(screen.getByRole('button', { name: 'Focus canvas' }))
+
+    expect(screen.queryByTestId('slides-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('animation-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('objects-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('properties-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('timeline-panel')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Restore panels' }))
+
+    expect(screen.getByTestId('slides-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('properties-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('timeline-panel')).toBeInTheDocument()
+  })
+
   it('renders animation cards for the selected slide', () => {
     const slide = createSlide()
     const master = createMsoMaster('shape')

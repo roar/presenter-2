@@ -198,6 +198,46 @@ describe('SlideCanvas', () => {
     expect(screen.queryByTestId('selection-indicator')).not.toBeInTheDocument()
   })
 
+  it('does not clear selection when clicking the gradient overlay of a selected shape', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const master = Object.values(pres.mastersById)[0]
+    master.objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#eeeeee' }
+      ]
+    }
+
+    const selectElements = vi.fn()
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [master.id] },
+        moveElement: vi.fn(),
+        selectElements,
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.click(screen.getByLabelText('Gradient angle overlay'))
+
+    expect(selectElements).not.toHaveBeenCalledWith([])
+  })
+
   it('shows a gradient angle overlay for a selected linear gradient shape', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]

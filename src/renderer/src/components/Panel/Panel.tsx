@@ -12,6 +12,7 @@ export function Panel({ children, className }: PanelProps) {
 interface PanelSectionProps {
   title?: string
   children: React.ReactNode
+  actions?: React.ReactNode
   testId?: string
   selectedSlideId?: string | null
   fill?: boolean
@@ -22,6 +23,7 @@ interface PanelSectionProps {
 export function PanelSection({
   title,
   children,
+  actions,
   testId,
   selectedSlideId,
   fill = false,
@@ -42,7 +44,12 @@ export function PanelSection({
       data-selected-slide-id={selectedSlideId ?? undefined}
       data-scrollable={scrollable ? true : undefined}
     >
-      {title && <h3 className={styles.sectionTitle}>{title}</h3>}
+      {title ? (
+        <div className={styles.sectionHeader}>
+          <h3 className={styles.sectionTitle}>{title}</h3>
+          {actions ? <div className={styles.sectionActions}>{actions}</div> : null}
+        </div>
+      ) : null}
       <div
         className={[
           styles.sectionContent,

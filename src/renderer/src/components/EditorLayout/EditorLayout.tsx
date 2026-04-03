@@ -32,6 +32,7 @@ interface LayoutPanelProps {
   title: string
   className?: string
   children?: React.ReactNode
+  actions?: React.ReactNode
   testId?: string
   selectedSlideId?: string | null
   flush?: boolean
@@ -42,6 +43,7 @@ function LayoutPanel({
   title,
   className,
   children,
+  actions,
   testId,
   selectedSlideId,
   flush = false,
@@ -51,6 +53,7 @@ function LayoutPanel({
     <Panel className={className}>
       <PanelSection
         title={title}
+        actions={actions}
         testId={testId}
         selectedSlideId={selectedSlideId}
         fill={true}
@@ -76,6 +79,72 @@ function getAnimationObjectName(
   }
 
   return 'Object'
+}
+
+type PanelKey = 'slides' | 'animation' | 'objects' | 'properties' | 'timeline' | 'notes' | 'video'
+
+type CollapsedPanels = Record<PanelKey, boolean>
+
+const PANEL_STORAGE_KEY = 'presenter-2:collapsed-panels'
+
+const defaultCollapsedPanels: CollapsedPanels = {
+  slides: false,
+  animation: false,
+  objects: false,
+  properties: false,
+  timeline: false,
+  notes: false,
+  video: false
+}
+
+function loadCollapsedPanels(): CollapsedPanels {
+  if (typeof window === 'undefined') {
+    return defaultCollapsedPanels
+  }
+
+  try {
+    const raw = window.localStorage.getItem(PANEL_STORAGE_KEY)
+    if (!raw) {
+      return defaultCollapsedPanels
+    }
+
+    return { ...defaultCollapsedPanels, ...(JSON.parse(raw) as Partial<CollapsedPanels>) }
+  } catch {
+    return defaultCollapsedPanels
+  }
+}
+
+function CollapseButton({
+  label,
+  onClick
+}: {
+  label: string
+  onClick: () => void
+}): React.JSX.Element {
+  return (
+    <button type="button" className={styles.panelIconButton} aria-label={label} onClick={onClick}>
+      <span aria-hidden="true">−</span>
+    </button>
+  )
+}
+
+function CollapsedPanelRail({
+  title,
+  onExpand
+}: {
+  title: string
+  onExpand: () => void
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={styles.collapsedRail}
+      aria-label={`Expand ${title} panel`}
+      onClick={onExpand}
+    >
+      <span className={styles.collapsedRailText}>{title}</span>
+    </button>
+  )
 }
 
 export function EditorLayout(): React.JSX.Element {
@@ -118,10 +187,17 @@ export function EditorLayout(): React.JSX.Element {
     time: number
     isPlaying: boolean
   }>({ key: '', time: 0, isPlaying: false })
+  const [collapsedPanels, setCollapsedPanels] = useState<CollapsedPanels>(() =>
+    loadCollapsedPanels()
+  )
   const [timelineScope, setTimelineScope] = useState<'selected-slide' | 'all-slides'>(
     'selected-slide'
   )
   const timelineTimeRef = useRef(0)
+
+  useEffect(() => {
+    window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(collapsedPanels))
+  }, [collapsedPanels])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
@@ -298,6 +374,40 @@ export function EditorLayout(): React.JSX.Element {
     timelineTimeRef.current = 0
   }
 
+  function setPanelCollapsed(key: PanelKey, collapsed: boolean): void {
+    setCollapsedPanels((current) => ({ ...current, [key]: collapsed }))
+  }
+
+  function toggleFocusCanvas(): void {
+    const shouldFocus =
+      !collapsedPanels.slides ||
+      !collapsedPanels.animation ||
+      !collapsedPanels.objects ||
+      !collapsedPanels.properties ||
+      !collapsedPanels.timeline ||
+      !collapsedPanels.notes ||
+      !collapsedPanels.video
+
+    setCollapsedPanels({
+      slides: shouldFocus,
+      animation: shouldFocus,
+      objects: shouldFocus,
+      properties: shouldFocus,
+      timeline: shouldFocus,
+      notes: shouldFocus,
+      video: shouldFocus
+    })
+  }
+
+  const isCanvasFocused =
+    collapsedPanels.slides &&
+    collapsedPanels.animation &&
+    collapsedPanels.objects &&
+    collapsedPanels.properties &&
+    collapsedPanels.timeline &&
+    collapsedPanels.notes &&
+    collapsedPanels.video
+
   return (
     <div className={styles.layout}>
       <Panel className={styles.toolbar}>
@@ -305,83 +415,122 @@ export function EditorLayout(): React.JSX.Element {
       </Panel>
       <div className={styles.workspace}>
         <div className={styles.mainRow}>
-          <LayoutPanel
-            title="Slides"
-            className={styles.slidesPanel}
-            testId="slides-panel"
-            scrollable={true}
-          >
-            <div className={styles.newSlideRow}>
-              <Button variant="secondary" onClick={handleNewSlide}>
-                New Slide
-              </Button>
-            </div>
-            <div className={styles.slideList}>
-              {slideOrder.map((id, idx) => {
-                const slide = document?.slidesById[id]
-                if (!slide) return null
+          {collapsedPanels.slides ? (
+            <CollapsedPanelRail
+              title="Slides"
+              onExpand={() => setPanelCollapsed('slides', false)}
+            />
+          ) : (
+            <LayoutPanel
+              title="Slides"
+              className={styles.slidesPanel}
+              testId="slides-panel"
+              scrollable={true}
+              actions={
+                <CollapseButton
+                  label="Collapse Slides panel"
+                  onClick={() => setPanelCollapsed('slides', true)}
+                />
+              }
+            >
+              <div className={styles.newSlideRow}>
+                <Button variant="secondary" onClick={handleNewSlide}>
+                  New Slide
+                </Button>
+              </div>
+              <div className={styles.slideList}>
+                {slideOrder.map((id, idx) => {
+                  const slide = document?.slidesById[id]
+                  if (!slide) return null
 
-                return (
-                  <ThumbnailCard
-                    key={id}
-                    slideNumber={idx + 1}
-                    isSelected={selectedSlideId === id}
-                    renderedSlide={allEntryStates[idx] ?? { slide, appearances: [] }}
-                    transition={slide.transition}
-                    transitionTrigger={slide.transitionTriggerId ? 'on-click' : 'none'}
-                    onClick={() => selectSlide(id)}
-                    onDelete={() => removeSlide(id)}
-                    onTransitionTriggerChange={(trigger) =>
-                      updateSlideTransitionTrigger(id, trigger)
-                    }
-                    onTransitionDurationChange={(duration) =>
-                      updateSlideTransitionDuration(id, duration)
-                    }
-                    onTransitionEasingChange={(easing) => updateSlideTransitionEasing(id, easing)}
-                    onTransitionKindChange={(kind) => updateSlideTransitionKind(id, kind)}
-                  />
-                )
-              })}
-            </div>
-          </LayoutPanel>
-          <LayoutPanel
-            title="Animation"
-            className={styles.sidebarPanel}
-            testId="animation-panel"
-            scrollable={true}
-          >
-            {selectedSlideAnimations.map((animation) => (
-              <AnimationCard
-                key={animation.id}
-                animation={animation}
-                objectName={getAnimationObjectName(animation, document)}
-                isSelected={selectedAnimationId === animation.id}
-                onClick={() => selectAnimation(animation.id)}
-                onTriggerChange={(trigger) => updateAnimationTrigger(animation.id, trigger)}
-                onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}
-                onDurationChange={(duration) => updateAnimationDuration(animation.id, duration)}
-                onEasingChange={(easing) => updateAnimationEasing(animation.id, easing)}
-                onNumericToChange={(value) => updateAnimationNumericTo(animation.id, value)}
-                onMoveDeltaChange={(delta) => updateAnimationMoveDelta(animation.id, delta)}
-              />
-            ))}
-          </LayoutPanel>
-          <LayoutPanel
-            title="Objects"
-            className={styles.sidebarPanel}
-            testId="objects-panel"
-            scrollable={true}
-          >
-            {selectedSlideObjects.map((renderedAppearance) => (
-              <ObjectCard
-                key={renderedAppearance.appearance.id}
-                objectName={getMasterDisplayName(renderedAppearance.master)}
-                rendered={renderedAppearance}
-                isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
-                onClick={() => selectElements([renderedAppearance.master.id])}
-              />
-            ))}
-          </LayoutPanel>
+                  return (
+                    <ThumbnailCard
+                      key={id}
+                      slideNumber={idx + 1}
+                      isSelected={selectedSlideId === id}
+                      renderedSlide={allEntryStates[idx] ?? { slide, appearances: [] }}
+                      transition={slide.transition}
+                      transitionTrigger={slide.transitionTriggerId ? 'on-click' : 'none'}
+                      onClick={() => selectSlide(id)}
+                      onDelete={() => removeSlide(id)}
+                      onTransitionTriggerChange={(trigger) =>
+                        updateSlideTransitionTrigger(id, trigger)
+                      }
+                      onTransitionDurationChange={(duration) =>
+                        updateSlideTransitionDuration(id, duration)
+                      }
+                      onTransitionEasingChange={(easing) => updateSlideTransitionEasing(id, easing)}
+                      onTransitionKindChange={(kind) => updateSlideTransitionKind(id, kind)}
+                    />
+                  )
+                })}
+              </div>
+            </LayoutPanel>
+          )}
+          {collapsedPanels.animation ? (
+            <CollapsedPanelRail
+              title="Animation"
+              onExpand={() => setPanelCollapsed('animation', false)}
+            />
+          ) : (
+            <LayoutPanel
+              title="Animation"
+              className={styles.sidebarPanel}
+              testId="animation-panel"
+              scrollable={true}
+              actions={
+                <CollapseButton
+                  label="Collapse Animation panel"
+                  onClick={() => setPanelCollapsed('animation', true)}
+                />
+              }
+            >
+              {selectedSlideAnimations.map((animation) => (
+                <AnimationCard
+                  key={animation.id}
+                  animation={animation}
+                  objectName={getAnimationObjectName(animation, document)}
+                  isSelected={selectedAnimationId === animation.id}
+                  onClick={() => selectAnimation(animation.id)}
+                  onTriggerChange={(trigger) => updateAnimationTrigger(animation.id, trigger)}
+                  onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}
+                  onDurationChange={(duration) => updateAnimationDuration(animation.id, duration)}
+                  onEasingChange={(easing) => updateAnimationEasing(animation.id, easing)}
+                  onNumericToChange={(value) => updateAnimationNumericTo(animation.id, value)}
+                  onMoveDeltaChange={(delta) => updateAnimationMoveDelta(animation.id, delta)}
+                />
+              ))}
+            </LayoutPanel>
+          )}
+          {collapsedPanels.objects ? (
+            <CollapsedPanelRail
+              title="Objects"
+              onExpand={() => setPanelCollapsed('objects', false)}
+            />
+          ) : (
+            <LayoutPanel
+              title="Objects"
+              className={styles.sidebarPanel}
+              testId="objects-panel"
+              scrollable={true}
+              actions={
+                <CollapseButton
+                  label="Collapse Objects panel"
+                  onClick={() => setPanelCollapsed('objects', true)}
+                />
+              }
+            >
+              {selectedSlideObjects.map((renderedAppearance) => (
+                <ObjectCard
+                  key={renderedAppearance.appearance.id}
+                  objectName={getMasterDisplayName(renderedAppearance.master)}
+                  rendered={renderedAppearance}
+                  isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
+                  onClick={() => selectElements([renderedAppearance.master.id])}
+                />
+              ))}
+            </LayoutPanel>
+          )}
           <div className={styles.centralColumn}>
             <LayoutPanel
               title="SlideEditor"
@@ -389,6 +538,16 @@ export function EditorLayout(): React.JSX.Element {
               testId="slide-editor-panel"
               selectedSlideId={selectedSlideId}
               flush={true}
+              actions={
+                <button
+                  type="button"
+                  className={styles.focusButton}
+                  aria-label={isCanvasFocused ? 'Restore panels' : 'Focus canvas'}
+                  onClick={toggleFocusCanvas}
+                >
+                  {isCanvasFocused ? 'Restore Panels' : 'Focus Canvas'}
+                </button>
+              }
             >
               <div className={styles.slideCanvasContainer}>
                 {timelinePreviewFrame ? (
@@ -399,61 +558,131 @@ export function EditorLayout(): React.JSX.Element {
               </div>
             </LayoutPanel>
             <div className={styles.centralLowerRow}>
-              <LayoutPanel title="Notes" className={styles.bottomHalfPanel} testId="notes-panel" />
-              <LayoutPanel title="Video" className={styles.bottomHalfPanel} testId="video-panel" />
+              {collapsedPanels.notes ? (
+                <CollapsedPanelRail
+                  title="Notes"
+                  onExpand={() => setPanelCollapsed('notes', false)}
+                />
+              ) : (
+                <LayoutPanel
+                  title="Notes"
+                  className={styles.bottomHalfPanel}
+                  testId="notes-panel"
+                  actions={
+                    <CollapseButton
+                      label="Collapse Notes panel"
+                      onClick={() => setPanelCollapsed('notes', true)}
+                    />
+                  }
+                />
+              )}
+              {collapsedPanels.video ? (
+                <CollapsedPanelRail
+                  title="Video"
+                  onExpand={() => setPanelCollapsed('video', false)}
+                />
+              ) : (
+                <LayoutPanel
+                  title="Video"
+                  className={styles.bottomHalfPanel}
+                  testId="video-panel"
+                  actions={
+                    <CollapseButton
+                      label="Collapse Video panel"
+                      onClick={() => setPanelCollapsed('video', true)}
+                    />
+                  }
+                />
+              )}
             </div>
           </div>
-          <LayoutPanel
-            title="Properties"
-            className={styles.sidebarPanel}
-            testId="properties-panel"
-            scrollable={true}
-          >
-            <PropertiesPanel
-              document={document}
-              selectedSlide={selectedSlide}
-              selectedSlideIndex={selectedSlideIndex}
-              selectedMaster={selectedMaster}
-              selectedAnimation={selectedAnimation}
-              selectedAnimationObjectName={selectedAnimationObjectName}
-              onAnimationTriggerChange={updateAnimationTrigger}
-              onAnimationOffsetChange={updateAnimationOffset}
-              onAnimationDurationChange={updateAnimationDuration}
-              onAnimationEasingChange={updateAnimationEasing}
-              onAnimationNumericToChange={updateAnimationNumericTo}
-              onAnimationMoveDeltaChange={updateAnimationMoveDelta}
-              onSlideTransitionTriggerChange={updateSlideTransitionTrigger}
-              onSlideTransitionDurationChange={updateSlideTransitionDuration}
-              onSlideTransitionEasingChange={updateSlideTransitionEasing}
-              onSlideTransitionKindChange={updateSlideTransitionKind}
-              onAddColorConstant={addColorConstant}
-              onNameColorConstant={nameColorConstant}
-              onColorConstantNameChange={updateColorConstantName}
-              onColorConstantValueChange={updateColorConstantValue}
-              onDeleteColorConstant={deleteColorConstant}
-              onSlideBackgroundColorChange={updateSlideBackgroundColor}
-              onObjectTransformChange={updateMasterTransform}
-              onObjectFillChange={updateObjectFill}
-              onObjectGrainChange={updateObjectGrain}
-              onObjectStrokeChange={updateObjectStroke}
-              onTextColorChange={updateTextColor}
-              onTextShadowColorChange={updateTextShadowColor}
+          {collapsedPanels.properties ? (
+            <CollapsedPanelRail
+              title="Properties"
+              onExpand={() => setPanelCollapsed('properties', false)}
             />
-          </LayoutPanel>
+          ) : (
+            <LayoutPanel
+              title="Properties"
+              className={styles.sidebarPanel}
+              testId="properties-panel"
+              scrollable={true}
+              actions={
+                <CollapseButton
+                  label="Collapse Properties panel"
+                  onClick={() => setPanelCollapsed('properties', true)}
+                />
+              }
+            >
+              <PropertiesPanel
+                document={document}
+                selectedSlide={selectedSlide}
+                selectedSlideIndex={selectedSlideIndex}
+                selectedMaster={selectedMaster}
+                selectedAnimation={selectedAnimation}
+                selectedAnimationObjectName={selectedAnimationObjectName}
+                onAnimationTriggerChange={updateAnimationTrigger}
+                onAnimationOffsetChange={updateAnimationOffset}
+                onAnimationDurationChange={updateAnimationDuration}
+                onAnimationEasingChange={updateAnimationEasing}
+                onAnimationNumericToChange={updateAnimationNumericTo}
+                onAnimationMoveDeltaChange={updateAnimationMoveDelta}
+                onSlideTransitionTriggerChange={updateSlideTransitionTrigger}
+                onSlideTransitionDurationChange={updateSlideTransitionDuration}
+                onSlideTransitionEasingChange={updateSlideTransitionEasing}
+                onSlideTransitionKindChange={updateSlideTransitionKind}
+                onAddColorConstant={addColorConstant}
+                onNameColorConstant={nameColorConstant}
+                onColorConstantNameChange={updateColorConstantName}
+                onColorConstantValueChange={updateColorConstantValue}
+                onDeleteColorConstant={deleteColorConstant}
+                onSlideBackgroundColorChange={updateSlideBackgroundColor}
+                onObjectTransformChange={updateMasterTransform}
+                onObjectFillChange={updateObjectFill}
+                onObjectGrainChange={updateObjectGrain}
+                onObjectStrokeChange={updateObjectStroke}
+                onTextColorChange={updateTextColor}
+                onTextShadowColorChange={updateTextShadowColor}
+              />
+            </LayoutPanel>
+          )}
         </div>
-        <LayoutPanel title="Timeline" className={styles.timelinePanel} testId="timeline-panel">
-          {timelineViewModel ? (
-            <SlideTimeline
-              timeline={timelineViewModel}
-              currentTime={timelineTime}
-              isPlaying={isTimelinePlaying}
-              onTimeChange={handleTimelineTimeChange}
-              onPlayToggle={handleTimelinePlayToggle}
-              scope={timelineScope}
-              onScopeToggle={handleTimelineScopeToggle}
-            />
-          ) : null}
-        </LayoutPanel>
+        {collapsedPanels.timeline ? (
+          <div className={styles.timelineRestoreBar}>
+            <button
+              type="button"
+              className={styles.timelineRestoreButton}
+              aria-label="Expand Timeline panel"
+              onClick={() => setPanelCollapsed('timeline', false)}
+            >
+              Timeline
+            </button>
+          </div>
+        ) : (
+          <LayoutPanel
+            title="Timeline"
+            className={styles.timelinePanel}
+            testId="timeline-panel"
+            actions={
+              <CollapseButton
+                label="Collapse Timeline panel"
+                onClick={() => setPanelCollapsed('timeline', true)}
+              />
+            }
+          >
+            {timelineViewModel ? (
+              <SlideTimeline
+                timeline={timelineViewModel}
+                currentTime={timelineTime}
+                isPlaying={isTimelinePlaying}
+                onTimeChange={handleTimelineTimeChange}
+                onPlayToggle={handleTimelinePlayToggle}
+                scope={timelineScope}
+                onScopeToggle={handleTimelineScopeToggle}
+              />
+            ) : null}
+          </LayoutPanel>
+        )}
       </div>
     </div>
   )

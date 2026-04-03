@@ -331,7 +331,11 @@ export function SlideCanvas(): React.JSX.Element {
               transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
               userSelect: draggingMasterId != null ? 'none' : undefined
             }}
-            onClick={() => selectElements([])}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                selectElements([])
+              }
+            }}
           >
             {renderedAppearances.map((renderedAppearance) => {
               const { appearance, master, visible, opacity, transform } = renderedAppearance
@@ -414,6 +418,7 @@ export function SlideCanvas(): React.JSX.Element {
                               opacity,
                               visibility: visible ? 'visible' : 'hidden'
                             }}
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <line
                               className={styles.gradientLineHitArea}

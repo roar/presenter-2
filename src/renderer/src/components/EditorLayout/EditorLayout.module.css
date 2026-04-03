@@ -31,6 +31,7 @@
 .slidesPanel {
   width: var(--panel-left-width);
   flex-shrink: 0;
+  animation: panelEnterHorizontal 180ms ease-out;
 }
 
 .newSlideRow {
@@ -48,6 +49,86 @@
 .sidebarPanel {
   width: var(--panel-right-width);
   flex-shrink: 0;
+  animation: panelEnterHorizontal 180ms ease-out;
+}
+
+.collapsedRail {
+  width: 44px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm) 0;
+  cursor: pointer;
+  animation: railEnter 180ms ease-out;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+.collapsedRail:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.collapsedRailText {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.panelIconButton {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+.panelIconButton:hover {
+  background: var(--bg);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.focusButton {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.focusButton:hover {
+  background: var(--bg);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px color-mix(in srgb, black 10%, transparent);
 }
 
 .centralColumn {
@@ -78,8 +159,95 @@
   flex: 1;
   min-width: 0;
   min-height: 160px;
+  animation: panelEnterVertical 180ms ease-out;
 }
 
 .timelinePanel {
   min-height: 160px;
+  animation: panelEnterVertical 180ms ease-out;
+}
+
+.timelineRestoreBar {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-md);
+  animation: panelEnterVertical 180ms ease-out;
+}
+
+.timelineRestoreButton {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+.timelineRestoreButton:hover {
+  background: var(--bg);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+@keyframes panelEnterHorizontal {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes railEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-6px) scaleX(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scaleX(1);
+  }
+}
+
+@keyframes panelEnterVertical {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slidesPanel,
+  .sidebarPanel,
+  .collapsedRail,
+  .bottomHalfPanel,
+  .timelinePanel,
+  .timelineRestoreBar {
+    animation: none;
+  }
+
+  .collapsedRail,
+  .panelIconButton,
+  .focusButton,
+  .timelineRestoreButton {
+    transition: none;
+  }
 }
