@@ -269,6 +269,72 @@ describe('GradientEditor', () => {
     })
   })
 
+  it('deletes a stop when it is dragged onto the first fixed stop', () => {
+    const onChange = vi.fn()
+
+    render(<GradientEditor value={makeLinearGradient()} onChange={onChange} />)
+
+    const preview = screen.getByLabelText('Gradient preview')
+    vi.spyOn(preview, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: 80,
+      width: 300,
+      height: 80,
+      toJSON: () => ({})
+    })
+
+    const stop = screen.getByRole('button', { name: 'Gradient stop 2' })
+    fireEvent.mouseDown(stop, { clientX: 120, clientY: 70 })
+    fireEvent.mouseMove(window, { clientX: 0, clientY: 70 })
+    fireEvent.mouseUp(window, { clientX: 0, clientY: 70 })
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      kind: 'linear',
+      angle: 90,
+      stops: [
+        { id: 'stop-1', offset: 0, color: '#ffffff' },
+        { id: 'stop-3', offset: 1, color: '#000000' }
+      ]
+    })
+  })
+
+  it('deletes a stop when it is dragged onto the last fixed stop', () => {
+    const onChange = vi.fn()
+
+    render(<GradientEditor value={makeLinearGradient()} onChange={onChange} />)
+
+    const preview = screen.getByLabelText('Gradient preview')
+    vi.spyOn(preview, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 300,
+      bottom: 80,
+      width: 300,
+      height: 80,
+      toJSON: () => ({})
+    })
+
+    const stop = screen.getByRole('button', { name: 'Gradient stop 2' })
+    fireEvent.mouseDown(stop, { clientX: 120, clientY: 70 })
+    fireEvent.mouseMove(window, { clientX: 300, clientY: 70 })
+    fireEvent.mouseUp(window, { clientX: 300, clientY: 70 })
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      kind: 'linear',
+      angle: 90,
+      stops: [
+        { id: 'stop-1', offset: 0, color: '#ffffff' },
+        { id: 'stop-3', offset: 1, color: '#000000' }
+      ]
+    })
+  })
+
   it('does not delete the last stop when dragged outside the control', () => {
     const onChange = vi.fn()
 

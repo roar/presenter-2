@@ -84,8 +84,25 @@ function toLinearGradient(value: GradientValue): LinearGradientValue {
   }
 }
 
+function getInteractiveRect(element: HTMLElement): DOMRect {
+  const rect = element.getBoundingClientRect()
+  if (rect.width > 0) {
+    return rect
+  }
+
+  const parent = element.parentElement
+  if (parent) {
+    const parentRect = parent.getBoundingClientRect()
+    if (parentRect.width > 0) {
+      return parentRect
+    }
+  }
+
+  return rect
+}
+
 function getStopLaneOffset(preview: HTMLElement, clientX: number): number {
-  const rect = preview.getBoundingClientRect()
+  const rect = getInteractiveRect(preview)
   return Number(clamp((clientX - rect.left) / rect.width, 0, 1).toFixed(2))
 }
 
@@ -156,6 +173,7 @@ function isEdgeStop(stops: GradientStopValue[], stopId: string): boolean {
 
 export function GradientEditor({ value, onChange }: GradientEditorProps): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement | null>(null)
+  const rampRef = useRef<HTMLDivElement | null>(null)
   const colorInputRef = useRef<HTMLInputElement | null>(null)
   const suppressPickerRef = useRef(false)
   const [selectedStopId, setSelectedStopId] = useState<string | null>(value.stops[0]?.id ?? null)
@@ -204,8 +222,8 @@ export function GradientEditor({ value, onChange }: GradientEditorProps): React.
     const startY = event.clientY
 
     const handleMouseMove = (moveEvent: MouseEvent): void => {
-      const preview = previewRef.current
-      if (!preview) {
+      const ramp = rampRef.current
+      if (!ramp) {
         return
       }
 
@@ -216,19 +234,24 @@ export function GradientEditor({ value, onChange }: GradientEditorProps): React.
         suppressPickerRef.current = true
       }
 
-      const offset = getStopLaneOffset(preview, moveEvent.clientX)
+      const offset = getStopLaneOffset(ramp, moveEvent.clientX)
       updateStops((stops) => stops.map((stop) => (stop.id === stopId ? { ...stop, offset } : stop)))
     }
 
     const handleMouseUp = (upEvent: MouseEvent): void => {
-      const preview = previewRef.current
-      if (preview && value.stops.length > 2) {
-        const rect = preview.getBoundingClientRect()
+      const ramp = rampRef.current
+      if (ramp && value.stops.length > 2) {
+        const rect = getInteractiveRect(ramp)
         const isOutsideHorizontally =
           upEvent.clientX < rect.left - DELETE_DRAG_MARGIN ||
           upEvent.clientX > rect.right + DELETE_DRAG_MARGIN
+        const releaseOffset = getStopLaneOffset(ramp, upEvent.clientX)
+        const sortedStops = sortStops(value.stops)
+        const firstOffset = sortedStops[0]?.offset ?? 0
+        const lastOffset = sortedStops.at(-1)?.offset ?? 1
+        const isAtFixedEndpoint = releaseOffset <= firstOffset || releaseOffset >= lastOffset
 
-        if (isOutsideHorizontally) {
+        if (isOutsideHorizontally || isAtFixedEndpoint) {
           const remainingStops = value.stops.filter((stop) => stop.id !== stopId)
           setSelectedStopId(remainingStops[0]?.id ?? null)
           onChange({
@@ -269,7 +292,8 @@ export function GradientEditor({ value, onChange }: GradientEditorProps): React.
 
   function handlePreviewMouseMove(event: React.MouseEvent<HTMLDivElement>): void {
     const preview = previewRef.current
-    if (!preview) {
+    const ramp = rampRef.current
+    if (!preview || !ramp) {
       return
     }
 
@@ -283,7 +307,7 @@ export function GradientEditor({ value, onChange }: GradientEditorProps): React.
       return
     }
 
-    const offset = getStopLaneOffset(preview, event.clientX)
+    const offset = getStopLaneOffset(ramp, event.clientX)
     const isNearExistingStop = value.stops.some(
       (stop) => Math.abs(stop.offset - offset) <= HANDLE_HIT_RADIUS
     )
@@ -329,41 +353,47 @@ export function GradientEditor({ value, onChange }: GradientEditorProps): React.
         onMouseMove={handlePreviewMouseMove}
         onMouseLeave={() => setShadowHandle(null)}
       >
-        <div className={styles.ramp} style={{ background: buildPreviewBackground(value) }} />
-        {value.stops.map((stop, index) => (
-          <button
-            key={stop.id}
-            type="button"
-            className={[styles.stop, selectedStop?.id === stop.id ? styles.stopSelected : '']
-              .filter(Boolean)
-              .join(' ')}
-            aria-label={`Gradient stop ${index + 1}`}
-            style={{ left: `${stop.offset * 100}%` }}
-            onClick={() => {
-              setSelectedStopId(stop.id)
-              if (suppressPickerRef.current) {
-                return
-              }
-              openColorPicker()
-            }}
-            onMouseDown={(event) => handleStopMouseDown(stop.id, event)}
-          >
-            <span className={styles.stopTip} />
-            <span className={styles.stopSwatch} style={{ background: stop.color }} />
-          </button>
-        ))}
-        {shadowHandle ? (
-          <button
-            type="button"
-            className={[styles.stop, styles.shadowStop].join(' ')}
-            aria-label="New gradient stop"
-            style={{ left: `${shadowHandle.offset * 100}%` }}
-            onClick={() => addStop(shadowHandle.offset, shadowHandle.color)}
-          >
-            <span className={styles.stopTip} />
-            <span className={styles.stopSwatch} style={{ background: shadowHandle.color }} />
-          </button>
-        ) : null}
+        <div
+          ref={rampRef}
+          className={styles.ramp}
+          style={{ background: buildPreviewBackground(value) }}
+        />
+        <div className={styles.stopLane}>
+          {value.stops.map((stop, index) => (
+            <button
+              key={stop.id}
+              type="button"
+              className={[styles.stop, selectedStop?.id === stop.id ? styles.stopSelected : '']
+                .filter(Boolean)
+                .join(' ')}
+              aria-label={`Gradient stop ${index + 1}`}
+              style={{ left: `${stop.offset * 100}%` }}
+              onClick={() => {
+                setSelectedStopId(stop.id)
+                if (suppressPickerRef.current) {
+                  return
+                }
+                openColorPicker()
+              }}
+              onMouseDown={(event) => handleStopMouseDown(stop.id, event)}
+            >
+              <span className={styles.stopTip} />
+              <span className={styles.stopSwatch} style={{ background: stop.color }} />
+            </button>
+          ))}
+          {shadowHandle ? (
+            <button
+              type="button"
+              className={[styles.stop, styles.shadowStop].join(' ')}
+              aria-label="New gradient stop"
+              style={{ left: `${shadowHandle.offset * 100}%` }}
+              onClick={() => addStop(shadowHandle.offset, shadowHandle.color)}
+            >
+              <span className={styles.stopTip} />
+              <span className={styles.stopSwatch} style={{ background: shadowHandle.color }} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className={styles.controls}>
