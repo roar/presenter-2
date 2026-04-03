@@ -366,6 +366,10 @@ describe('PropertiesPanel', () => {
     expect(onObjectFillChange).toHaveBeenCalledWith(shapeMasterId, {
       kind: 'linear-gradient',
       rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
       stops: [
         { offset: 0, color: { kind: 'constant', colorId: firstColor.id } },
         { offset: 1, color: '#ffffff' }
@@ -385,6 +389,10 @@ describe('PropertiesPanel', () => {
     document.mastersById[shapeMasterId].objectStyle.defaultState.fill = {
       kind: 'linear-gradient',
       rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
       stops: [
         { offset: 0, color: { kind: 'constant', colorId: firstColor.id } },
         { offset: 1, color: '#ffffff' }
@@ -419,6 +427,10 @@ describe('PropertiesPanel', () => {
     document.mastersById[shapeMasterId].objectStyle.defaultState.fill = {
       kind: 'linear-gradient',
       rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
       stops: [
         { offset: 0, color: { kind: 'constant', colorId: firstColor.id } },
         { offset: 1, color: '#ffffff' }

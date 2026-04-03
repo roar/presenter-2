@@ -21,9 +21,12 @@ import type {
 import { getColorConstantUsageCount, resolveColorValue } from '@shared/model/colors'
 import {
   createDefaultGradientFill,
+  getLinearGradientAngle,
   getFillSolidColor,
   isGradientFill,
-  normalizeGradientStops
+  normalizeGradientStops,
+  resolveLinearGradientEndpoints,
+  setLinearGradientAngle
 } from '@shared/model/fill'
 import { resolveGrainEffect } from '@shared/model/grain'
 import { Button } from '../Button/Button'
@@ -474,7 +477,7 @@ function buildObjectSection(
 
   const gradientEditorValue: GradientEditorValue = {
     kind: gradientFill.kind === 'radial-gradient' ? 'radial' : 'linear',
-    angle: gradientFill.kind === 'linear-gradient' ? gradientFill.rotation : 90,
+    angle: gradientFill.kind === 'linear-gradient' ? getLinearGradientAngle(gradientFill) : 90,
     centerX: gradientFill.kind === 'radial-gradient' ? gradientFill.centerX : 50,
     centerY: gradientFill.kind === 'radial-gradient' ? gradientFill.centerY : 50,
     radius: gradientFill.kind === 'radial-gradient' ? gradientFill.radius : 50,
@@ -620,7 +623,22 @@ function buildObjectSection(
                     nextGradient.kind === 'linear'
                       ? normalizeGradientStops({
                           kind: 'linear-gradient',
-                          rotation: nextGradient.angle,
+                          ...setLinearGradientAngle(
+                            {
+                              kind: 'linear-gradient',
+                              rotation:
+                                gradientFill.kind === 'linear-gradient'
+                                  ? gradientFill.rotation
+                                  : nextGradient.angle,
+                              ...(gradientFill.kind === 'linear-gradient'
+                                ? resolveLinearGradientEndpoints(gradientFill)
+                                : resolveLinearGradientEndpoints(
+                                    createDefaultGradientFill('#000000')
+                                  )),
+                              stops: []
+                            },
+                            nextGradient.angle
+                          ),
                           stops: nextGradient.stops.map((stop) => ({
                             offset: stop.offset,
                             color: stop.color

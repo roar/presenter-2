@@ -1,7 +1,11 @@
 import React from 'react'
 import type { RenderedAppearance } from '@shared/animation/types'
 import { resolveColorValue } from '@shared/model/colors'
-import { isGradientFill, resolveGradientStops } from '@shared/model/fill'
+import {
+  isGradientFill,
+  resolveGradientStops,
+  resolveLinearGradientEndpoints
+} from '@shared/model/fill'
 import { getGrainBaseFrequency, resolveGrainEffect } from '@shared/model/grain'
 
 interface ShapeElementRendererProps {
@@ -77,7 +81,10 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
               <linearGradient
                 id={gradientId}
                 gradientUnits="objectBoundingBox"
-                gradientTransform={`rotate(${style.fill.rotation} 0.5 0.5)`}
+                x1={`${resolveLinearGradientEndpoints(style.fill).x1}`}
+                y1={`${resolveLinearGradientEndpoints(style.fill).y1}`}
+                x2={`${resolveLinearGradientEndpoints(style.fill).x2}`}
+                y2={`${resolveLinearGradientEndpoints(style.fill).y2}`}
               >
                 {gradientStops.map((stop, index) => (
                   <stop

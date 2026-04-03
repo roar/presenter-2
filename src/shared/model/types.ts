@@ -117,6 +117,10 @@ export interface GradientStop {
 export interface LinearGradientFill {
   kind: 'linear-gradient'
   rotation: number
+  x1?: number
+  y1?: number
+  x2?: number
+  y2?: number
   stops: GradientStop[]
 }
 

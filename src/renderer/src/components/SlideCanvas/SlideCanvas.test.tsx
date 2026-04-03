@@ -205,6 +205,10 @@ describe('SlideCanvas', () => {
     master.objectStyle.defaultState.fill = {
       kind: 'linear-gradient',
       rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
       stops: [
         { offset: 0, color: '#111111' },
         { offset: 1, color: '#eeeeee' }
@@ -217,6 +221,30 @@ describe('SlideCanvas', () => {
     expect(screen.getByLabelText('Gradient angle overlay')).toBeInTheDocument()
   })
 
+  it('renders the gradient overlay above the element hitbox so its handles can be dragged', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const master = Object.values(pres.mastersById)[0]
+    master.objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#eeeeee' }
+      ]
+    }
+
+    mockStore(slideId, pres, [master.id])
+    render(<SlideCanvas />)
+
+    expect(screen.getByLabelText('Gradient angle overlay')).toHaveStyle({ zIndex: '2' })
+    expect(screen.getByTestId('element-hitbox')).toHaveStyle({ zIndex: '1' })
+  })
+
   it('previews and commits gradient angle changes from the canvas overlay', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -224,6 +252,10 @@ describe('SlideCanvas', () => {
     master.objectStyle.defaultState.fill = {
       kind: 'linear-gradient',
       rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
       stops: [
         { offset: 0, color: '#111111' },
         { offset: 1, color: '#eeeeee' }
@@ -250,16 +282,20 @@ describe('SlideCanvas', () => {
 
     render(<SlideCanvas />)
 
-    const overlay = screen.getByLabelText('Gradient angle overlay')
-    fireEvent.mouseDown(overlay, { clientX: 250, clientY: 100 })
+    const handles = screen.getByLabelText('Gradient angle overlay').querySelectorAll('circle')
+    fireEvent.mouseDown(handles[1] as SVGCircleElement, { clientX: 250, clientY: 300 })
     fireEvent.mouseMove(window, { clientX: 400, clientY: 200 })
     fireEvent.mouseUp(window, { clientX: 400, clientY: 200 })
 
-    expect(setPreviewPatch).toHaveBeenCalledWith({
+    expect(setPreviewPatch).toHaveBeenNthCalledWith(1, {
       masterId: master.id,
       fill: {
         kind: 'linear-gradient',
-        rotation: 0,
+        rotation: 45,
+        x1: 0.5,
+        y1: 0,
+        x2: 1,
+        y2: 0.5,
         stops: [
           { offset: 0, color: '#111111' },
           { offset: 1, color: '#eeeeee' }
@@ -268,7 +304,11 @@ describe('SlideCanvas', () => {
     })
     expect(updateObjectFill).toHaveBeenCalledWith(master.id, {
       kind: 'linear-gradient',
-      rotation: 0,
+      rotation: 45,
+      x1: 0.5,
+      y1: 0,
+      x2: 1,
+      y2: 0.5,
       stops: [
         { offset: 0, color: '#111111' },
         { offset: 1, color: '#eeeeee' }

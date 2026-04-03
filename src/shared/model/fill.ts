@@ -38,10 +38,84 @@ export function createDefaultGradientFill(baseColor: Color = '#000000'): LinearG
   return {
     kind: 'linear-gradient',
     rotation: 90,
+    x1: 0.5,
+    y1: 0,
+    x2: 0.5,
+    y2: 1,
     stops: [
       { offset: 0, color: baseColor },
       { offset: 1, color: '#ffffff' }
     ]
+  }
+}
+
+function normalizeAngle(angle: number): number {
+  const normalized = angle % 360
+  return normalized < 0 ? normalized + 360 : normalized
+}
+
+function buildEndpointsFromAngle(angle: number, centerX = 0.5, centerY = 0.5, halfLength = 0.5) {
+  const radians = (angle * Math.PI) / 180
+  const deltaX = Math.cos(radians) * halfLength
+  const deltaY = Math.sin(radians) * halfLength
+
+  return {
+    x1: centerX - deltaX,
+    y1: centerY - deltaY,
+    x2: centerX + deltaX,
+    y2: centerY + deltaY
+  }
+}
+
+export function resolveLinearGradientEndpoints(fill: LinearGradientFill): {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+} {
+  if (fill.x1 != null && fill.y1 != null && fill.x2 != null && fill.y2 != null) {
+    return {
+      x1: fill.x1,
+      y1: fill.y1,
+      x2: fill.x2,
+      y2: fill.y2
+    }
+  }
+
+  return buildEndpointsFromAngle(fill.rotation)
+}
+
+export function getLinearGradientAngle(fill: LinearGradientFill): number {
+  const { x1, y1, x2, y2 } = resolveLinearGradientEndpoints(fill)
+  return normalizeAngle((Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI)
+}
+
+export function setLinearGradientAngle(
+  fill: LinearGradientFill,
+  angle: number
+): LinearGradientFill {
+  const { x1, y1, x2, y2 } = resolveLinearGradientEndpoints(fill)
+  const centerX = (x1 + x2) / 2
+  const centerY = (y1 + y2) / 2
+  const halfLength = Math.hypot(x2 - x1, y2 - y1) / 2 || 0.5
+
+  return {
+    ...fill,
+    rotation: normalizeAngle(angle),
+    ...buildEndpointsFromAngle(angle, centerX, centerY, halfLength)
+  }
+}
+
+export function setLinearGradientEndpoints(
+  fill: LinearGradientFill,
+  endpoints: { x1: number; y1: number; x2: number; y2: number }
+): LinearGradientFill {
+  return {
+    ...fill,
+    rotation: normalizeAngle(
+      (Math.atan2(endpoints.y2 - endpoints.y1, endpoints.x2 - endpoints.x1) * 180) / Math.PI
+    ),
+    ...endpoints
   }
 }
 

@@ -124,6 +124,10 @@ describe('ShapeElementRenderer', () => {
     master.objectStyle.defaultState.fill = {
       kind: 'linear-gradient',
       rotation: 30,
+      x1: 0.1,
+      y1: 0.2,
+      x2: 0.9,
+      y2: 0.8,
       stops: [
         { offset: 0, color: '#ff0000' },
         { offset: 1, color: '#0000ff' }
@@ -136,7 +140,10 @@ describe('ShapeElementRenderer', () => {
     const stops = container.querySelectorAll('stop')
 
     expect(gradient).not.toBeNull()
-    expect(gradient?.getAttribute('gradientTransform')).toBe('rotate(30 0.5 0.5)')
+    expect(gradient?.getAttribute('x1')).toBe('0.1')
+    expect(gradient?.getAttribute('y1')).toBe('0.2')
+    expect(gradient?.getAttribute('x2')).toBe('0.9')
+    expect(gradient?.getAttribute('y2')).toBe('0.8')
     expect(stops).toHaveLength(2)
     expect(stops[0]?.getAttribute('stop-color')).toBe('#ff0000')
     expect(stops[1]?.getAttribute('stop-color')).toBe('#0000ff')
