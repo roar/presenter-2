@@ -43,7 +43,8 @@ interface UiState {
 
 export interface PreviewPatch {
   masterId: string
-  transform: Transform
+  transform?: Transform
+  fill?: Fill | undefined
 }
 
 // ── History entry for undo/redo ───────────────────────────────────────────────
@@ -153,6 +154,7 @@ export function selectPatchedPresentation(state: DocumentState): Presentation | 
   if (!previewPatch) return document
   const master = document.mastersById[previewPatch.masterId]
   if (!master) return document
+  if (previewPatch.transform == null && previewPatch.fill === undefined) return document
 
   if (
     patchedPresentationCache.document === document &&
@@ -165,7 +167,20 @@ export function selectPatchedPresentation(state: DocumentState): Presentation | 
     ...document,
     mastersById: {
       ...document.mastersById,
-      [previewPatch.masterId]: { ...master, transform: previewPatch.transform }
+      [previewPatch.masterId]: {
+        ...master,
+        transform: previewPatch.transform ?? master.transform,
+        objectStyle:
+          previewPatch.fill === undefined
+            ? master.objectStyle
+            : {
+                ...master.objectStyle,
+                defaultState: {
+                  ...master.objectStyle.defaultState,
+                  fill: previewPatch.fill
+                }
+              }
+      }
     }
   }
 

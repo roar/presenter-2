@@ -26,6 +26,34 @@ describe('GradientEditor', () => {
     })
   })
 
+  it('renders a linear gradient angle control', () => {
+    render(<GradientEditor value={makeLinearGradient()} onChange={() => {}} />)
+
+    expect(screen.getByLabelText('Gradient angle')).toHaveValue('90')
+  })
+
+  it('updates the linear gradient angle', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    render(<GradientEditor value={makeLinearGradient()} onChange={onChange} />)
+
+    const input = screen.getByLabelText('Gradient angle')
+    await user.clear(input)
+    await user.type(input, '45')
+    fireEvent.blur(input)
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      kind: 'linear',
+      angle: 45,
+      stops: [
+        { id: 'stop-1', offset: 0, color: '#ffffff' },
+        { id: 'stop-2', offset: 0.4, color: '#c62828' },
+        { id: 'stop-3', offset: 1, color: '#000000' }
+      ]
+    })
+  })
+
   it('updates the selected stop color', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

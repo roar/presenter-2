@@ -11,3 +11,32 @@
   left: 0;
   transform-origin: top left;
 }
+
+.gradientOverlay {
+  position: absolute;
+  overflow: visible;
+}
+
+.gradientLine {
+  stroke: color-mix(in srgb, white 78%, var(--border));
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.gradientLineHitArea {
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: grab;
+}
+
+.gradientHandle {
+  fill: #84d44b;
+  stroke: color-mix(in srgb, black 35%, #84d44b);
+  stroke-width: 1.5;
+  cursor: grab;
+}
+
+.gradientHandle:active,
+.gradientLineHitArea:active {
+  cursor: grabbing;
+}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
@@ -61,6 +61,7 @@ function mockStore(
       moveElement: vi.fn(),
       selectElements: vi.fn(),
       setPreviewPatch: vi.fn(),
+      updateObjectFill: vi.fn(),
       addMoveAnimation: vi.fn(),
       convertToMultiSlideObject: vi.fn(),
       convertToSingleAppearance: vi.fn()
@@ -163,6 +164,7 @@ describe('SlideCanvas', () => {
         moveElement: vi.fn(),
         selectElements: vi.fn(),
         setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
         addMoveAnimation,
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
@@ -194,6 +196,85 @@ describe('SlideCanvas', () => {
     mockStore(slideId, pres, [])
     render(<SlideCanvas />)
     expect(screen.queryByTestId('selection-indicator')).not.toBeInTheDocument()
+  })
+
+  it('shows a gradient angle overlay for a selected linear gradient shape', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const master = Object.values(pres.mastersById)[0]
+    master.objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#eeeeee' }
+      ]
+    }
+
+    mockStore(slideId, pres, [master.id])
+    render(<SlideCanvas />)
+
+    expect(screen.getByLabelText('Gradient angle overlay')).toBeInTheDocument()
+  })
+
+  it('previews and commits gradient angle changes from the canvas overlay', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const master = Object.values(pres.mastersById)[0]
+    master.objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#eeeeee' }
+      ]
+    }
+
+    const setPreviewPatch = vi.fn()
+    const updateObjectFill = vi.fn()
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [master.id] },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        setPreviewPatch,
+        addMoveAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn(),
+        updateObjectFill
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    const overlay = screen.getByLabelText('Gradient angle overlay')
+    fireEvent.mouseDown(overlay, { clientX: 250, clientY: 100 })
+    fireEvent.mouseMove(window, { clientX: 400, clientY: 200 })
+    fireEvent.mouseUp(window, { clientX: 400, clientY: 200 })
+
+    expect(setPreviewPatch).toHaveBeenCalledWith({
+      masterId: master.id,
+      fill: {
+        kind: 'linear-gradient',
+        rotation: 0,
+        stops: [
+          { offset: 0, color: '#111111' },
+          { offset: 1, color: '#eeeeee' }
+        ]
+      }
+    })
+    expect(updateObjectFill).toHaveBeenCalledWith(master.id, {
+      kind: 'linear-gradient',
+      rotation: 0,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#eeeeee' }
+      ]
+    })
+    expect(setPreviewPatch).toHaveBeenLastCalledWith(null)
   })
 
   it('renders MSO appearances at their propagated entry position on downstream slides', () => {

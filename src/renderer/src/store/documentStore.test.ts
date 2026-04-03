@@ -1187,6 +1187,48 @@ describe('documentStore', () => {
       expect(result?.mastersById[master.id].transform).toEqual(newTransform)
     })
 
+    it('setPreviewPatch can preview a fill change without mutating the original document', () => {
+      const { pres, master } = makeDocWithMaster()
+      master.objectStyle.defaultState.fill = {
+        kind: 'linear-gradient',
+        rotation: 90,
+        stops: [
+          { offset: 0, color: '#112233' },
+          { offset: 1, color: '#445566' }
+        ]
+      }
+      useDocumentStore.getState().setDocument(pres)
+
+      const originalFill =
+        useDocumentStore.getState().document?.mastersById[master.id].objectStyle.defaultState.fill
+
+      useDocumentStore.getState().setPreviewPatch({
+        masterId: master.id,
+        fill: {
+          kind: 'linear-gradient',
+          rotation: 15,
+          stops: [
+            { offset: 0, color: '#112233' },
+            { offset: 1, color: '#445566' }
+          ]
+        }
+      })
+
+      const result = selectPatchedPresentation(useDocumentStore.getState())
+
+      expect(result?.mastersById[master.id].objectStyle.defaultState.fill).toEqual({
+        kind: 'linear-gradient',
+        rotation: 15,
+        stops: [
+          { offset: 0, color: '#112233' },
+          { offset: 1, color: '#445566' }
+        ]
+      })
+      expect(
+        useDocumentStore.getState().document?.mastersById[master.id].objectStyle.defaultState.fill
+      ).toEqual(originalFill)
+    })
+
     it('patch does not mutate the original document', () => {
       const { pres, master } = makeDocWithMaster()
       useDocumentStore.getState().setDocument(pres)
