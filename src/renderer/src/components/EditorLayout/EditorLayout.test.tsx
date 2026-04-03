@@ -90,6 +90,7 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       updateSlideBackgroundColor: vi.fn(),
       updateMasterTransform: vi.fn(),
       updateObjectFill: vi.fn(),
+      updateObjectGrain: vi.fn(),
       updateObjectStroke: vi.fn(),
       updateTextColor: vi.fn(),
       updateTextShadowColor: vi.fn()

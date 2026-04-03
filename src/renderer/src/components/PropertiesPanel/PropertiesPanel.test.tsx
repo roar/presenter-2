@@ -136,9 +136,10 @@ describe('PropertiesPanel', () => {
 
     expect(screen.getByRole('tab', { name: 'Object' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('button', { name: 'Object' })).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('Fill')).toBeInTheDocument()
-    expect(screen.getByText('Stroke')).toBeInTheDocument()
+    expect(screen.queryByText('Fill')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stroke')).not.toBeInTheDocument()
     expect(screen.queryByText('Transform')).not.toBeInTheDocument()
+    expect(screen.getByText('States')).toBeInTheDocument()
   })
 
   it('commits object transform changes from the object tab', async () => {
@@ -296,7 +297,6 @@ describe('PropertiesPanel', () => {
   })
 
   it('shows the selected named color beside the object fill field', async () => {
-    const user = userEvent.setup()
     const { document, slideId, shapeMasterId } = makeDocument()
 
     render(
@@ -310,9 +310,171 @@ describe('PropertiesPanel', () => {
       />
     )
 
-    await user.click(screen.getByRole('tab', { name: 'Object' }))
-
     expect(screen.getAllByText('Color 2')).toHaveLength(2)
+  })
+
+  it('lets the fill type switch to no fill from the properties tab', async () => {
+    const user = userEvent.setup()
+    const onObjectFillChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectFillChange={onObjectFillChange}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Solid Fill' }))
+    await user.click(screen.getByRole('menuitem', { name: 'No fill' }))
+
+    expect(onObjectFillChange).toHaveBeenCalledWith(shapeMasterId, undefined)
+  })
+
+  it('creates a default linear gradient from the properties tab', async () => {
+    const user = userEvent.setup()
+    const onObjectFillChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectFillChange={onObjectFillChange}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Solid Fill' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Linear Gradient' }))
+
+    const firstColor = Object.values(document.colorConstantsById ?? {}).find(
+      (color) => color.value === '#ff0000'
+    )
+    if (!firstColor) {
+      throw new Error('Expected normalized fill constant')
+    }
+
+    expect(onObjectFillChange).toHaveBeenCalledWith(shapeMasterId, {
+      kind: 'linear-gradient',
+      rotation: 90,
+      stops: [
+        { offset: 0, color: { kind: 'constant', colorId: firstColor.id } },
+        { offset: 1, color: '#ffffff' }
+      ]
+    })
+  })
+
+  it('renders the shared gradient editor when the selected object has a gradient fill', () => {
+    const { document, slideId, shapeMasterId } = makeDocument()
+    const firstColor = Object.values(document.colorConstantsById ?? {}).find(
+      (color) => color.value === '#ff0000'
+    )
+    if (!firstColor) {
+      throw new Error('Expected normalized fill constant')
+    }
+
+    document.mastersById[shapeMasterId].objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      stops: [
+        { offset: 0, color: { kind: 'constant', colorId: firstColor.id } },
+        { offset: 1, color: '#ffffff' }
+      ]
+    }
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+      />
+    )
+
+    expect(screen.getByLabelText('Gradient preview')).toBeInTheDocument()
+  })
+
+  it('updates object fill to radial gradient when circular is selected in the gradient editor', async () => {
+    const user = userEvent.setup()
+    const onObjectFillChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+    const firstColor = Object.values(document.colorConstantsById ?? {}).find(
+      (color) => color.value === '#ff0000'
+    )
+    if (!firstColor) {
+      throw new Error('Expected normalized fill constant')
+    }
+
+    document.mastersById[shapeMasterId].objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      stops: [
+        { offset: 0, color: { kind: 'constant', colorId: firstColor.id } },
+        { offset: 1, color: '#ffffff' }
+      ]
+    }
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectFillChange={onObjectFillChange}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Linear' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Circular' }))
+
+    expect(onObjectFillChange).toHaveBeenCalledWith(shapeMasterId, {
+      kind: 'radial-gradient',
+      centerX: 50,
+      centerY: 50,
+      radius: 50,
+      stops: [
+        { offset: 0, color: '#ff0000' },
+        { offset: 1, color: '#ffffff' }
+      ]
+    })
+  })
+
+  it('updates object grain controls from the properties tab', async () => {
+    const user = userEvent.setup()
+    const onObjectGrainChange = vi.fn()
+    const { document, slideId, shapeMasterId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={document.mastersById[shapeMasterId]}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onObjectGrainChange={onObjectGrainChange}
+      />
+    )
+
+    await user.click(screen.getByRole('checkbox', { name: 'Grain Enabled' }))
+    await user.click(screen.getByRole('button', { name: 'overlay' }))
+    await user.click(screen.getByRole('menuitem', { name: 'multiply' }))
+
+    expect(onObjectGrainChange).toHaveBeenCalledWith(shapeMasterId, { enabled: true })
+    expect(onObjectGrainChange).toHaveBeenCalledWith(shapeMasterId, { blendMode: 'multiply' })
   })
 
   it('uses the registry color picker for slide background selection', async () => {

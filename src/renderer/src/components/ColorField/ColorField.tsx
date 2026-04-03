@@ -11,6 +11,7 @@ interface ColorFieldProps {
   colorConstants: ColorConstant[]
   onChange?: (color: Color | undefined) => void
   onNameColor?: (value: string, name: string) => ColorConstantId | null | void
+  pickerSize?: 'default' | 'large'
 }
 
 type ColorOptionValue = `constant:${string}` | 'custom'
@@ -20,14 +21,14 @@ export function ColorField({
   color,
   colorConstants,
   onChange,
-  onNameColor
+  onNameColor,
+  pickerSize = 'default'
 }: ColorFieldProps): React.JSX.Element {
   const colorConstantsById = React.useMemo(
     () =>
-      Object.fromEntries(colorConstants.map((colorConstant) => [colorConstant.id, colorConstant])) as Record<
-        ColorConstantId,
-        ColorConstant
-      >,
+      Object.fromEntries(
+        colorConstants.map((colorConstant) => [colorConstant.id, colorConstant])
+      ) as Record<ColorConstantId, ColorConstant>,
     [colorConstants]
   )
   const selectedConstant = isColorReference(color) ? colorConstantsById[color.colorId] : undefined
@@ -43,7 +44,9 @@ export function ColorField({
         <div className={styles.valueRow}>
           <input
             aria-label={`${label} color`}
-            className={styles.picker}
+            className={[styles.picker, pickerSize === 'large' ? styles.pickerLarge : '']
+              .filter(Boolean)
+              .join(' ')}
             type="color"
             value={resolvedValue}
             onChange={(event) => onChange?.(event.target.value)}

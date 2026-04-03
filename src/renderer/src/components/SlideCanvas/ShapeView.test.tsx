@@ -91,4 +91,70 @@ describe('ShapeView', () => {
     const svg = container.querySelector('svg') as HTMLElement
     expect(svg.style.visibility).toBe('visible')
   })
+
+  it('renders a grain overlay when grain is enabled', () => {
+    const master = makeMaster()
+    master.objectStyle.defaultState.grain = {
+      enabled: true,
+      intensity: 0.5,
+      scale: 0.6,
+      seed: 2,
+      blendMode: 'overlay'
+    }
+    const { container, getByTestId } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+
+    expect(container.querySelector('filter')).not.toBeNull()
+    expect(getByTestId('shape-grain-overlay')).toBeInTheDocument()
+  })
+
+  it('renders a linear gradient fill definition for gradient fills', () => {
+    const master = makeMaster()
+    master.objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 30,
+      stops: [
+        { offset: 0, color: '#ff0000' },
+        { offset: 1, color: '#0000ff' }
+      ]
+    }
+
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    const gradient = container.querySelector('linearGradient')
+    const path = container.querySelector('path')
+    const stops = container.querySelectorAll('stop')
+
+    expect(gradient).not.toBeNull()
+    expect(gradient?.getAttribute('gradientTransform')).toBe('rotate(30 0.5 0.5)')
+    expect(stops).toHaveLength(2)
+    expect(stops[0]?.getAttribute('stop-color')).toBe('#ff0000')
+    expect(stops[1]?.getAttribute('stop-color')).toBe('#0000ff')
+    expect(path?.getAttribute('fill')).toMatch(/^url\(#/)
+  })
+
+  it('renders a radial gradient definition for circular fills', () => {
+    const master = makeMaster()
+    master.objectStyle.defaultState.fill = {
+      kind: 'radial-gradient',
+      centerX: 50,
+      centerY: 50,
+      radius: 50,
+      stops: [
+        { offset: 0, color: '#ff0000' },
+        { offset: 1, color: '#0000ff' }
+      ]
+    }
+
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    const gradient = container.querySelector('radialGradient')
+    expect(gradient).not.toBeNull()
+    expect(gradient?.getAttribute('cx')).toBe('50%')
+    expect(gradient?.getAttribute('cy')).toBe('50%')
+    expect(gradient?.getAttribute('r')).toBe('50%')
+  })
 })

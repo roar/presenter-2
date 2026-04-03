@@ -6,6 +6,9 @@ import type {
   ColorConstant,
   ColorConstantId,
   Easing,
+  Fill,
+  GrainBlendMode,
+  GrainEffect,
   MsoMaster,
   Position,
   Presentation,
@@ -15,11 +18,22 @@ import type {
   Transform,
   TargetedAnimation
 } from '@shared/model/types'
-import { getColorConstantUsageCount } from '@shared/model/colors'
+import { getColorConstantUsageCount, resolveColorValue } from '@shared/model/colors'
+import {
+  createDefaultGradientFill,
+  getFillSolidColor,
+  isGradientFill,
+  normalizeGradientStops
+} from '@shared/model/fill'
+import { resolveGrainEffect } from '@shared/model/grain'
 import { Button } from '../Button/Button'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { ColorField } from '../ColorField/ColorField'
 import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
+import {
+  GradientEditor,
+  type GradientValue as GradientEditorValue
+} from '../GradientEditor/GradientEditor'
 import { NumberInput } from '../NumberInput/NumberInput'
 import { CollapsibleSection } from '../CollapsibleSection/CollapsibleSection'
 import { PropertyCard } from '../PropertyCard/PropertyCard'
@@ -31,6 +45,7 @@ import styles from './PropertiesPanel.module.css'
 
 type SlideTransitionTrigger = 'none' | 'on-click'
 type InspectorTab = 'properties' | 'text' | 'object' | 'colors'
+type FillType = 'none' | 'solid' | 'linear-gradient'
 
 interface PropertiesPanelProps {
   document: Presentation | null
@@ -56,7 +71,8 @@ interface PropertiesPanelProps {
   onDeleteColorConstant?: (colorId: ColorConstantId) => void
   onSlideBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void
   onObjectTransformChange?: (masterId: string, transform: Partial<Transform>) => void
-  onObjectFillChange?: (masterId: string, color: Color | undefined) => void
+  onObjectFillChange?: (masterId: string, fill: Fill | undefined) => void
+  onObjectGrainChange?: (masterId: string, grain: Partial<GrainEffect>) => void
   onObjectStrokeChange?: (masterId: string, color: Color | undefined) => void
   onTextColorChange?: (masterId: string, color: Color | undefined) => void
   onTextShadowColorChange?: (masterId: string, color: Color | undefined) => void
@@ -150,6 +166,11 @@ function buildTransformPatch(
   }
 
   return { [field]: nextValue }
+}
+
+function getFillType(fill: Fill | undefined): FillType {
+  if (fill == null) return 'none'
+  return isGradientFill(fill) ? 'linear-gradient' : 'solid'
 }
 
 function ColorConstantRow({
@@ -434,10 +455,58 @@ function buildAnimationSection(
 
 function buildObjectSection(
   master: MsoMaster,
+  colorConstants: ColorConstant[],
   keepRatio: boolean,
   onKeepRatioChange: (checked: boolean) => void,
-  onTransformChange?: (masterId: string, transform: Partial<Transform>) => void
+  onTransformChange?: (masterId: string, transform: Partial<Transform>) => void,
+  onFillChange?: (masterId: string, fill: Fill | undefined) => void,
+  onGrainChange?: (masterId: string, grain: Partial<GrainEffect>) => void,
+  onStrokeChange?: (masterId: string, color: Color | undefined) => void,
+  onNameColorConstant?: (value: string, name: string) => ColorConstantId | null
 ): SectionDefinition {
+  const objectStyle = master.objectStyle.defaultState
+  const fillType = getFillType(objectStyle.fill)
+  const grain = resolveGrainEffect(objectStyle.grain)
+  const gradientFill = isGradientFill(objectStyle.fill)
+    ? objectStyle.fill
+    : createDefaultGradientFill(getFillSolidColor(objectStyle.fill) ?? '#000000')
+  const solidFill = getFillSolidColor(objectStyle.fill)
+
+  const gradientEditorValue: GradientEditorValue = {
+    kind: gradientFill.kind === 'radial-gradient' ? 'radial' : 'linear',
+    angle: gradientFill.kind === 'linear-gradient' ? gradientFill.rotation : 90,
+    centerX: gradientFill.kind === 'radial-gradient' ? gradientFill.centerX : 50,
+    centerY: gradientFill.kind === 'radial-gradient' ? gradientFill.centerY : 50,
+    radius: gradientFill.kind === 'radial-gradient' ? gradientFill.radius : 50,
+    stops: gradientFill.stops.map((stop, index) => ({
+      id: `stop-${index}`,
+      offset: stop.offset,
+      color:
+        resolveColorValue(
+          stop.color,
+          Object.fromEntries(colorConstants.map((color) => [color.id, color]))
+        ) ?? '#000000'
+    }))
+  }
+
+  function updateFillType(nextFillType: FillType): void {
+    if (nextFillType === 'none') {
+      onFillChange?.(master.id, undefined)
+      return
+    }
+
+    if (nextFillType === 'linear-gradient') {
+      onFillChange?.(master.id, createDefaultGradientFill(solidFill ?? '#000000'))
+      return
+    }
+
+    onFillChange?.(master.id, solidFill ?? '#000000')
+  }
+
+  function updateGrainBlendMode(blendMode: GrainBlendMode): void {
+    onGrainChange?.(master.id, { blendMode })
+  }
+
   return {
     id: 'object',
     title: 'Object',
@@ -516,34 +585,123 @@ function buildObjectSection(
             </div>
           </div>
         </PropertyCard>
-      </>
-    )
-  }
-}
-
-function buildObjectStyleSection(
-  master: MsoMaster,
-  colorConstants: ColorConstant[],
-  onFillChange?: (masterId: string, color: Color | undefined) => void,
-  onStrokeChange?: (masterId: string, color: Color | undefined) => void,
-  onNameColorConstant?: (value: string, name: string) => ColorConstantId | null
-): SectionDefinition {
-  const objectStyle = master.objectStyle.defaultState
-
-  return {
-    id: 'object-style',
-    title: 'Object',
-    content: (
-      <>
         <PropertyCard title="Fill">
-          <div className={styles.control}>
-            <ColorField
-              label="Color"
-              color={objectStyle.fill}
-              colorConstants={colorConstants}
-              onChange={(color) => onFillChange?.(master.id, color)}
-              onNameColor={onNameColorConstant}
-            />
+          <div className={styles.fillSection}>
+            <div className={styles.control}>
+              <span className={styles.controlLabel}>Fill Type</span>
+              <DropdownMenu
+                value={fillType}
+                options={[
+                  { value: 'solid', label: 'Solid Fill' },
+                  { value: 'linear-gradient', label: 'Linear Gradient' },
+                  { value: 'none', label: 'No fill' }
+                ]}
+                onChange={updateFillType}
+              />
+            </div>
+            {fillType === 'solid' ? (
+              <div className={styles.control}>
+                <ColorField
+                  label="Color"
+                  color={solidFill}
+                  colorConstants={colorConstants}
+                  onChange={(color) => onFillChange?.(master.id, color)}
+                  onNameColor={onNameColorConstant}
+                  pickerSize="large"
+                />
+              </div>
+            ) : null}
+            {fillType === 'linear-gradient' ? (
+              <GradientEditor
+                value={gradientEditorValue}
+                onChange={(nextGradient) => {
+                  onFillChange?.(
+                    master.id,
+                    nextGradient.kind === 'linear'
+                      ? normalizeGradientStops({
+                          kind: 'linear-gradient',
+                          rotation: nextGradient.angle,
+                          stops: nextGradient.stops.map((stop) => ({
+                            offset: stop.offset,
+                            color: stop.color
+                          }))
+                        })
+                      : normalizeGradientStops({
+                          kind: 'radial-gradient',
+                          centerX: nextGradient.centerX,
+                          centerY: nextGradient.centerY,
+                          radius: nextGradient.radius,
+                          stops: nextGradient.stops.map((stop) => ({
+                            offset: stop.offset,
+                            color: stop.color
+                          }))
+                        })
+                  )
+                }}
+              />
+            ) : null}
+            <div className={styles.fillSubsection}>
+              <Checkbox
+                checked={grain.enabled}
+                label="Grain Enabled"
+                onChange={(enabled) => onGrainChange?.(master.id, { enabled })}
+              />
+              <label className={styles.sliderField}>
+                <span className={styles.controlLabel}>Grain Intensity</span>
+                <input
+                  aria-label="Grain intensity"
+                  className={styles.slider}
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={grain.intensity}
+                  onChange={(event) =>
+                    onGrainChange?.(master.id, {
+                      intensity: Number.parseFloat(event.target.value)
+                    })
+                  }
+                />
+              </label>
+              <label className={styles.sliderField}>
+                <span className={styles.controlLabel}>Grain Scale</span>
+                <input
+                  aria-label="Grain scale"
+                  className={styles.slider}
+                  type="range"
+                  min="0.1"
+                  max="2"
+                  step="0.05"
+                  value={grain.scale}
+                  onChange={(event) =>
+                    onGrainChange?.(master.id, { scale: Number.parseFloat(event.target.value) })
+                  }
+                />
+              </label>
+              <div className={styles.controlGrid}>
+                <div className={styles.control}>
+                  <span className={styles.controlLabel}>Grain Seed</span>
+                  <NumberInput
+                    aria-label="Grain seed"
+                    value={grain.seed}
+                    decimals={0}
+                    onCommit={(value) => onGrainChange?.(master.id, { seed: value })}
+                  />
+                </div>
+                <div className={styles.control}>
+                  <span className={styles.controlLabel}>Grain Blend</span>
+                  <DropdownMenu
+                    value={grain.blendMode}
+                    options={[
+                      { value: 'overlay', label: 'overlay' },
+                      { value: 'soft-light', label: 'soft-light' },
+                      { value: 'multiply', label: 'multiply' }
+                    ]}
+                    onChange={updateGrainBlendMode}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           <div className={styles.cardRows}>
             <PropertyRow label="Opacity" value={objectStyle.opacity} />
@@ -563,6 +721,17 @@ function buildObjectStyleSection(
             <PropertyRow label="Width" value={objectStyle.strokeWidth} />
           </div>
         </PropertyCard>
+      </>
+    )
+  }
+}
+
+function buildObjectStyleSection(master: MsoMaster): SectionDefinition {
+  return {
+    id: 'object-style',
+    title: 'Object',
+    content: (
+      <>
         <PropertyCard title="States">
           <div className={styles.cardRows}>
             <PropertyRow
@@ -734,6 +903,7 @@ export function PropertiesPanel({
   onSlideBackgroundColorChange,
   onObjectTransformChange,
   onObjectFillChange,
+  onObjectGrainChange,
   onObjectStrokeChange,
   onTextColorChange,
   onTextShadowColorChange
@@ -794,20 +964,22 @@ export function PropertiesPanel({
         )
       } else if (selectedMaster) {
         nextSections.push(
-          buildObjectSection(selectedMaster, keepRatio, setKeepRatio, onObjectTransformChange)
-        )
-      }
-    } else if (activeTab === 'object') {
-      if (selectedMaster) {
-        nextSections.push(
-          buildObjectStyleSection(
+          buildObjectSection(
             selectedMaster,
             colorConstants,
+            keepRatio,
+            setKeepRatio,
+            onObjectTransformChange,
             onObjectFillChange,
+            onObjectGrainChange,
             onObjectStrokeChange,
             onNameColorConstant
           )
         )
+      }
+    } else if (activeTab === 'object') {
+      if (selectedMaster) {
+        nextSections.push(buildObjectStyleSection(selectedMaster))
       } else {
         nextSections.push({
           id: 'object-style',
@@ -860,6 +1032,7 @@ export function PropertiesPanel({
     onColorConstantValueChange,
     onObjectTransformChange,
     onObjectFillChange,
+    onObjectGrainChange,
     onObjectStrokeChange,
     onSlideTransitionDurationChange,
     onSlideBackgroundColorChange,

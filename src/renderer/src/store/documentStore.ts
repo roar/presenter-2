@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
   Color,
+  Fill,
+  GrainEffect,
   Presentation,
   Slide,
   SlideId,
@@ -16,6 +18,7 @@ import type {
   SlideTransition
 } from '../../../shared/model/types'
 import type { ColorConstantId } from '../../../shared/model/types'
+import { DEFAULT_GRAIN_EFFECT } from '../../../shared/model/types'
 import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
@@ -95,7 +98,8 @@ interface DocumentState {
   updateColorConstantValue(colorId: ColorConstantId, value: string): void
   deleteColorConstant(colorId: ColorConstantId): void
   updateSlideBackgroundColor(slideId: SlideId, color: Color | undefined): void
-  updateObjectFill(masterId: string, color: Color | undefined): void
+  updateObjectFill(masterId: string, fill: Fill | undefined): void
+  updateObjectGrain(masterId: string, grain: Partial<GrainEffect>): void
   updateObjectStroke(masterId: string, color: Color | undefined): void
   updateTextColor(masterId: string, color: Color | undefined): void
   updateTextShadowColor(masterId: string, color: Color | undefined): void
@@ -613,11 +617,25 @@ export const useDocumentStore = create<DocumentState>()(
       })
     },
 
-    updateObjectFill(masterId, color) {
+    updateObjectFill(masterId, fill) {
       set((state) => {
         const master = state.document?.mastersById[masterId]
         if (!master || !state.document) return
-        master.objectStyle.defaultState.fill = color
+        master.objectStyle.defaultState.fill = fill
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateObjectGrain(masterId, grain) {
+      set((state) => {
+        const master = state.document?.mastersById[masterId]
+        if (!master || !state.document) return
+        master.objectStyle.defaultState.grain = {
+          ...DEFAULT_GRAIN_EFFECT,
+          ...master.objectStyle.defaultState.grain,
+          ...grain
+        }
         pushHistory(state, state.document)
         state.isDirty = true
       })

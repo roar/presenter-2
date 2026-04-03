@@ -2,18 +2,22 @@ import type {
   Color,
   ColorConstant,
   ColorConstantId,
+  Fill,
   MsoMaster,
   Presentation,
   Slide,
   TargetedAnimation,
   TextMark
 } from './types'
+import { countGradientStopUsage, detachGradientColorUsages, isGradientFill } from './fill'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-export function isColorReference(color: Color | undefined | null): color is { kind: 'constant'; colorId: ColorConstantId } {
+export function isColorReference(
+  color: Color | undefined | null
+): color is { kind: 'constant'; colorId: ColorConstantId } {
   return isObject(color) && color.kind === 'constant' && typeof color.colorId === 'string'
 }
 
@@ -58,6 +62,33 @@ function normalizeColorField(
   assign({ kind: 'constant', colorId: id })
 }
 
+function normalizeFillField(
+  presentation: Presentation,
+  current: Fill | undefined,
+  assign: (fill: Fill | undefined) => void,
+  valueToId: Map<string, ColorConstantId>
+): void {
+  if (!current) return
+
+  if (!isGradientFill(current)) {
+    normalizeColorField(presentation, current, assign, valueToId)
+    return
+  }
+
+  assign({
+    ...current,
+    stops: current.stops.map((stop) => {
+      if (isColorReference(stop.color)) return stop
+
+      const id = ensureColorConstant(presentation, stop.color, valueToId)
+      return {
+        ...stop,
+        color: { kind: 'constant', colorId: id }
+      }
+    })
+  })
+}
+
 function normalizeTextMarks(
   presentation: Presentation,
   marks: TextMark[],
@@ -65,9 +96,14 @@ function normalizeTextMarks(
 ): void {
   for (const mark of marks) {
     if (mark.type !== 'color' || !mark.value) continue
-    normalizeColorField(presentation, mark.value, (value) => {
-      mark.value = value
-    }, valueToId)
+    normalizeColorField(
+      presentation,
+      mark.value,
+      (value) => {
+        mark.value = value
+      },
+      valueToId
+    )
   }
 }
 
@@ -76,9 +112,14 @@ function normalizeSlideColors(
   slide: Slide,
   valueToId: Map<string, ColorConstantId>
 ): void {
-    normalizeColorField(presentation, slide.background.color, (value) => {
+  normalizeColorField(
+    presentation,
+    slide.background.color,
+    (value) => {
       slide.background.color = value
-    }, valueToId)
+    },
+    valueToId
+  )
 }
 
 function normalizeMasterColors(
@@ -86,41 +127,84 @@ function normalizeMasterColors(
   master: MsoMaster,
   valueToId: Map<string, ColorConstantId>
 ): void {
-  normalizeColorField(presentation, master.objectStyle.defaultState.fill, (value) => {
-    master.objectStyle.defaultState.fill = value
-  }, valueToId)
-  normalizeColorField(presentation, master.objectStyle.defaultState.stroke, (value) => {
-    master.objectStyle.defaultState.stroke = value
-  }, valueToId)
+  normalizeFillField(
+    presentation,
+    master.objectStyle.defaultState.fill,
+    (value) => {
+      master.objectStyle.defaultState.fill = value
+    },
+    valueToId
+  )
+  normalizeColorField(
+    presentation,
+    master.objectStyle.defaultState.stroke,
+    (value) => {
+      master.objectStyle.defaultState.stroke = value
+    },
+    valueToId
+  )
 
   for (const state of Object.values(master.objectStyle.namedStates)) {
-    normalizeColorField(presentation, state.fill, (value) => {
-      state.fill = value
-    }, valueToId)
-    normalizeColorField(presentation, state.stroke, (value) => {
-      state.stroke = value
-    }, valueToId)
+    normalizeFillField(
+      presentation,
+      state.fill,
+      (value) => {
+        state.fill = value
+      },
+      valueToId
+    )
+    normalizeColorField(
+      presentation,
+      state.stroke,
+      (value) => {
+        state.stroke = value
+      },
+      valueToId
+    )
   }
 
   if (master.textStyle) {
-    normalizeColorField(presentation, master.textStyle.defaultState.color, (value) => {
-      master.textStyle!.defaultState.color = value
-    }, valueToId)
-    normalizeColorField(presentation, master.textStyle.defaultState.textShadow?.color, (value) => {
-      if (master.textStyle?.defaultState.textShadow) {
-        master.textStyle.defaultState.textShadow.color = value ?? master.textStyle.defaultState.textShadow.color
-      }
-    }, valueToId)
+    normalizeColorField(
+      presentation,
+      master.textStyle.defaultState.color,
+      (value) => {
+        if (master.textStyle) {
+          master.textStyle.defaultState.color = value
+        }
+      },
+      valueToId
+    )
+    normalizeColorField(
+      presentation,
+      master.textStyle.defaultState.textShadow?.color,
+      (value) => {
+        if (master.textStyle?.defaultState.textShadow) {
+          master.textStyle.defaultState.textShadow.color =
+            value ?? master.textStyle.defaultState.textShadow.color
+        }
+      },
+      valueToId
+    )
 
     for (const state of Object.values(master.textStyle.namedStates)) {
-      normalizeColorField(presentation, state.color, (value) => {
-        state.color = value
-      }, valueToId)
-      normalizeColorField(presentation, state.textShadow?.color, (value) => {
-        if (state.textShadow) {
-          state.textShadow.color = value ?? state.textShadow.color
-        }
-      }, valueToId)
+      normalizeColorField(
+        presentation,
+        state.color,
+        (value) => {
+          state.color = value
+        },
+        valueToId
+      )
+      normalizeColorField(
+        presentation,
+        state.textShadow?.color,
+        (value) => {
+          if (state.textShadow) {
+            state.textShadow.color = value ?? state.textShadow.color
+          }
+        },
+        valueToId
+      )
     }
   }
 
@@ -139,9 +223,14 @@ function normalizeAnimationColors(
   valueToId: Map<string, ColorConstantId>
 ): void {
   if (animation.effect.type !== 'text-shadow') return
-  normalizeColorField(presentation, animation.effect.to.color, (value) => {
-    animation.effect.to.color = value ?? animation.effect.to.color
-  }, valueToId)
+  normalizeColorField(
+    presentation,
+    animation.effect.to.color,
+    (value) => {
+      animation.effect.to.color = value ?? animation.effect.to.color
+    },
+    valueToId
+  )
 }
 
 export function ensurePresentationColorConstants(presentation: Presentation): void {
@@ -189,15 +278,17 @@ export function createOrReuseColorConstant(
   return id
 }
 
-function countColorUsageField(color: Color | undefined, colorId: ColorConstantId): number {
+function countColorUsageField(color: Color | Fill | undefined, colorId: ColorConstantId): number {
+  if (isGradientFill(color)) return 0
   return isColorReference(color) && color.colorId === colorId ? 1 : 0
 }
 
 function detachColorField(
-  color: Color | undefined,
+  color: Color | Fill | undefined,
   colorId: ColorConstantId,
   fallbackValue: string
-): Color | undefined {
+): Color | Fill | undefined {
+  if (isGradientFill(color)) return color
   if (isColorReference(color) && color.colorId === colorId) {
     return fallbackValue
   }
@@ -216,10 +307,12 @@ export function getColorConstantUsageCount(
 
   for (const master of Object.values(presentation.mastersById)) {
     count += countColorUsageField(master.objectStyle.defaultState.fill, colorId)
+    count += countGradientStopUsage(master.objectStyle.defaultState.fill, colorId)
     count += countColorUsageField(master.objectStyle.defaultState.stroke, colorId)
 
     for (const state of Object.values(master.objectStyle.namedStates)) {
       count += countColorUsageField(state.fill, colorId)
+      count += countGradientStopUsage(state.fill, colorId)
       count += countColorUsageField(state.stroke, colorId)
     }
 
@@ -272,6 +365,11 @@ export function detachColorConstantUsages(
       colorId,
       fallbackValue
     )
+    master.objectStyle.defaultState.fill = detachGradientColorUsages(
+      master.objectStyle.defaultState.fill,
+      colorId,
+      fallbackValue
+    )
     master.objectStyle.defaultState.stroke = detachColorField(
       master.objectStyle.defaultState.stroke,
       colorId,
@@ -280,6 +378,7 @@ export function detachColorConstantUsages(
 
     for (const state of Object.values(master.objectStyle.namedStates)) {
       state.fill = detachColorField(state.fill, colorId, fallbackValue)
+      state.fill = detachGradientColorUsages(state.fill, colorId, fallbackValue)
       state.stroke = detachColorField(state.stroke, colorId, fallbackValue)
     }
 
@@ -290,18 +389,20 @@ export function detachColorConstantUsages(
         fallbackValue
       )
       if (master.textStyle.defaultState.textShadow) {
-        master.textStyle.defaultState.textShadow.color = detachColorField(
-          master.textStyle.defaultState.textShadow.color,
-          colorId,
-          fallbackValue
-        ) ?? master.textStyle.defaultState.textShadow.color
+        master.textStyle.defaultState.textShadow.color =
+          detachColorField(
+            master.textStyle.defaultState.textShadow.color,
+            colorId,
+            fallbackValue
+          ) ?? master.textStyle.defaultState.textShadow.color
       }
 
       for (const state of Object.values(master.textStyle.namedStates)) {
         state.color = detachColorField(state.color, colorId, fallbackValue)
         if (state.textShadow) {
           state.textShadow.color =
-            detachColorField(state.textShadow.color, colorId, fallbackValue) ?? state.textShadow.color
+            detachColorField(state.textShadow.color, colorId, fallbackValue) ??
+            state.textShadow.color
         }
       }
     }
@@ -322,15 +423,13 @@ export function detachColorConstantUsages(
   for (const animation of Object.values(presentation.animationsById)) {
     if (animation.effect.type === 'text-shadow') {
       animation.effect.to.color =
-        detachColorField(animation.effect.to.color, colorId, fallbackValue) ?? animation.effect.to.color
+        detachColorField(animation.effect.to.color, colorId, fallbackValue) ??
+        animation.effect.to.color
     }
   }
 }
 
-export function deleteColorConstant(
-  presentation: Presentation,
-  colorId: ColorConstantId
-): void {
+export function deleteColorConstant(presentation: Presentation, colorId: ColorConstantId): void {
   detachColorConstantUsages(presentation, colorId)
   delete presentation.colorConstantsById?.[colorId]
 }

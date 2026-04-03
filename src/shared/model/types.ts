@@ -109,9 +109,49 @@ export type ColorReference = { kind: 'constant'; colorId: ColorConstantId }
 
 export type Color = string | ColorReference
 
+export interface GradientStop {
+  offset: number
+  color: Color
+}
+
+export interface LinearGradientFill {
+  kind: 'linear-gradient'
+  rotation: number
+  stops: GradientStop[]
+}
+
+export interface RadialGradientFill {
+  kind: 'radial-gradient'
+  centerX: number
+  centerY: number
+  radius: number
+  stops: GradientStop[]
+}
+
+export type Fill = Color | LinearGradientFill | RadialGradientFill
+
+export type GrainBlendMode = 'overlay' | 'soft-light' | 'multiply'
+
+export interface GrainEffect {
+  enabled: boolean
+  intensity: number
+  scale: number
+  seed: number
+  blendMode: GrainBlendMode
+}
+
+export const DEFAULT_GRAIN_EFFECT: GrainEffect = {
+  enabled: false,
+  intensity: 0.4,
+  scale: 0.5,
+  seed: 1,
+  blendMode: 'overlay'
+}
+
 // Container/graphic properties — apply to the bounding box of any master type.
 export interface ObjectStyleProperties {
-  fill?: Color
+  fill?: Fill
+  grain?: GrainEffect
   stroke?: Color
   strokeWidth?: number
   opacity?: number

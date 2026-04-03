@@ -299,6 +299,38 @@ describe('documentStore', () => {
         colorId: 'color-1'
       })
     })
+
+    it('normalizes gradient stop colors into named color constants when setting the document', () => {
+      const master = createMsoMaster('shape')
+      master.objectStyle.defaultState.fill = {
+        kind: 'linear-gradient',
+        rotation: 45,
+        stops: [
+          { offset: 0, color: '#112233' },
+          { offset: 1, color: '#445566' }
+        ]
+      }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      const document = useDocumentStore.getState().document
+      const fill = document?.mastersById[master.id].objectStyle.defaultState.fill
+      const colorConstants = Object.values(document?.colorConstantsById ?? {})
+
+      expect(colorConstants).toHaveLength(2)
+      expect(fill).toEqual({
+        kind: 'linear-gradient',
+        rotation: 45,
+        stops: [
+          { offset: 0, color: { kind: 'constant', colorId: colorConstants[0]?.id } },
+          { offset: 1, color: { kind: 'constant', colorId: colorConstants[1]?.id } }
+        ]
+      })
+    })
   })
 
   describe('addSlide / removeSlide', () => {
@@ -562,6 +594,41 @@ describe('documentStore', () => {
         width: 120,
         height: 160,
         rotation: 45
+      })
+    })
+  })
+
+  describe('updateObjectGrain', () => {
+    it('creates and updates grain settings on the selected master', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().updateObjectGrain(master.id, {
+        enabled: true,
+        intensity: 0.7,
+        scale: 0.8,
+        seed: 4,
+        blendMode: 'multiply'
+      })
+
+      expect(
+        useDocumentStore.getState().document?.mastersById[master.id].objectStyle.defaultState.grain
+      ).toEqual({
+        enabled: true,
+        intensity: 0.7,
+        scale: 0.8,
+        seed: 4,
+        blendMode: 'multiply'
       })
     })
   })

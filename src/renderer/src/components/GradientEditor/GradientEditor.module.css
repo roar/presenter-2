@@ -1,0 +1,110 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.kindControl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.label {
+  font-size: var(--text-sm);
+  color: color-mix(in srgb, var(--text) 76%, var(--text-dim));
+}
+
+.preview {
+  position: relative;
+  min-height: 68px;
+  padding: 0 var(--space-lg);
+  overflow: visible;
+}
+
+.ramp {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+}
+
+.stop {
+  position: absolute;
+  bottom: 0;
+  width: 24px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translateX(-50%);
+  cursor: grab;
+}
+
+.stop:active {
+  cursor: grabbing;
+}
+
+.stopTip {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 9px solid #ffffff;
+  transform: translateX(-50%);
+}
+
+.stopSwatch {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ffffff;
+  border-radius: var(--radius-sm);
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, black 88%, var(--border));
+}
+
+.stopSelected .stopSwatch {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.shadowStop {
+  opacity: 0.35;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-sm);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.hiddenColorInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
