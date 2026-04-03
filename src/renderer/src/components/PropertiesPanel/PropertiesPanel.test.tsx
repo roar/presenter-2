@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -69,6 +69,14 @@ function makeDocument(): {
 }
 
 describe('PropertiesPanel', () => {
+  function getPropertyCard(title: string): HTMLElement {
+    const card = screen.getByText(title).closest('div')
+    if (!card) {
+      throw new Error(`Expected property card for ${title}`)
+    }
+    return card
+  }
+
   it('shows presentation and slide sections, with slide open by default', () => {
     const { document, slideId } = makeDocument()
 
@@ -330,7 +338,7 @@ describe('PropertiesPanel', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Solid Fill' }))
+    await user.click(within(getPropertyCard('Fill')).getByRole('button', { name: 'Solid Fill' }))
     await user.click(screen.getByRole('menuitem', { name: 'No fill' }))
 
     expect(onObjectFillChange).toHaveBeenCalledWith(shapeMasterId, undefined)
@@ -353,7 +361,7 @@ describe('PropertiesPanel', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Solid Fill' }))
+    await user.click(within(getPropertyCard('Fill')).getByRole('button', { name: 'Solid Fill' }))
     await user.click(screen.getByRole('menuitem', { name: 'Linear Gradient' }))
 
     const firstColor = Object.values(document.colorConstantsById ?? {}).find(
@@ -481,12 +489,18 @@ describe('PropertiesPanel', () => {
       />
     )
 
-    await user.click(screen.getByRole('checkbox', { name: 'Grain Enabled' }))
-    await user.click(screen.getByRole('button', { name: 'overlay' }))
-    await user.click(screen.getByRole('menuitem', { name: 'multiply' }))
+    const fillCard = within(getPropertyCard('Fill'))
+
+    await user.click(fillCard.getByRole('checkbox', { name: 'Texture' }))
+    await user.click(fillCard.getByRole('button', { name: 'Paper' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Rough' }))
 
     expect(onObjectGrainChange).toHaveBeenCalledWith(shapeMasterId, { enabled: true })
-    expect(onObjectGrainChange).toHaveBeenCalledWith(shapeMasterId, { blendMode: 'multiply' })
+    expect(onObjectGrainChange).toHaveBeenCalledWith(shapeMasterId, {
+      blendMode: 'multiply',
+      intensity: 0.55,
+      scale: 0.9
+    })
   })
 
   it('uses the registry color picker for slide background selection', async () => {
@@ -518,6 +532,70 @@ describe('PropertiesPanel', () => {
       kind: 'constant',
       colorId: secondColor.id
     })
+  })
+
+  it('updates slide background to a default linear gradient from the properties tab', async () => {
+    const user = userEvent.setup()
+    const onSlideBackgroundFillChange = vi.fn()
+    const { document, slideId } = makeDocument()
+    const backgroundColor = Object.values(document.colorConstantsById ?? {}).find(
+      (color) => color.value === '#112233'
+    )
+    if (!backgroundColor) {
+      throw new Error('Expected normalized background color constant')
+    }
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={null}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onSlideBackgroundFillChange={onSlideBackgroundFillChange}
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Solid Fill' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Linear Gradient' }))
+
+    expect(onSlideBackgroundFillChange).toHaveBeenCalledWith(slideId, {
+      kind: 'linear-gradient',
+      rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
+      stops: [
+        { offset: 0, color: { kind: 'constant', colorId: backgroundColor.id } },
+        { offset: 1, color: '#ffffff' }
+      ]
+    })
+  })
+
+  it('updates slide grain controls from the properties tab', async () => {
+    const user = userEvent.setup()
+    const onSlideBackgroundGrainChange = vi.fn()
+    const { document, slideId } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={null}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+        onSlideBackgroundGrainChange={onSlideBackgroundGrainChange}
+      />
+    )
+
+    await user.click(
+      within(getPropertyCard('Background')).getByRole('checkbox', { name: 'Texture' })
+    )
+
+    expect(onSlideBackgroundGrainChange).toHaveBeenCalledWith(slideId, { enabled: true })
   })
 
   it('deletes an in-use named color after confirmation', async () => {

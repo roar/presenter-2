@@ -99,6 +99,8 @@ interface DocumentState {
   updateColorConstantValue(colorId: ColorConstantId, value: string): void
   deleteColorConstant(colorId: ColorConstantId): void
   updateSlideBackgroundColor(slideId: SlideId, color: Color | undefined): void
+  updateSlideBackgroundFill(slideId: SlideId, fill: Fill | undefined): void
+  updateSlideBackgroundGrain(slideId: SlideId, grain: Partial<GrainEffect>): void
   updateObjectFill(masterId: string, fill: Fill | undefined): void
   updateObjectGrain(masterId: string, grain: Partial<GrainEffect>): void
   updateObjectStroke(masterId: string, color: Color | undefined): void
@@ -627,6 +629,30 @@ export const useDocumentStore = create<DocumentState>()(
         const slide = state.document?.slidesById[slideId]
         if (!slide || !state.document) return
         slide.background.color = color
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideBackgroundFill(slideId, fill) {
+      set((state) => {
+        const slide = state.document?.slidesById[slideId]
+        if (!slide || !state.document) return
+        slide.background.fill = fill
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateSlideBackgroundGrain(slideId, grain) {
+      set((state) => {
+        const slide = state.document?.slidesById[slideId]
+        if (!slide || !state.document) return
+        slide.background.grain = {
+          ...DEFAULT_GRAIN_EFFECT,
+          ...slide.background.grain,
+          ...grain
+        }
         pushHistory(state, state.document)
         state.isDirty = true
       })

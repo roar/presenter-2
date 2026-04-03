@@ -142,6 +142,27 @@ export function getResolvedFillColor(
   return resolveSolidColorValue(fill, colorConstantsById)
 }
 
+export function resolveFillBackground(
+  fill: Fill | undefined,
+  colorConstantsById?: Record<ColorConstantId, ColorConstant>
+): string | undefined {
+  if (!fill) return undefined
+
+  if (!isGradientFill(fill)) {
+    return resolveSolidColorValue(fill, colorConstantsById)
+  }
+
+  const stops = resolveGradientStops(fill.stops, colorConstantsById)
+    .map((stop) => `${stop.color} ${Math.round(stop.offset * 100)}%`)
+    .join(', ')
+
+  if (fill.kind === 'linear-gradient') {
+    return `linear-gradient(${Math.round(getLinearGradientAngle(fill))}deg, ${stops})`
+  }
+
+  return `radial-gradient(circle at ${fill.centerX}% ${fill.centerY}%, ${stops})`
+}
+
 export function updateGradientStopColor(
   fill: LinearGradientFill,
   stopIndex: number,

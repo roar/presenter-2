@@ -121,10 +121,10 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
               result="noise"
             />
             <feColorMatrix in="noise" type="saturate" values="0" result="monoNoise" />
-            <feComponentTransfer in="monoNoise" result="grainNoise">
-              <feFuncA type="linear" slope={grain.intensity} />
+            <feComponentTransfer in="monoNoise" result="opaqueNoise">
+              <feFuncA type="linear" slope="0" intercept="1" />
             </feComponentTransfer>
-            <feComposite in="grainNoise" in2="SourceAlpha" operator="in" />
+            <feComposite in="opaqueNoise" in2="SourceAlpha" operator="in" />
           </filter>
         </defs>
       ) : null}

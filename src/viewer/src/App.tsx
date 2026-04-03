@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import type { Presentation } from '../../shared/model/types'
-import { resolveColorValue } from '../../shared/model/colors'
+import { resolveBackgroundStyle } from '../../shared/model/background'
 import { examplePresentation } from '../../shared/model/fixtures/example-presentation'
 import { buildTimeline } from '../../shared/animation/buildTimeline'
 import { createPlaybackPresentation } from '../../shared/animation/createPlaybackPresentation'
@@ -118,9 +118,10 @@ function App(): React.JSX.Element {
 
   const tl = buildTimeline(pres, triggerTimes)
   const frame = resolveFrame(tl, currentTime)
-  const frameBackground =
-    resolveColorValue(frame.front.slide.background.color, frame.front.colorConstantsById) ??
-    frame.front.slide.background.image
+  const frameBackground = resolveBackgroundStyle(
+    frame.front.slide.background,
+    frame.front.colorConstantsById
+  )
 
   useEffect(() => {
     const background = frameBackground ?? '#ffffff'

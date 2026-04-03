@@ -176,6 +176,8 @@ export function EditorLayout(): React.JSX.Element {
   const updateColorConstantValue = useDocumentStore((s) => s.updateColorConstantValue)
   const deleteColorConstant = useDocumentStore((s) => s.deleteColorConstant)
   const updateSlideBackgroundColor = useDocumentStore((s) => s.updateSlideBackgroundColor)
+  const updateSlideBackgroundFill = useDocumentStore((s) => s.updateSlideBackgroundFill)
+  const updateSlideBackgroundGrain = useDocumentStore((s) => s.updateSlideBackgroundGrain)
   const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const updateObjectFill = useDocumentStore((s) => s.updateObjectFill)
   const updateObjectGrain = useDocumentStore((s) => s.updateObjectGrain)
@@ -637,6 +639,8 @@ export function EditorLayout(): React.JSX.Element {
                 onColorConstantValueChange={updateColorConstantValue}
                 onDeleteColorConstant={deleteColorConstant}
                 onSlideBackgroundColorChange={updateSlideBackgroundColor}
+                onSlideBackgroundFillChange={updateSlideBackgroundFill}
+                onSlideBackgroundGrainChange={updateSlideBackgroundGrain}
                 onObjectTransformChange={updateMasterTransform}
                 onObjectFillChange={updateObjectFill}
                 onObjectGrainChange={updateObjectGrain}

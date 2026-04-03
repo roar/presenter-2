@@ -54,6 +54,8 @@ export interface Slide {
 
 export interface Background {
   color?: Color
+  fill?: Fill
+  grain?: GrainEffect
   image?: string
 }
 

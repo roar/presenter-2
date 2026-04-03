@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
-import { resolveColorValue } from '@shared/model/colors'
+import { resolveBackgroundGrain, resolveBackgroundStyle } from '@shared/model/background'
+import { buildGrainBackgroundImage, getGrainBackgroundSize } from '@shared/model/grainCanvas'
+import { getRenderedGrainIntensity } from '@shared/model/grain'
 import {
   isGradientFill,
   resolveLinearGradientEndpoints,
@@ -325,8 +327,8 @@ export function SlideCanvas(): React.JSX.Element {
             style={{
               width: SLIDE_WIDTH,
               height: SLIDE_HEIGHT,
-              backgroundColor:
-                resolveColorValue(slide.background.color, patchedPresentation.colorConstantsById) ??
+              background:
+                resolveBackgroundStyle(slide.background, patchedPresentation.colorConstantsById) ??
                 '#ffffff',
               transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
               userSelect: draggingMasterId != null ? 'none' : undefined
@@ -337,6 +339,23 @@ export function SlideCanvas(): React.JSX.Element {
               }
             }}
           >
+            {resolveBackgroundGrain(slide.background).enabled ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundImage: buildGrainBackgroundImage(
+                    resolveBackgroundGrain(slide.background)
+                  ),
+                  backgroundSize: getGrainBackgroundSize(resolveBackgroundGrain(slide.background)),
+                  mixBlendMode: resolveBackgroundGrain(slide.background).blendMode,
+                  opacity: getRenderedGrainIntensity(
+                    resolveBackgroundGrain(slide.background).intensity
+                  ),
+                  pointerEvents: 'none'
+                }}
+              />
+            ) : null}
             {renderedAppearances.map((renderedAppearance) => {
               const { appearance, master, visible, opacity, transform } = renderedAppearance
               const isDraggingThis = draggingMasterId === master.id

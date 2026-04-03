@@ -331,6 +331,47 @@ describe('documentStore', () => {
         ]
       })
     })
+
+    it('normalizes slide background gradient stop colors into named color constants', () => {
+      const slide = makeSlide('s-1')
+      slide.background = {
+        fill: {
+          kind: 'linear-gradient',
+          rotation: 90,
+          x1: 0.5,
+          y1: 0,
+          x2: 0.5,
+          y2: 1,
+          stops: [
+            { offset: 0, color: '#112233' },
+            { offset: 1, color: '#445566' }
+          ]
+        }
+      }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: ['s-1'],
+          slidesById: { 's-1': slide }
+        })
+      )
+
+      const document = useDocumentStore.getState().document
+      const colorConstants = Object.values(document?.colorConstantsById ?? {})
+      expect(colorConstants).toHaveLength(2)
+      expect(document?.slidesById['s-1'].background.fill).toEqual({
+        kind: 'linear-gradient',
+        rotation: 90,
+        x1: 0.5,
+        y1: 0,
+        x2: 0.5,
+        y2: 1,
+        stops: [
+          { offset: 0, color: { kind: 'constant', colorId: colorConstants[0]?.id } },
+          { offset: 1, color: { kind: 'constant', colorId: colorConstants[1]?.id } }
+        ]
+      })
+    })
   })
 
   describe('addSlide / removeSlide', () => {

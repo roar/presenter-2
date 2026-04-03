@@ -7,7 +7,6 @@ import type {
   ColorConstantId,
   Easing,
   Fill,
-  GrainBlendMode,
   GrainEffect,
   MsoMaster,
   Position,
@@ -18,6 +17,8 @@ import type {
   Transform,
   TargetedAnimation
 } from '@shared/model/types'
+import { getBackgroundFill } from '@shared/model/background'
+import { buildGrainBackgroundImage } from '@shared/model/grainCanvas'
 import { getColorConstantUsageCount, resolveColorValue } from '@shared/model/colors'
 import {
   createDefaultGradientFill,
@@ -28,7 +29,12 @@ import {
   resolveLinearGradientEndpoints,
   setLinearGradientAngle
 } from '@shared/model/fill'
-import { resolveGrainEffect } from '@shared/model/grain'
+import {
+  getGrainTexturePreset,
+  getGrainTexturePresetValues,
+  resolveGrainEffect,
+  type GrainTexturePresetId
+} from '@shared/model/grain'
 import { Button } from '../Button/Button'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { ColorField } from '../ColorField/ColorField'
@@ -49,6 +55,7 @@ import styles from './PropertiesPanel.module.css'
 type SlideTransitionTrigger = 'none' | 'on-click'
 type InspectorTab = 'properties' | 'text' | 'object' | 'colors'
 type FillType = 'none' | 'solid' | 'linear-gradient'
+type TexturePresetValue = GrainTexturePresetId
 
 interface PropertiesPanelProps {
   document: Presentation | null
@@ -73,6 +80,8 @@ interface PropertiesPanelProps {
   onColorConstantValueChange?: (colorId: ColorConstantId, value: string) => void
   onDeleteColorConstant?: (colorId: ColorConstantId) => void
   onSlideBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void
+  onSlideBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void
+  onSlideBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void
   onObjectTransformChange?: (masterId: string, transform: Partial<Transform>) => void
   onObjectFillChange?: (masterId: string, fill: Fill | undefined) => void
   onObjectGrainChange?: (masterId: string, grain: Partial<GrainEffect>) => void
@@ -223,6 +232,157 @@ function ColorConstantRow({
   )
 }
 
+const TEXTURE_PRESET_OPTIONS: Array<{ value: TexturePresetValue; label: string }> = [
+  { value: 'soft', label: 'Soft' },
+  { value: 'paper', label: 'Paper' },
+  { value: 'rough', label: 'Rough' },
+  { value: 'custom', label: 'Custom' }
+]
+
+function getTextureDescription(preset: TexturePresetValue): string {
+  switch (preset) {
+    case 'soft':
+      return 'Gentle film grain for smooth surfaces.'
+    case 'rough':
+      return 'Heavier texture with more bite.'
+    case 'custom':
+      return 'Manual texture settings.'
+    case 'paper':
+    default:
+      return 'Balanced texture for most backgrounds.'
+  }
+}
+
+function TextureControls({
+  grain,
+  amountAriaLabel,
+  seedAriaLabel,
+  onChange
+}: {
+  grain: GrainEffect
+  amountAriaLabel: string
+  seedAriaLabel: string
+  onChange?: (grain: Partial<GrainEffect>) => void
+}): React.JSX.Element {
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const preset = getGrainTexturePreset(grain)
+  const amount = Math.round(grain.intensity * 100)
+
+  function applyPreset(nextPreset: TexturePresetValue): void {
+    if (nextPreset === 'custom') {
+      return
+    }
+
+    const presetValues = getGrainTexturePresetValues(nextPreset)
+    onChange?.({
+      blendMode: presetValues.blendMode,
+      scale: presetValues.scale,
+      intensity: presetValues.defaultIntensity
+    })
+  }
+
+  return (
+    <div className={styles.textureSection}>
+      <Checkbox
+        checked={grain.enabled}
+        label="Texture"
+        onChange={(enabled) => onChange?.({ enabled })}
+      />
+      <div className={styles.texturePreviewCard}>
+        <div className={styles.texturePreviewSurface}>
+          <div
+            className={styles.texturePreviewOverlay}
+            style={{
+              backgroundImage: buildGrainBackgroundImage(grain),
+              mixBlendMode: grain.blendMode,
+              opacity: grain.intensity
+            }}
+          />
+        </div>
+        <div className={styles.texturePreviewMeta}>
+          <span className={styles.texturePreviewTitle}>
+            {TEXTURE_PRESET_OPTIONS.find((option) => option.value === preset)?.label ?? 'Paper'}
+          </span>
+          <span className={styles.texturePreviewDescription}>{getTextureDescription(preset)}</span>
+        </div>
+      </div>
+      <div className={styles.control}>
+        <span className={styles.controlLabel}>Texture Style</span>
+        <DropdownMenu value={preset} options={TEXTURE_PRESET_OPTIONS} onChange={applyPreset} />
+      </div>
+      <label className={styles.sliderField}>
+        <div className={styles.sliderHeader}>
+          <span className={styles.controlLabel}>Amount</span>
+          <span className={styles.sliderValue}>{amount}%</span>
+        </div>
+        <input
+          aria-label={amountAriaLabel}
+          className={styles.slider}
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={amount}
+          onChange={(event) =>
+            onChange?.({ intensity: Number.parseInt(event.target.value, 10) / 100 })
+          }
+        />
+      </label>
+      <button
+        type="button"
+        className={styles.advancedToggle}
+        aria-expanded={advancedOpen}
+        onClick={() => setAdvancedOpen((current) => !current)}
+      >
+        Advanced Texture
+      </button>
+      {advancedOpen ? (
+        <div className={styles.advancedTextureGrid}>
+          <label className={styles.sliderField}>
+            <div className={styles.sliderHeader}>
+              <span className={styles.controlLabel}>Scale</span>
+              <span className={styles.sliderValue}>{grain.scale.toFixed(2)}</span>
+            </div>
+            <input
+              aria-label={`${amountAriaLabel} scale`}
+              className={styles.slider}
+              type="range"
+              min="0.1"
+              max="2"
+              step="0.05"
+              value={grain.scale}
+              onChange={(event) => onChange?.({ scale: Number.parseFloat(event.target.value) })}
+            />
+          </label>
+          <div className={styles.controlGrid}>
+            <div className={styles.control}>
+              <span className={styles.controlLabel}>Seed</span>
+              <NumberInput
+                aria-label={seedAriaLabel}
+                value={grain.seed}
+                decimals={0}
+                onCommit={(value) => onChange?.({ seed: value })}
+              />
+            </div>
+            <div className={styles.control}>
+              <span className={styles.controlLabel}>Blend Mode</span>
+              <DropdownMenu
+                value={grain.blendMode}
+                options={[
+                  { value: 'overlay', label: 'Overlay' },
+                  { value: 'soft-light', label: 'Soft Light' },
+                  { value: 'multiply', label: 'Multiply' }
+                ]}
+                onChange={(blendMode) => onChange?.({ blendMode })}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function buildPresentationSection(document: Presentation): SectionDefinition {
   return {
     id: 'presentation',
@@ -251,10 +411,49 @@ function buildSlideSection(
   onEasingChange?: (slideId: SlideId, easing: Easing) => void,
   onKindChange?: (slideId: SlideId, kind: SlideTransition['kind']) => void,
   onBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void,
+  onBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void,
+  onBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void,
   onNameColorConstant?: (value: string, name: string) => ColorConstantId | null
 ): SectionDefinition {
   const transition = slide.transition ?? DEFAULT_TRANSITION
   const trigger: SlideTransitionTrigger = slide.transitionTriggerId ? 'on-click' : 'none'
+  const backgroundFill = getBackgroundFill(slide.background)
+  const fillType = getFillType(backgroundFill)
+  const grain = resolveGrainEffect(slide.background.grain)
+  const gradientFill = isGradientFill(backgroundFill)
+    ? backgroundFill
+    : createDefaultGradientFill(getFillSolidColor(backgroundFill) ?? '#000000')
+  const solidFill = getFillSolidColor(backgroundFill)
+  const gradientEditorValue: GradientEditorValue = {
+    kind: gradientFill.kind === 'radial-gradient' ? 'radial' : 'linear',
+    angle: gradientFill.kind === 'linear-gradient' ? getLinearGradientAngle(gradientFill) : 90,
+    centerX: gradientFill.kind === 'radial-gradient' ? gradientFill.centerX : 50,
+    centerY: gradientFill.kind === 'radial-gradient' ? gradientFill.centerY : 50,
+    radius: gradientFill.kind === 'radial-gradient' ? gradientFill.radius : 50,
+    stops: gradientFill.stops.map((stop, index) => ({
+      id: `stop-${index}`,
+      offset: stop.offset,
+      color:
+        resolveColorValue(
+          stop.color,
+          Object.fromEntries(colorConstants.map((color) => [color.id, color]))
+        ) ?? '#000000'
+    }))
+  }
+
+  function updateFillType(nextFillType: FillType): void {
+    if (nextFillType === 'none') {
+      onBackgroundFillChange?.(slide.id, undefined)
+      return
+    }
+
+    if (nextFillType === 'linear-gradient') {
+      onBackgroundFillChange?.(slide.id, createDefaultGradientFill(solidFill ?? '#000000'))
+      return
+    }
+
+    onBackgroundFillChange?.(slide.id, solidFill ?? '#000000')
+  }
 
   return {
     id: 'slide',
@@ -269,14 +468,85 @@ function buildSlideSection(
           </div>
         </PropertyCard>
         <PropertyCard title="Background">
-          <div className={styles.control}>
-            <ColorField
-              label="Color"
-              color={slide.background.color}
-              colorConstants={colorConstants}
-              onChange={(color) => onBackgroundColorChange?.(slide.id, color)}
-              onNameColor={onNameColorConstant}
-            />
+          <div className={styles.fillSection}>
+            <div className={styles.control}>
+              <span className={styles.controlLabel}>Fill Type</span>
+              <DropdownMenu
+                value={fillType}
+                options={[
+                  { value: 'solid', label: 'Solid Fill' },
+                  { value: 'linear-gradient', label: 'Linear Gradient' },
+                  { value: 'none', label: 'No fill' }
+                ]}
+                onChange={updateFillType}
+              />
+            </div>
+            {fillType === 'solid' ? (
+              <div className={styles.control}>
+                <ColorField
+                  label="Color"
+                  color={solidFill ?? slide.background.color}
+                  colorConstants={colorConstants}
+                  onChange={(color) => {
+                    onBackgroundColorChange?.(slide.id, color)
+                    onBackgroundFillChange?.(slide.id, color)
+                  }}
+                  onNameColor={onNameColorConstant}
+                />
+              </div>
+            ) : null}
+            {fillType === 'linear-gradient' ? (
+              <GradientEditor
+                value={gradientEditorValue}
+                onChange={(nextGradient) => {
+                  onBackgroundFillChange?.(
+                    slide.id,
+                    nextGradient.kind === 'linear'
+                      ? normalizeGradientStops({
+                          kind: 'linear-gradient',
+                          ...setLinearGradientAngle(
+                            {
+                              kind: 'linear-gradient',
+                              rotation:
+                                gradientFill.kind === 'linear-gradient'
+                                  ? gradientFill.rotation
+                                  : nextGradient.angle,
+                              ...(gradientFill.kind === 'linear-gradient'
+                                ? resolveLinearGradientEndpoints(gradientFill)
+                                : resolveLinearGradientEndpoints(
+                                    createDefaultGradientFill('#000000')
+                                  )),
+                              stops: []
+                            },
+                            nextGradient.angle
+                          ),
+                          stops: nextGradient.stops.map((stop) => ({
+                            offset: stop.offset,
+                            color: stop.color
+                          }))
+                        })
+                      : normalizeGradientStops({
+                          kind: 'radial-gradient',
+                          centerX: nextGradient.centerX,
+                          centerY: nextGradient.centerY,
+                          radius: nextGradient.radius,
+                          stops: nextGradient.stops.map((stop) => ({
+                            offset: stop.offset,
+                            color: stop.color
+                          }))
+                        })
+                  )
+                }}
+              />
+            ) : null}
+            <div className={styles.fillSubsection}>
+              <TextureControls
+                grain={grain}
+                amountAriaLabel="Slide texture amount"
+                seedAriaLabel="Slide texture seed"
+                onChange={(nextGrain) => onBackgroundGrainChange?.(slide.id, nextGrain)}
+              />
+            </div>
           </div>
           <div className={styles.cardRows}>
             <PropertyRow label="Image" value={slide.background.image} />
@@ -506,10 +776,6 @@ function buildObjectSection(
     onFillChange?.(master.id, solidFill ?? '#000000')
   }
 
-  function updateGrainBlendMode(blendMode: GrainBlendMode): void {
-    onGrainChange?.(master.id, { blendMode })
-  }
-
   return {
     id: 'object',
     title: 'Object',
@@ -659,66 +925,12 @@ function buildObjectSection(
               />
             ) : null}
             <div className={styles.fillSubsection}>
-              <Checkbox
-                checked={grain.enabled}
-                label="Grain Enabled"
-                onChange={(enabled) => onGrainChange?.(master.id, { enabled })}
+              <TextureControls
+                grain={grain}
+                amountAriaLabel="Texture amount"
+                seedAriaLabel="Texture seed"
+                onChange={(nextGrain) => onGrainChange?.(master.id, nextGrain)}
               />
-              <label className={styles.sliderField}>
-                <span className={styles.controlLabel}>Grain Intensity</span>
-                <input
-                  aria-label="Grain intensity"
-                  className={styles.slider}
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={grain.intensity}
-                  onChange={(event) =>
-                    onGrainChange?.(master.id, {
-                      intensity: Number.parseFloat(event.target.value)
-                    })
-                  }
-                />
-              </label>
-              <label className={styles.sliderField}>
-                <span className={styles.controlLabel}>Grain Scale</span>
-                <input
-                  aria-label="Grain scale"
-                  className={styles.slider}
-                  type="range"
-                  min="0.1"
-                  max="2"
-                  step="0.05"
-                  value={grain.scale}
-                  onChange={(event) =>
-                    onGrainChange?.(master.id, { scale: Number.parseFloat(event.target.value) })
-                  }
-                />
-              </label>
-              <div className={styles.controlGrid}>
-                <div className={styles.control}>
-                  <span className={styles.controlLabel}>Grain Seed</span>
-                  <NumberInput
-                    aria-label="Grain seed"
-                    value={grain.seed}
-                    decimals={0}
-                    onCommit={(value) => onGrainChange?.(master.id, { seed: value })}
-                  />
-                </div>
-                <div className={styles.control}>
-                  <span className={styles.controlLabel}>Grain Blend</span>
-                  <DropdownMenu
-                    value={grain.blendMode}
-                    options={[
-                      { value: 'overlay', label: 'overlay' },
-                      { value: 'soft-light', label: 'soft-light' },
-                      { value: 'multiply', label: 'multiply' }
-                    ]}
-                    onChange={updateGrainBlendMode}
-                  />
-                </div>
-              </div>
             </div>
           </div>
           <div className={styles.cardRows}>
@@ -919,6 +1131,8 @@ export function PropertiesPanel({
   onColorConstantValueChange,
   onDeleteColorConstant,
   onSlideBackgroundColorChange,
+  onSlideBackgroundFillChange,
+  onSlideBackgroundGrainChange,
   onObjectTransformChange,
   onObjectFillChange,
   onObjectGrainChange,
@@ -963,6 +1177,8 @@ export function PropertiesPanel({
             onSlideTransitionEasingChange,
             onSlideTransitionKindChange,
             onSlideBackgroundColorChange,
+            onSlideBackgroundFillChange,
+            onSlideBackgroundGrainChange,
             onNameColorConstant
           )
         )
@@ -1054,6 +1270,8 @@ export function PropertiesPanel({
     onObjectStrokeChange,
     onSlideTransitionDurationChange,
     onSlideBackgroundColorChange,
+    onSlideBackgroundFillChange,
+    onSlideBackgroundGrainChange,
     onSlideTransitionEasingChange,
     onSlideTransitionKindChange,
     onSlideTransitionTriggerChange,

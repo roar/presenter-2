@@ -1,7 +1,9 @@
 import React from 'react'
 import type { RenderedSlide, RenderedAppearance } from '@shared/animation/types'
 import { SLIDE_WIDTH, SLIDE_HEIGHT } from '@shared/model/types'
-import { resolveColorValue } from '@shared/model/colors'
+import { resolveBackgroundGrain, resolveBackgroundStyle } from '@shared/model/background'
+import { getRenderedGrainIntensity } from '@shared/model/grain'
+import { buildGrainBackgroundImage, getGrainBackgroundSize } from '@shared/model/grainCanvas'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
 import { ShapeElementRenderer } from '../ShapeElementRenderer/ShapeElementRenderer'
@@ -21,8 +23,8 @@ function renderAppearance(ra: RenderedAppearance): React.ReactNode {
 
 export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX.Element {
   const { slide, appearances } = renderedSlide
-  const bg = slide.background
-  const backgroundColor = resolveColorValue(bg.color, renderedSlide.colorConstantsById)
+  const grain = resolveBackgroundGrain(slide.background)
+  const background = resolveBackgroundStyle(slide.background, renderedSlide.colorConstantsById)
 
   return (
     <div
@@ -31,10 +33,23 @@ export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX
         width: SLIDE_WIDTH,
         height: SLIDE_HEIGHT,
         overflow: 'hidden',
-        background: backgroundColor ?? bg.image ?? undefined,
+        background: background ?? undefined,
         ...style
       }}
     >
+      {grain.enabled ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: buildGrainBackgroundImage(grain),
+            backgroundSize: getGrainBackgroundSize(grain),
+            mixBlendMode: grain.blendMode,
+            opacity: getRenderedGrainIntensity(grain.intensity),
+            pointerEvents: 'none'
+          }}
+        />
+      ) : null}
       {appearances.map(renderAppearance)}
     </div>
   )

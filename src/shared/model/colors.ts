@@ -120,6 +120,14 @@ function normalizeSlideColors(
     },
     valueToId
   )
+  normalizeFillField(
+    presentation,
+    slide.background.fill,
+    (value) => {
+      slide.background.fill = value
+    },
+    valueToId
+  )
 }
 
 function normalizeMasterColors(
@@ -303,6 +311,8 @@ export function getColorConstantUsageCount(
 
   for (const slide of Object.values(presentation.slidesById)) {
     count += countColorUsageField(slide.background.color, colorId)
+    count += countColorUsageField(slide.background.fill, colorId)
+    count += countGradientStopUsage(slide.background.fill, colorId)
   }
 
   for (const master of Object.values(presentation.mastersById)) {
@@ -357,6 +367,8 @@ export function detachColorConstantUsages(
 
   for (const slide of Object.values(presentation.slidesById)) {
     slide.background.color = detachColorField(slide.background.color, colorId, fallbackValue)
+    slide.background.fill = detachColorField(slide.background.fill, colorId, fallbackValue)
+    slide.background.fill = detachGradientColorUsages(slide.background.fill, colorId, fallbackValue)
   }
 
   for (const master of Object.values(presentation.mastersById)) {
