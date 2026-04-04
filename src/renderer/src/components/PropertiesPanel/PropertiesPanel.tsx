@@ -82,6 +82,8 @@ interface PropertiesPanelProps {
   onSlideBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void
   onSlideBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void
   onSlideBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void
+  onPresentationDefaultBackgroundFillChange?: (fill: Fill | undefined) => void
+  onPresentationDefaultBackgroundGrainChange?: (grain: Partial<GrainEffect>) => void
   onObjectTransformChange?: (masterId: string, transform: Partial<Transform>) => void
   onObjectFillChange?: (masterId: string, fill: Fill | undefined) => void
   onObjectGrainChange?: (masterId: string, grain: Partial<GrainEffect>) => void
@@ -383,7 +385,53 @@ function TextureControls({
   )
 }
 
-function buildPresentationSection(document: Presentation): SectionDefinition {
+function buildPresentationSection(
+  document: Presentation,
+  colorConstants: ColorConstant[],
+  onDefaultBackgroundFillChange?: (fill: Fill | undefined) => void,
+  onDefaultBackgroundGrainChange?: (grain: Partial<GrainEffect>) => void,
+  onNameColorConstant?: (value: string, name: string) => ColorConstantId | null
+): SectionDefinition {
+  const defaultBg = document.defaultBackground ?? {}
+  const defaultFill = getBackgroundFill(defaultBg)
+  const defaultFillType = getFillType(defaultFill)
+  const defaultGrain = resolveGrainEffect(defaultBg.grain)
+  const defaultGradientFill = isGradientFill(defaultFill)
+    ? defaultFill
+    : createDefaultGradientFill(getFillSolidColor(defaultFill) ?? '#000000')
+  const defaultSolidFill = getFillSolidColor(defaultFill)
+  const defaultGradientEditorValue: GradientEditorValue = {
+    kind: defaultGradientFill.kind === 'radial-gradient' ? 'radial' : 'linear',
+    angle:
+      defaultGradientFill.kind === 'linear-gradient'
+        ? getLinearGradientAngle(defaultGradientFill)
+        : 90,
+    centerX: defaultGradientFill.kind === 'radial-gradient' ? defaultGradientFill.centerX : 50,
+    centerY: defaultGradientFill.kind === 'radial-gradient' ? defaultGradientFill.centerY : 50,
+    radius: defaultGradientFill.kind === 'radial-gradient' ? defaultGradientFill.radius : 50,
+    stops: defaultGradientFill.stops.map((stop, index) => ({
+      id: `stop-${index}`,
+      offset: stop.offset,
+      color:
+        resolveColorValue(
+          stop.color,
+          Object.fromEntries(colorConstants.map((color) => [color.id, color]))
+        ) ?? '#000000'
+    }))
+  }
+
+  function updateDefaultFillType(nextFillType: FillType): void {
+    if (nextFillType === 'none') {
+      onDefaultBackgroundFillChange?.(undefined)
+      return
+    }
+    if (nextFillType === 'linear-gradient') {
+      onDefaultBackgroundFillChange?.(createDefaultGradientFill(defaultSolidFill ?? '#000000'))
+      return
+    }
+    onDefaultBackgroundFillChange?.(defaultSolidFill ?? '#000000')
+  }
+
   return {
     id: 'presentation',
     title: 'Presentation',
@@ -394,6 +442,84 @@ function buildPresentationSection(document: Presentation): SectionDefinition {
             <PropertyRow label="Title" value={document.title} />
             <PropertyRow label="Slides" value={document.slideOrder.length} />
             <PropertyRow label="Published" value={document.isPublished} />
+          </div>
+        </PropertyCard>
+        <PropertyCard title="Default Background">
+          <div className={styles.fillSection}>
+            <div className={styles.control}>
+              <span className={styles.controlLabel}>Fill Type</span>
+              <DropdownMenu
+                value={defaultFillType}
+                options={[
+                  { value: 'solid', label: 'Solid Fill' },
+                  { value: 'linear-gradient', label: 'Linear Gradient' },
+                  { value: 'none', label: 'No fill' }
+                ]}
+                onChange={updateDefaultFillType}
+              />
+            </div>
+            {defaultFillType === 'solid' ? (
+              <div className={styles.control}>
+                <ColorField
+                  label="Color"
+                  color={defaultSolidFill ?? defaultBg.color}
+                  colorConstants={colorConstants}
+                  onChange={(color) => onDefaultBackgroundFillChange?.(color)}
+                  onNameColor={onNameColorConstant}
+                />
+              </div>
+            ) : null}
+            {defaultFillType === 'linear-gradient' ? (
+              <GradientEditor
+                value={defaultGradientEditorValue}
+                onChange={(nextGradient) => {
+                  onDefaultBackgroundFillChange?.(
+                    nextGradient.kind === 'linear'
+                      ? normalizeGradientStops({
+                          kind: 'linear-gradient',
+                          ...setLinearGradientAngle(
+                            {
+                              kind: 'linear-gradient',
+                              rotation:
+                                defaultGradientFill.kind === 'linear-gradient'
+                                  ? defaultGradientFill.rotation
+                                  : nextGradient.angle,
+                              ...(defaultGradientFill.kind === 'linear-gradient'
+                                ? resolveLinearGradientEndpoints(defaultGradientFill)
+                                : resolveLinearGradientEndpoints(
+                                    createDefaultGradientFill('#000000')
+                                  )),
+                              stops: []
+                            },
+                            nextGradient.angle
+                          ),
+                          stops: nextGradient.stops.map((stop) => ({
+                            offset: stop.offset,
+                            color: stop.color
+                          }))
+                        })
+                      : normalizeGradientStops({
+                          kind: 'radial-gradient',
+                          centerX: nextGradient.centerX,
+                          centerY: nextGradient.centerY,
+                          radius: nextGradient.radius,
+                          stops: nextGradient.stops.map((stop) => ({
+                            offset: stop.offset,
+                            color: stop.color
+                          }))
+                        })
+                  )
+                }}
+              />
+            ) : null}
+            <div className={styles.fillSubsection}>
+              <TextureControls
+                grain={defaultGrain}
+                amountAriaLabel="Default background texture amount"
+                seedAriaLabel="Default background texture seed"
+                onChange={(nextGrain) => onDefaultBackgroundGrainChange?.(nextGrain)}
+              />
+            </div>
           </div>
         </PropertyCard>
       </>
@@ -1133,6 +1259,8 @@ export function PropertiesPanel({
   onSlideBackgroundColorChange,
   onSlideBackgroundFillChange,
   onSlideBackgroundGrainChange,
+  onPresentationDefaultBackgroundFillChange,
+  onPresentationDefaultBackgroundGrainChange,
   onObjectTransformChange,
   onObjectFillChange,
   onObjectGrainChange,
@@ -1163,7 +1291,15 @@ export function PropertiesPanel({
 
     if (activeTab === 'properties') {
       if (document) {
-        nextSections.push(buildPresentationSection(document))
+        nextSections.push(
+          buildPresentationSection(
+            document,
+            colorConstants,
+            onPresentationDefaultBackgroundFillChange,
+            onPresentationDefaultBackgroundGrainChange,
+            onNameColorConstant
+          )
+        )
       }
       if (selectedSlide) {
         nextSections.push(
@@ -1272,6 +1408,8 @@ export function PropertiesPanel({
     onSlideBackgroundColorChange,
     onSlideBackgroundFillChange,
     onSlideBackgroundGrainChange,
+    onPresentationDefaultBackgroundFillChange,
+    onPresentationDefaultBackgroundGrainChange,
     onSlideTransitionEasingChange,
     onSlideTransitionKindChange,
     onSlideTransitionTriggerChange,

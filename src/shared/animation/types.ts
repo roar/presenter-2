@@ -3,6 +3,7 @@
 
 import type {
   Presentation,
+  Background,
   Slide,
   Appearance,
   MsoMaster,
@@ -44,6 +45,7 @@ export interface RenderedSlide {
   slide: Slide
   appearances: RenderedAppearance[]
   colorConstantsById?: Record<ColorConstantId, ColorConstant>
+  defaultBackground?: Background
 }
 
 export interface RenderedAppearance {

@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
-import { resolveBackgroundGrain, resolveBackgroundStyle } from '@shared/model/background'
+import {
+  resolveBackgroundGrain,
+  resolveBackgroundStyle,
+  resolveSlideBackground
+} from '@shared/model/background'
 import { GrainCanvas } from '@viewer/components/GrainCanvas/GrainCanvas'
 import {
   isGradientFill,
@@ -471,6 +475,10 @@ export function SlideCanvas(): React.JSX.Element {
   )
 
   const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
+  const resolvedSlideBackground =
+    slide != null
+      ? resolveSlideBackground(slide.background, patchedPresentation?.defaultBackground)
+      : null
   const msoExitStatesBySlide = patchedPresentation
     ? computeMsoExitStateChains(patchedPresentation)
     : []
@@ -507,8 +515,10 @@ export function SlideCanvas(): React.JSX.Element {
               width: SLIDE_WIDTH,
               height: SLIDE_HEIGHT,
               background:
-                resolveBackgroundStyle(slide.background, patchedPresentation.colorConstantsById) ??
-                '#ffffff',
+                resolveBackgroundStyle(
+                  resolvedSlideBackground ?? slide.background,
+                  patchedPresentation.colorConstantsById
+                ) ?? '#ffffff',
               transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
               userSelect: draggingMasterId != null ? 'none' : undefined
             }}
@@ -518,13 +528,16 @@ export function SlideCanvas(): React.JSX.Element {
               }
             }}
           >
-            {resolveBackgroundGrain(slide.background).enabled ? (
-              <GrainCanvas grain={resolveBackgroundGrain(slide.background)} />
+            {resolveBackgroundGrain(resolvedSlideBackground ?? slide.background).enabled ? (
+              <GrainCanvas
+                grain={resolveBackgroundGrain(resolvedSlideBackground ?? slide.background)}
+              />
             ) : null}
-            {isGradientFill(slide.background.fill) &&
-            slide.background.fill.kind === 'linear-gradient'
+            {isGradientFill((resolvedSlideBackground ?? slide.background).fill) &&
+            (resolvedSlideBackground ?? slide.background).fill?.kind === 'linear-gradient'
               ? (() => {
-                  const fill = slide.background.fill as LinearGradientFill
+                  const fill = (resolvedSlideBackground ?? slide.background)
+                    .fill as LinearGradientFill
                   const { x1, y1, x2, y2 } = getOverlayEndpoints(SLIDE_WIDTH, SLIDE_HEIGHT, fill)
                   return (
                     <svg

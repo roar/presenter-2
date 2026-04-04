@@ -99,6 +99,8 @@ interface DocumentState {
   updateSlideBackgroundColor(slideId: SlideId, color: Color | undefined): void
   updateSlideBackgroundFill(slideId: SlideId, fill: Fill | undefined): void
   updateSlideBackgroundGrain(slideId: SlideId, grain: Partial<GrainEffect>): void
+  updatePresentationDefaultBackgroundFill(fill: Fill | undefined): void
+  updatePresentationDefaultBackgroundGrain(grain: Partial<GrainEffect>): void
   updateObjectFill(masterId: string, fill: Fill | undefined): void
   updateObjectGrain(masterId: string, grain: Partial<GrainEffect>): void
   updateObjectStroke(masterId: string, color: Color | undefined): void
@@ -667,6 +669,35 @@ export const useDocumentStore = create<DocumentState>()(
           ...DEFAULT_GRAIN_EFFECT,
           ...slide.background.grain,
           ...grain
+        }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updatePresentationDefaultBackgroundFill(fill) {
+      set((state) => {
+        if (!state.document) return
+        state.document.defaultBackground = {
+          ...state.document.defaultBackground,
+          fill
+        }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updatePresentationDefaultBackgroundGrain(grain) {
+      set((state) => {
+        if (!state.document) return
+        const existing = state.document.defaultBackground?.grain
+        state.document.defaultBackground = {
+          ...state.document.defaultBackground,
+          grain: {
+            ...DEFAULT_GRAIN_EFFECT,
+            ...existing,
+            ...grain
+          }
         }
         pushHistory(state, state.document)
         state.isDirty = true

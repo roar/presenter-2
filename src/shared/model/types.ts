@@ -23,6 +23,7 @@ export interface Presentation {
   id: PresentationId
   title: string
   colorConstantsById?: Record<ColorConstantId, ColorConstant>
+  defaultBackground?: Background
   slideOrder: SlideId[]
   slidesById: Record<SlideId, Slide>
   mastersById: Record<MasterId, MsoMaster>

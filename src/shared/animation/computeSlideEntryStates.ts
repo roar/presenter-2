@@ -258,6 +258,11 @@ export function renderAllSlideEntryStates(
       }
     )
 
-    return { slide, appearances, colorConstantsById: presentation.colorConstantsById }
+    return {
+      slide,
+      appearances,
+      colorConstantsById: presentation.colorConstantsById,
+      defaultBackground: presentation.defaultBackground
+    }
   })
 }

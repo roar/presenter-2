@@ -18,6 +18,11 @@ vi.mock('../../store/documentStore', async () => {
   return { ...actual, useDocumentStore: vi.fn() }
 })
 
+vi.mock('@shared/model/grainCanvas', () => ({
+  buildGrainBackgroundImage: () => '',
+  getGrainBackgroundSize: () => '100% 100%'
+}))
+
 vi.mock('../Toolbar/Toolbar', () => ({ Toolbar: () => <div data-testid="toolbar" /> }))
 vi.mock('../SlideCanvas/SlideCanvas', () => ({
   SlideCanvas: () => <div data-testid="canvas" />
@@ -90,6 +95,8 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       updateSlideBackgroundColor: vi.fn(),
       updateSlideBackgroundFill: vi.fn(),
       updateSlideBackgroundGrain: vi.fn(),
+      updatePresentationDefaultBackgroundFill: vi.fn(),
+      updatePresentationDefaultBackgroundGrain: vi.fn(),
       updateMasterTransform: vi.fn(),
       updateObjectFill: vi.fn(),
       updateObjectGrain: vi.fn(),
@@ -298,6 +305,8 @@ describe('EditorLayout', () => {
         updateSlideBackgroundColor: vi.fn(),
         updateSlideBackgroundFill: vi.fn(),
         updateSlideBackgroundGrain: vi.fn(),
+        updatePresentationDefaultBackgroundFill: vi.fn(),
+        updatePresentationDefaultBackgroundGrain: vi.fn(),
         updateMasterTransform: vi.fn(),
         updateObjectFill: vi.fn(),
         updateObjectStroke: vi.fn(),
@@ -365,6 +374,8 @@ describe('EditorLayout', () => {
         updateSlideBackgroundColor: vi.fn(),
         updateSlideBackgroundFill: vi.fn(),
         updateSlideBackgroundGrain: vi.fn(),
+        updatePresentationDefaultBackgroundFill: vi.fn(),
+        updatePresentationDefaultBackgroundGrain: vi.fn(),
         updateMasterTransform: vi.fn(),
         updateObjectFill: vi.fn(),
         updateObjectStroke: vi.fn(),

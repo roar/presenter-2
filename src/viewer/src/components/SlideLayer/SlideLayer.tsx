@@ -1,7 +1,11 @@
 import React from 'react'
 import type { RenderedSlide, RenderedAppearance } from '@shared/animation/types'
 import { SLIDE_WIDTH, SLIDE_HEIGHT } from '@shared/model/types'
-import { resolveBackgroundGrain, resolveBackgroundStyle } from '@shared/model/background'
+import {
+  resolveBackgroundGrain,
+  resolveBackgroundStyle,
+  resolveSlideBackground
+} from '@shared/model/background'
 import { GrainCanvas } from '../GrainCanvas/GrainCanvas'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
@@ -22,8 +26,12 @@ function renderAppearance(ra: RenderedAppearance): React.ReactNode {
 
 export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX.Element {
   const { slide, appearances } = renderedSlide
-  const grain = resolveBackgroundGrain(slide.background)
-  const background = resolveBackgroundStyle(slide.background, renderedSlide.colorConstantsById)
+  const resolvedBackground = resolveSlideBackground(
+    slide.background,
+    renderedSlide.defaultBackground
+  )
+  const grain = resolveBackgroundGrain(resolvedBackground)
+  const background = resolveBackgroundStyle(resolvedBackground, renderedSlide.colorConstantsById)
 
   return (
     <div

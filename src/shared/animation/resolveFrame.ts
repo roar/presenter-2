@@ -360,7 +360,8 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
       front: {
         slide: emptySlide,
         appearances: [],
-        colorConstantsById: presentation.colorConstantsById
+        colorConstantsById: presentation.colorConstantsById,
+        defaultBackground: presentation.defaultBackground
       },
       behind: null,
       transition: null,
@@ -424,7 +425,8 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
   const front: RenderedSlide = {
     slide: slidesById[frontSlideId],
     appearances: frontRegular,
-    colorConstantsById: presentation.colorConstantsById
+    colorConstantsById: presentation.colorConstantsById,
+    defaultBackground: presentation.defaultBackground
   }
 
   let behind: RenderedSlide | null = null
@@ -440,7 +442,8 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
     behind = {
       slide: slidesById[behindSlideId],
       appearances: behindRegular,
-      colorConstantsById: presentation.colorConstantsById
+      colorConstantsById: presentation.colorConstantsById,
+      defaultBackground: presentation.defaultBackground
     }
   }
 
