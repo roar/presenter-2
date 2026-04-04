@@ -11,12 +11,22 @@ import {
   resolveLinearGradientEndpoints,
   setLinearGradientEndpoints
 } from '@shared/model/fill'
-import type { LinearGradientFill, Transform } from '@shared/model/types'
+import type {
+  Appearance,
+  LinearGradientFill,
+  MsoMaster,
+  Position,
+  Transform
+} from '@shared/model/types'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
 } from '@shared/animation/computeSlideEntryStates'
-import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
+import {
+  useDocumentStore,
+  selectPatchedPresentation,
+  selectSelectedAnimationGroup
+} from '../../store/documentStore'
 import { ContextMenu } from '../ContextMenu/ContextMenu'
 import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
 import { MsoIndicator } from './MsoIndicator'
@@ -60,6 +70,51 @@ interface BackgroundGradientDragData {
   slideId: string
   target: 'start' | 'end'
   originalFill: LinearGradientFill
+}
+
+interface GhostDragData {
+  animationId: string
+  startClientX: number
+  startClientY: number
+  originalDelta: Position
+}
+
+function buildMoveChainStates(
+  steps: Array<{ animationId: string; delta: Position }>,
+  preview: { animationId: string; delta: Position } | null
+): Array<{ animationId: string; delta: Position; cumulativeDelta: Position }> {
+  const baseStates = steps.reduce<
+    Array<{ animationId: string; delta: Position; cumulativeDelta: Position }>
+  >((states, step) => {
+    const previous = states[states.length - 1]?.cumulativeDelta ?? { x: 0, y: 0 }
+    states.push({
+      animationId: step.animationId,
+      delta: step.delta,
+      cumulativeDelta: {
+        x: previous.x + step.delta.x,
+        y: previous.y + step.delta.y
+      }
+    })
+    return states
+  }, [])
+
+  if (!preview) return baseStates
+
+  const previewIndex = baseStates.findIndex((step) => step.animationId === preview.animationId)
+  if (previewIndex < 0) return baseStates
+
+  return baseStates.map((step, index) => {
+    if (index !== previewIndex) return step
+
+    return {
+      animationId: step.animationId,
+      delta: preview.delta,
+      cumulativeDelta: {
+        x: step.cumulativeDelta.x + (preview.delta.x - step.delta.x),
+        y: step.cumulativeDelta.y + (preview.delta.y - step.delta.y)
+      }
+    }
+  })
 }
 
 function parseRenderedTransform(transform: string): {
@@ -168,18 +223,56 @@ function getOverlayEndpoints(
   }
 }
 
+function renderAnimationGhostObject(
+  master: MsoMaster,
+  appearance: Appearance,
+  width: number,
+  height: number
+): React.JSX.Element | null {
+  const ghostMaster = {
+    ...master,
+    transform: {
+      ...master.transform,
+      x: 0,
+      y: 0,
+      width,
+      height,
+      rotation: 0
+    }
+  }
+
+  if (master.type === 'shape') {
+    return <ShapeView master={ghostMaster} appearance={appearance} />
+  }
+
+  if (master.type === 'text') {
+    return <TextView master={ghostMaster} appearance={appearance} />
+  }
+
+  if (master.type === 'image') {
+    return <ImageView master={ghostMaster} appearance={appearance} />
+  }
+
+  return null
+}
+
 export function SlideCanvas(): React.JSX.Element {
   const document = useDocumentStore((s) => s.document)
   const patchedPresentation = useDocumentStore(selectPatchedPresentation)
+  const selectedAnimationGroup = useDocumentStore(selectSelectedAnimationGroup)
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
+  const selectedAnimationId = useDocumentStore((s) => s.ui.selectedAnimationId)
   const moveElement = useDocumentStore((s) => s.moveElement)
   const selectElements = useDocumentStore((s) => s.selectElements)
+  const selectAnimation = useDocumentStore((s) => s.selectAnimation)
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
   const updateObjectFill = useDocumentStore((s) => s.updateObjectFill)
   const updateSlideBackgroundFill = useDocumentStore((s) => s.updateSlideBackgroundFill)
   const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
+  const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
+  const removeAnimation = useDocumentStore((s) => s.removeAnimation)
   const convertToMultiSlideObject = useDocumentStore((s) => s.convertToMultiSlideObject)
   const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
 
@@ -189,6 +282,9 @@ export function SlideCanvas(): React.JSX.Element {
   const [userPan, setUserPan] = useState({ x: 0, y: 0 })
   const [isSpaceDown, setIsSpaceDown] = useState(false)
   const [isPanning, setIsPanning] = useState(false)
+  const [ghostPreview, setGhostPreview] = useState<{ animationId: string; delta: Position } | null>(
+    null
+  )
 
   const fitScale =
     containerSize.width > 0
@@ -204,6 +300,7 @@ export function SlideCanvas(): React.JSX.Element {
   const dragRef = useRef<DragData | null>(null)
   const gradientDragRef = useRef<GradientDragData | null>(null)
   const backgroundGradientDragRef = useRef<BackgroundGradientDragData | null>(null)
+  const ghostDragRef = useRef<GhostDragData | null>(null)
   const panDragRef = useRef<{
     startX: number
     startY: number
@@ -218,6 +315,8 @@ export function SlideCanvas(): React.JSX.Element {
   const updateObjectFillRef = useRef(updateObjectFill)
   const updateSlideBackgroundFillRef = useRef(updateSlideBackgroundFill)
   const updateMasterTransformRef = useRef(updateMasterTransform)
+  const updateAnimationMoveDeltaRef = useRef(updateAnimationMoveDelta)
+  const selectedAnimationGroupRef = useRef(selectedAnimationGroup)
   const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
 
@@ -245,6 +344,14 @@ export function SlideCanvas(): React.JSX.Element {
   useEffect(() => {
     updateMasterTransformRef.current = updateMasterTransform
   }, [updateMasterTransform])
+
+  useEffect(() => {
+    updateAnimationMoveDeltaRef.current = updateAnimationMoveDelta
+  }, [updateAnimationMoveDelta])
+
+  useEffect(() => {
+    selectedAnimationGroupRef.current = selectedAnimationGroup
+  }, [selectedAnimationGroup])
 
   // Wheel: pinch / Ctrl+scroll = zoom around cursor, plain scroll = pan
   useEffect(() => {
@@ -314,6 +421,11 @@ export function SlideCanvas(): React.JSX.Element {
     masterId: string
     appearanceId: string
   } | null>(null)
+  const [animationContextMenu, setAnimationContextMenu] = useState<{
+    x: number
+    y: number
+    animationId: string
+  } | null>(null)
   const [draggingMasterId, setDraggingMasterId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -375,6 +487,20 @@ export function SlideCanvas(): React.JSX.Element {
             }
           })
         }
+        return
+      }
+
+      const ghostDrag = ghostDragRef.current
+      if (ghostDrag) {
+        const dx = (e.clientX - ghostDrag.startClientX) / scaleRef.current
+        const dy = (e.clientY - ghostDrag.startClientY) / scaleRef.current
+        setGhostPreview({
+          animationId: ghostDrag.animationId,
+          delta: {
+            x: ghostDrag.originalDelta.x + dx,
+            y: ghostDrag.originalDelta.y + dy
+          }
+        })
         return
       }
 
@@ -483,6 +609,31 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
+      const ghostDrag = ghostDragRef.current
+      if (ghostDrag) {
+        const dx = (e.clientX - ghostDrag.startClientX) / scaleRef.current
+        const dy = (e.clientY - ghostDrag.startClientY) / scaleRef.current
+        const nextDelta = {
+          x: ghostDrag.originalDelta.x + dx,
+          y: ghostDrag.originalDelta.y + dy
+        }
+        updateAnimationMoveDeltaRef.current(ghostDrag.animationId, nextDelta)
+        const moveSteps = selectedAnimationGroupRef.current?.moveSteps ?? []
+        const currentIndex = moveSteps.findIndex(
+          (step) => step.animationId === ghostDrag.animationId
+        )
+        const nextStep = currentIndex >= 0 ? moveSteps[currentIndex + 1] : null
+        if (nextStep) {
+          updateAnimationMoveDeltaRef.current(nextStep.animationId, {
+            x: nextStep.delta.x - (nextDelta.x - ghostDrag.originalDelta.x),
+            y: nextStep.delta.y - (nextDelta.y - ghostDrag.originalDelta.y)
+          })
+        }
+        ghostDragRef.current = null
+        setGhostPreview(null)
+        return
+      }
+
       const gradientDrag = gradientDragRef.current
       const slideElement = slideRef.current
       if (slideElement) {
@@ -537,6 +688,7 @@ export function SlideCanvas(): React.JSX.Element {
   const handleElementContextMenu = useCallback(
     (masterId: string, appearanceId: string, e: React.MouseEvent) => {
       e.preventDefault()
+      setAnimationContextMenu(null)
       setContextMenu({ x: e.clientX, y: e.clientY, masterId, appearanceId })
     },
     []
@@ -559,6 +711,12 @@ export function SlideCanvas(): React.JSX.Element {
     addMoveAnimation(contextMenu.appearanceId)
     setContextMenu(null)
   }, [addMoveAnimation, contextMenu])
+
+  const handleDeleteAnimation = useCallback(() => {
+    if (!animationContextMenu) return
+    removeAnimation(animationContextMenu.animationId)
+    setAnimationContextMenu(null)
+  }, [animationContextMenu, removeAnimation])
 
   const handleOuterMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && isSpaceDownRef.current)) {
@@ -592,6 +750,45 @@ export function SlideCanvas(): React.JSX.Element {
       setDraggingMasterId(masterId)
     },
     [document, selectElements]
+  )
+
+  const handleAnimationGhostMouseDown = useCallback(
+    (animationId: string, delta: Position, e: React.MouseEvent) => {
+      if (isSpaceDownRef.current) return
+      e.preventDefault()
+      e.stopPropagation()
+      setContextMenu(null)
+      setAnimationContextMenu(null)
+      selectAnimation(animationId)
+      ghostDragRef.current = {
+        animationId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        originalDelta: delta
+      }
+      setGhostPreview({ animationId, delta })
+    },
+    [selectAnimation]
+  )
+
+  const handleAnimationSelect = useCallback(
+    (animationId: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      selectAnimation(animationId)
+    },
+    [selectAnimation]
+  )
+
+  const handleAnimationContextMenu = useCallback(
+    (animationId: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      selectAnimation(animationId)
+      setAnimationContextMenu({ x: e.clientX, y: e.clientY, animationId })
+      setContextMenu(null)
+    },
+    [selectAnimation]
   )
 
   const handleBackgroundGradientMouseDown = useCallback(
@@ -677,6 +874,34 @@ export function SlideCanvas(): React.JSX.Element {
     renderedSlide != null
       ? renderedSlide.appearances.slice().sort((a, b) => a.appearance.zIndex - b.appearance.zIndex)
       : []
+
+  const selectedGroupMoveAnimation =
+    selectedAnimationGroup?.slideId === selectedSlideId &&
+    selectedAnimationGroup.moveAnimation?.effect.type === 'move'
+      ? selectedAnimationGroup.moveAnimation
+      : null
+
+  const selectedGroupRenderedAppearance =
+    selectedAnimationGroup != null
+      ? (renderedAppearances.find(
+          (renderedAppearance) =>
+            renderedAppearance.appearance.id === selectedAnimationGroup.appearanceId
+        ) ?? null)
+      : null
+
+  const selectedGroupMaster =
+    selectedAnimationGroup != null && patchedPresentation != null
+      ? (patchedPresentation.mastersById[selectedAnimationGroup.masterId] ?? null)
+      : null
+
+  const moveChainSteps =
+    selectedAnimationGroup?.slideId === selectedSlideId
+      ? selectedAnimationGroup.moveSteps.map((step) => ({
+          animationId: step.animationId,
+          delta: step.delta
+        }))
+      : []
+  const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
 
   return (
     <>
@@ -993,6 +1218,104 @@ export function SlideCanvas(): React.JSX.Element {
                 </React.Fragment>
               )
             })}
+            {selectedGroupMoveAnimation &&
+            selectedGroupRenderedAppearance &&
+            selectedGroupMaster &&
+            moveChainStates.length > 0
+              ? (() => {
+                  const { master, transform } = selectedGroupRenderedAppearance
+                  const {
+                    translateX,
+                    translateY,
+                    scale: renderedScale
+                  } = parseRenderedTransform(transform)
+                  const baseLeft = master.transform.x + translateX
+                  const baseTop = master.transform.y + translateY
+                  const ghostWidth = master.transform.width * renderedScale
+                  const ghostHeight = master.transform.height * renderedScale
+
+                  return (
+                    <>
+                      {moveChainStates.map((step, index) => {
+                        const isSelected = step.animationId === selectedAnimationId
+                        const previousState = index === 0 ? null : moveChainStates[index - 1]
+                        const segmentStartLeft = previousState
+                          ? baseLeft + previousState.cumulativeDelta.x
+                          : baseLeft
+                        const segmentStartTop = previousState
+                          ? baseTop + previousState.cumulativeDelta.y
+                          : baseTop
+                        const ghostLeft = baseLeft + step.cumulativeDelta.x
+                        const ghostTop = baseTop + step.cumulativeDelta.y
+                        const startCenterX = segmentStartLeft + ghostWidth / 2
+                        const startCenterY = segmentStartTop + ghostHeight / 2
+                        const ghostCenterX = ghostLeft + ghostWidth / 2
+                        const ghostCenterY = ghostTop + ghostHeight / 2
+
+                        return (
+                          <React.Fragment key={step.animationId}>
+                            <svg
+                              aria-label="Move animation path"
+                              className={styles.animationOverlay}
+                              style={{
+                                left: 0,
+                                top: 0,
+                                width: SLIDE_WIDTH,
+                                height: SLIDE_HEIGHT,
+                                zIndex: 4
+                              }}
+                            >
+                              <line
+                                data-testid="animation-path"
+                                className={`${styles.animationPath} ${isSelected ? styles.animationPathSelected : ''}`}
+                                x1={startCenterX}
+                                y1={startCenterY}
+                                x2={ghostCenterX}
+                                y2={ghostCenterY}
+                                onClick={(e) => handleAnimationSelect(step.animationId, e)}
+                                onContextMenu={(e) =>
+                                  handleAnimationContextMenu(step.animationId, e)
+                                }
+                              />
+                            </svg>
+                            <div
+                              aria-label="Move animation ghost"
+                              data-testid="animation-ghost"
+                              className={`${styles.animationGhost} ${isSelected ? styles.animationGhostSelected : ''}`}
+                              style={{
+                                left: ghostLeft,
+                                top: ghostTop,
+                                width: ghostWidth,
+                                height: ghostHeight,
+                                transform: `rotate(${selectedGroupMaster.transform.rotation}deg)`,
+                                zIndex: 5
+                              }}
+                              onMouseDown={(e) =>
+                                handleAnimationGhostMouseDown(step.animationId, step.delta, e)
+                              }
+                              onClick={(e) => handleAnimationSelect(step.animationId, e)}
+                              onContextMenu={(e) => handleAnimationContextMenu(step.animationId, e)}
+                            >
+                              <div
+                                className={`${styles.animationGhostContent} ${
+                                  isSelected ? styles.animationGhostContentSelected : ''
+                                }`}
+                              >
+                                {renderAnimationGhostObject(
+                                  selectedGroupMaster,
+                                  selectedGroupRenderedAppearance.appearance,
+                                  ghostWidth,
+                                  ghostHeight
+                                )}
+                              </div>
+                            </div>
+                          </React.Fragment>
+                        )
+                      })}
+                    </>
+                  )
+                })()
+              : null}
           </div>
         )}
       </div>
@@ -1018,6 +1341,15 @@ export function SlideCanvas(): React.JSX.Element {
               Convert to Multi Slide Object
             </ContextMenuItem>
           )}
+        </ContextMenu>
+      )}
+      {animationContextMenu && (
+        <ContextMenu
+          x={animationContextMenu.x}
+          y={animationContextMenu.y}
+          onClose={() => setAnimationContextMenu(null)}
+        >
+          <ContextMenuItem onClick={handleDeleteAnimation}>Delete animation</ContextMenuItem>
         </ContextMenu>
       )}
     </>

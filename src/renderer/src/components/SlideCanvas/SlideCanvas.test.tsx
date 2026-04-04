@@ -51,18 +51,24 @@ function makePresentation(): Presentation {
 function mockStore(
   selectedSlideId: string | null,
   document: Presentation | null,
-  selectedElementIds: string[] = []
+  selectedElementIds: string[] = [],
+  selectedAnimationId: string | null = null
 ): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
     return selector({
       document,
       previewPatch: null,
-      ui: { selectedSlideId, selectedElementIds },
+      ui: { selectedSlideId, selectedElementIds, selectedAnimationId },
       moveElement: vi.fn(),
       selectElements: vi.fn(),
+      selectAnimation: vi.fn(),
       setPreviewPatch: vi.fn(),
       updateObjectFill: vi.fn(),
+      updateSlideBackgroundFill: vi.fn(),
+      updateMasterTransform: vi.fn(),
       addMoveAnimation: vi.fn(),
+      updateAnimationMoveDelta: vi.fn(),
+      removeAnimation: vi.fn(),
       convertToMultiSlideObject: vi.fn(),
       convertToSingleAppearance: vi.fn()
     })
@@ -160,12 +166,17 @@ describe('SlideCanvas', () => {
       return selector({
         document: pres,
         previewPatch: null,
-        ui: { selectedSlideId: slideId, selectedElementIds: [] },
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: null },
         moveElement: vi.fn(),
         selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
         setPreviewPatch: vi.fn(),
         updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
         addMoveAnimation,
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
       })
@@ -220,12 +231,21 @@ describe('SlideCanvas', () => {
       return selector({
         document: pres,
         previewPatch: null,
-        ui: { selectedSlideId: slideId, selectedElementIds: [master.id] },
+        ui: {
+          selectedSlideId: slideId,
+          selectedElementIds: [master.id],
+          selectedAnimationId: null
+        },
         moveElement: vi.fn(),
         selectElements,
+        selectAnimation: vi.fn(),
         setPreviewPatch: vi.fn(),
         updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
       })
@@ -309,14 +329,23 @@ describe('SlideCanvas', () => {
       return selector({
         document: pres,
         previewPatch: null,
-        ui: { selectedSlideId: slideId, selectedElementIds: [master.id] },
+        ui: {
+          selectedSlideId: slideId,
+          selectedElementIds: [master.id],
+          selectedAnimationId: null
+        },
         moveElement: vi.fn(),
         selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
         setPreviewPatch,
         addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn(),
-        updateObjectFill
+        updateObjectFill,
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn()
       })
     })
 
@@ -355,6 +384,531 @@ describe('SlideCanvas', () => {
       ]
     })
     expect(setPreviewPatch).toHaveBeenLastCalledWith(null)
+  })
+
+  it('renders a move animation ghost and path for the selected animation', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    render(<SlideCanvas />)
+
+    expect(screen.getByTestId('animation-ghost')).toHaveStyle({ left: '140px', top: '180px' })
+    expect(screen.getByTestId('animation-path')).toBeInTheDocument()
+  })
+
+  it('renders the ghost using the original object geometry', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    const { container } = render(<SlideCanvas />)
+
+    const ghost = screen.getByTestId('animation-ghost')
+    expect(ghost.querySelector('svg')).not.toBeNull()
+    expect(container.querySelectorAll('path').length).toBeGreaterThan(1)
+  })
+
+  it('renders one move ghost and path segment per move step in the chain', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    render(<SlideCanvas />)
+
+    const ghosts = screen.getAllByTestId('animation-ghost')
+    const paths = screen.getAllByTestId('animation-path')
+
+    expect(ghosts).toHaveLength(2)
+    expect(paths).toHaveLength(2)
+    expect(ghosts[0]).toHaveStyle({ left: '140px', top: '180px' })
+    expect(ghosts[1]).toHaveStyle({ left: '150px', top: '160px' })
+  })
+
+  it('highlights the selected ghost and its incoming path segment', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-2')
+    render(<SlideCanvas />)
+
+    const ghosts = screen.getAllByTestId('animation-ghost')
+    const paths = screen.getAllByTestId('animation-path')
+
+    expect(ghosts[0].getAttribute('class')).not.toMatch(/animationGhostSelected/)
+    expect(paths[0].getAttribute('class')).not.toMatch(/animationPathSelected/)
+    expect(ghosts[1].getAttribute('class')).toMatch(/animationGhostSelected/)
+    expect(paths[1].getAttribute('class')).toMatch(/animationPathSelected/)
+  })
+
+  it('selects the animation when clicking the move ghost or path', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const selectAnimation = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation,
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.click(screen.getByTestId('animation-ghost'))
+    await userEvent.click(screen.getByLabelText('Move animation path'))
+
+    expect(selectAnimation).toHaveBeenCalledWith('move-1')
+  })
+
+  it('selects the matching move step when clicking a downstream path segment', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const selectAnimation = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation,
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.click(screen.getAllByTestId('animation-path')[1])
+
+    expect(selectAnimation).toHaveBeenCalledWith('move-2')
+  })
+
+  it('updates the move delta when dragging the ghost', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMoveDelta = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseDown(screen.getByTestId('animation-ghost'), { clientX: 140, clientY: 180 })
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 210 })
+    fireEvent.mouseUp(window, { clientX: 160, clientY: 210 })
+
+    expect(updateAnimationMoveDelta).toHaveBeenCalledWith('move-1', { x: 60, y: 110 })
+  })
+
+  it('keeps downstream ghost positions fixed while dragging an earlier move step', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    render(<SlideCanvas />)
+
+    const ghosts = screen.getAllByTestId('animation-ghost')
+    fireEvent.mouseDown(ghosts[0], { clientX: 140, clientY: 180 })
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 210 })
+
+    const updatedGhosts = screen.getAllByTestId('animation-ghost')
+    expect(updatedGhosts[0]).toHaveStyle({ left: '160px', top: '210px' })
+    expect(updatedGhosts[1]).toHaveStyle({ left: '150px', top: '160px' })
+  })
+
+  it('keeps later ghosts fixed when dragging a middle move step', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2', 'move-3']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2', 'move-3']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-3'] = {
+      id: 'move-3',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: -15, y: 30 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-2')
+    render(<SlideCanvas />)
+
+    const ghosts = screen.getAllByTestId('animation-ghost')
+    fireEvent.mouseDown(ghosts[1], { clientX: 150, clientY: 160 })
+    fireEvent.mouseMove(window, { clientX: 170, clientY: 190 })
+
+    const updatedGhosts = screen.getAllByTestId('animation-ghost')
+    expect(updatedGhosts[0]).toHaveStyle({ left: '140px', top: '180px' })
+    expect(updatedGhosts[1]).toHaveStyle({ left: '170px', top: '190px' })
+    expect(updatedGhosts[2]).toHaveStyle({ left: '135px', top: '190px' })
+  })
+
+  it('updates the dragged move delta and compensates the following move step on mouse up', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMoveDelta = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseDown(screen.getAllByTestId('animation-ghost')[0], { clientX: 140, clientY: 180 })
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 210 })
+    fireEvent.mouseUp(window, { clientX: 160, clientY: 210 })
+
+    expect(updateAnimationMoveDelta).toHaveBeenNthCalledWith(1, 'move-1', { x: 60, y: 110 })
+    expect(updateAnimationMoveDelta).toHaveBeenNthCalledWith(2, 'move-2', { x: -10, y: -50 })
+  })
+
+  it('allows moving the base object while animation ghosts are visible', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const moveElement = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement,
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseDown(screen.getByTestId('element-hitbox'), { clientX: 100, clientY: 100 })
+    fireEvent.mouseMove(window, { clientX: 130, clientY: 145 })
+    fireEvent.mouseUp(window, { clientX: 130, clientY: 145 })
+
+    expect(moveElement).toHaveBeenCalledWith(expect.any(String), 130, 145)
+  })
+
+  it('deletes the selected animation from the ghost context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const removeAnimation = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        removeAnimation,
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByTestId('animation-ghost') })
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete animation' }))
+
+    expect(removeAnimation).toHaveBeenCalledWith('move-1')
   })
 
   it('renders MSO appearances at their propagated entry position on downstream slides', () => {

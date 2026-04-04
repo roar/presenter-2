@@ -81,6 +81,7 @@ interface DocumentState {
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
   addMoveAnimation(appearanceId: AppearanceId): void
+  removeAnimation(animationId: AnimationId): void
   updateAnimationTrigger(animationId: AnimationId, trigger: AnimationTrigger): void
   updateAnimationOffset(animationId: AnimationId, offset: number): void
   updateAnimationDuration(animationId: AnimationId, duration: number): void
@@ -212,6 +213,116 @@ export function selectPatchedPresentation(state: DocumentState): Presentation | 
   return result
 }
 
+export interface SelectedAnimationGroup {
+  slideId: SlideId
+  appearanceId: AppearanceId
+  masterId: string
+  animationIds: AnimationId[]
+  selectedAnimation: TargetedAnimation
+  moveAnimation: TargetedAnimation | null
+  moveSteps: Array<{
+    animationId: AnimationId
+    delta: Position
+    cumulativeDelta: Position
+  }>
+}
+
+function getAnimationTargetAppearanceId(animation: TargetedAnimation): AppearanceId | null {
+  return animation.target.kind === 'appearance' ? animation.target.appearanceId : null
+}
+
+function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>): Position {
+  if ('delta' in effect) return effect.delta
+  return effect.fromOffset
+}
+
+export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnimationGroup | null {
+  const document = state.document
+  const selectedAnimationId = state.ui.selectedAnimationId
+
+  if (!document || !selectedAnimationId) return null
+
+  const selectedAnimation = document.animationsById[selectedAnimationId]
+  if (!selectedAnimation) return null
+
+  const appearanceId = getAnimationTargetAppearanceId(selectedAnimation)
+  if (!appearanceId) return null
+
+  const appearance = document.appearancesById[appearanceId]
+  if (!appearance) return null
+
+  const slide = document.slidesById[appearance.slideId]
+  if (!slide) return null
+
+  const master = document.mastersById[appearance.masterId]
+  if (!master) return null
+
+  const animationIds = slide.animationOrder.filter((animationId) => {
+    const animation = document.animationsById[animationId]
+    return getAnimationTargetAppearanceId(animation) === appearanceId
+  })
+  const moveAnimations = animationIds
+    .map((animationId) => document.animationsById[animationId])
+    .filter((animation): animation is TargetedAnimation => animation?.effect.type === 'move')
+  const moveAnimation = moveAnimations[0] ?? null
+  const moveSteps = moveAnimations.reduce<SelectedAnimationGroup['moveSteps']>(
+    (steps, animation) => {
+      const delta = getMoveDelta(animation.effect)
+      const previous = steps[steps.length - 1]?.cumulativeDelta ?? { x: 0, y: 0 }
+      steps.push({
+        animationId: animation.id,
+        delta,
+        cumulativeDelta: {
+          x: previous.x + delta.x,
+          y: previous.y + delta.y
+        }
+      })
+      return steps
+    },
+    []
+  )
+
+  if (
+    selectedAnimationGroupCache.document === document &&
+    selectedAnimationGroupCache.selectedAnimationId === selectedAnimationId &&
+    selectedAnimationGroupCache.result?.appearanceId === appearanceId &&
+    selectedAnimationGroupCache.result?.masterId === master.id &&
+    selectedAnimationGroupCache.result?.animationIds.length === animationIds.length &&
+    selectedAnimationGroupCache.result?.animationIds.every(
+      (id, index) => id === animationIds[index]
+    ) &&
+    selectedAnimationGroupCache.result?.selectedAnimation === selectedAnimation &&
+    selectedAnimationGroupCache.result?.moveAnimation === moveAnimation &&
+    selectedAnimationGroupCache.result?.moveSteps.length === moveSteps.length &&
+    selectedAnimationGroupCache.result?.moveSteps.every(
+      (step, index) =>
+        step.animationId === moveSteps[index]?.animationId &&
+        step.delta.x === moveSteps[index]?.delta.x &&
+        step.delta.y === moveSteps[index]?.delta.y &&
+        step.cumulativeDelta.x === moveSteps[index]?.cumulativeDelta.x &&
+        step.cumulativeDelta.y === moveSteps[index]?.cumulativeDelta.y
+    )
+  ) {
+    return selectedAnimationGroupCache.result
+  }
+
+  const result = {
+    slideId: appearance.slideId,
+    appearanceId,
+    masterId: master.id,
+    animationIds,
+    selectedAnimation,
+    moveAnimation,
+    moveSteps
+  }
+
+  selectedAnimationGroupCache.document = document
+  selectedAnimationGroupCache.selectedAnimationId = selectedAnimationId
+  selectedAnimationGroupCache.result = result
+
+  return result
+}
+
 const patchedPresentationCache: {
   document: Presentation | null
   previewPatch: PreviewPatch | null
@@ -219,6 +330,16 @@ const patchedPresentationCache: {
 } = {
   document: null,
   previewPatch: null,
+  result: null
+}
+
+const selectedAnimationGroupCache: {
+  document: Presentation | null
+  selectedAnimationId: AnimationId | null
+  result: SelectedAnimationGroup | null
+} = {
+  document: null,
+  selectedAnimationId: null,
   result: null
 }
 
@@ -467,6 +588,42 @@ export const useDocumentStore = create<DocumentState>()(
         state.document.animationsById[animation.id] = animation
         appearance.animationIds.push(animation.id)
         slide.animationOrder.push(animation.id)
+        state.ui.selectedAnimationId = animation.id
+        state.ui.selectedElementIds = []
+        state.ui.selectedSlideId = slide.id
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    removeAnimation(animationId) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation) return
+
+        const appearanceId = getAnimationTargetAppearanceId(animation)
+        if (appearanceId) {
+          const appearance = state.document.appearancesById[appearanceId]
+          if (appearance) {
+            appearance.animationIds = appearance.animationIds.filter((id) => id !== animationId)
+            const slide = state.document.slidesById[appearance.slideId]
+            if (slide) {
+              slide.animationOrder = slide.animationOrder.filter((id) => id !== animationId)
+            }
+          }
+        } else {
+          for (const slide of Object.values(state.document.slidesById)) {
+            slide.animationOrder = slide.animationOrder.filter((id) => id !== animationId)
+          }
+        }
+
+        delete state.document.animationsById[animationId]
+
+        if (state.ui.selectedAnimationId === animationId) {
+          state.ui.selectedAnimationId = null
+        }
+
         pushHistory(state, state.document)
         state.isDirty = true
       })
