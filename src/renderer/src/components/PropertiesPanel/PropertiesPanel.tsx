@@ -83,6 +83,7 @@ interface PropertiesPanelProps {
   onSlideBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void
   onSlideBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void
   onResetSlideBackground?: (slideId: SlideId) => void
+  onSetSlideBackgroundAsDefault?: (slideId: SlideId) => void
   onPresentationDefaultBackgroundFillChange?: (fill: Fill | undefined) => void
   onPresentationDefaultBackgroundGrainChange?: (grain: Partial<GrainEffect>) => void
   onObjectTransformChange?: (masterId: string, transform: Partial<Transform>) => void
@@ -541,6 +542,7 @@ function buildSlideSection(
   onBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void,
   onBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void,
   onResetSlideBackground?: (slideId: SlideId) => void,
+  onSetSlideBackgroundAsDefault?: (slideId: SlideId) => void,
   onNameColorConstant?: (value: string, name: string) => ColorConstantId | null
 ): SectionDefinition {
   const transition = slide.transition ?? DEFAULT_TRANSITION
@@ -681,6 +683,11 @@ function buildSlideSection(
                 onChange={(nextGrain) => onBackgroundGrainChange?.(slide.id, nextGrain)}
               />
             </div>
+            {slideHasOwnBackground ? (
+              <Button variant="secondary" onClick={() => onSetSlideBackgroundAsDefault?.(slide.id)}>
+                Use as default
+              </Button>
+            ) : null}
             {hasDefaultBackground && slideHasOwnBackground ? (
               <Button variant="secondary" onClick={() => onResetSlideBackground?.(slide.id)}>
                 Use presentation default
@@ -1273,6 +1280,7 @@ export function PropertiesPanel({
   onSlideBackgroundFillChange,
   onSlideBackgroundGrainChange,
   onResetSlideBackground,
+  onSetSlideBackgroundAsDefault,
   onPresentationDefaultBackgroundFillChange,
   onPresentationDefaultBackgroundGrainChange,
   onObjectTransformChange,
@@ -1330,6 +1338,7 @@ export function PropertiesPanel({
             onSlideBackgroundFillChange,
             onSlideBackgroundGrainChange,
             onResetSlideBackground,
+            onSetSlideBackgroundAsDefault,
             onNameColorConstant
           )
         )
@@ -1424,6 +1433,7 @@ export function PropertiesPanel({
     onSlideBackgroundFillChange,
     onSlideBackgroundGrainChange,
     onResetSlideBackground,
+    onSetSlideBackgroundAsDefault,
     onPresentationDefaultBackgroundFillChange,
     onPresentationDefaultBackgroundGrainChange,
     onSlideTransitionEasingChange,

@@ -179,6 +179,7 @@ export function EditorLayout(): React.JSX.Element {
   const updateSlideBackgroundFill = useDocumentStore((s) => s.updateSlideBackgroundFill)
   const updateSlideBackgroundGrain = useDocumentStore((s) => s.updateSlideBackgroundGrain)
   const resetSlideBackground = useDocumentStore((s) => s.resetSlideBackground)
+  const setSlideBackgroundAsDefault = useDocumentStore((s) => s.setSlideBackgroundAsDefault)
   const updatePresentationDefaultBackgroundFill = useDocumentStore(
     (s) => s.updatePresentationDefaultBackgroundFill
   )
@@ -649,6 +650,7 @@ export function EditorLayout(): React.JSX.Element {
                 onSlideBackgroundFillChange={updateSlideBackgroundFill}
                 onSlideBackgroundGrainChange={updateSlideBackgroundGrain}
                 onResetSlideBackground={resetSlideBackground}
+                onSetSlideBackgroundAsDefault={setSlideBackgroundAsDefault}
                 onPresentationDefaultBackgroundFillChange={updatePresentationDefaultBackgroundFill}
                 onPresentationDefaultBackgroundGrainChange={
                   updatePresentationDefaultBackgroundGrain
