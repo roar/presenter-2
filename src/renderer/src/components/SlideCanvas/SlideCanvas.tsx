@@ -17,11 +17,11 @@ import {
   selectPatchedPresentation,
   selectSelectedAnimationGroup
 } from '../../store/documentStore'
-import { ContextMenu } from '../ContextMenu/ContextMenu'
-import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
 import { buildMoveChainStates } from './animationCanvasModel'
+import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
 import { SlideCanvasObject } from './SlideCanvasObject'
+import { useCanvasContextMenus } from './useCanvasContextMenus'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
@@ -202,17 +202,25 @@ export function SlideCanvas(): React.JSX.Element {
     }
   }, [])
 
-  const [contextMenu, setContextMenu] = useState<{
-    x: number
-    y: number
-    masterId: string
-    appearanceId: string
-  } | null>(null)
-  const [animationContextMenu, setAnimationContextMenu] = useState<{
-    x: number
-    y: number
-    animationId: string
-  } | null>(null)
+  const {
+    elementContextMenu,
+    animationContextMenu,
+    closeAllMenus,
+    closeElementMenu,
+    closeAnimationMenu,
+    handleElementContextMenu,
+    handleAnimationContextMenu,
+    handleConvertToMso,
+    handleConvertToSingle,
+    handleAddMoveAnimation,
+    handleDeleteAnimation
+  } = useCanvasContextMenus({
+    addMoveAnimation,
+    convertToMultiSlideObject,
+    convertToSingleAppearance,
+    removeAnimation,
+    selectAnimation
+  })
   useEffect(() => {
     const el = outerRef.current
     if (!el) return
@@ -286,39 +294,6 @@ export function SlideCanvas(): React.JSX.Element {
     updateGradientPreview
   ])
 
-  const handleElementContextMenu = useCallback(
-    (masterId: string, appearanceId: string, e: React.MouseEvent) => {
-      e.preventDefault()
-      setAnimationContextMenu(null)
-      setContextMenu({ x: e.clientX, y: e.clientY, masterId, appearanceId })
-    },
-    []
-  )
-
-  const handleConvertToMso = useCallback(() => {
-    if (!contextMenu) return
-    convertToMultiSlideObject(contextMenu.masterId)
-    setContextMenu(null)
-  }, [contextMenu, convertToMultiSlideObject])
-
-  const handleConvertToSingle = useCallback(() => {
-    if (!contextMenu) return
-    convertToSingleAppearance(contextMenu.appearanceId)
-    setContextMenu(null)
-  }, [contextMenu, convertToSingleAppearance])
-
-  const handleAddMoveAnimation = useCallback(() => {
-    if (!contextMenu) return
-    addMoveAnimation(contextMenu.appearanceId)
-    setContextMenu(null)
-  }, [addMoveAnimation, contextMenu])
-
-  const handleDeleteAnimation = useCallback(() => {
-    if (!animationContextMenu) return
-    removeAnimation(animationContextMenu.animationId)
-    setAnimationContextMenu(null)
-  }, [animationContextMenu, removeAnimation])
-
   const handleOuterMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && isSpaceDownRef.current)) {
       e.preventDefault()
@@ -335,11 +310,10 @@ export function SlideCanvas(): React.JSX.Element {
 
   const handleAnimationGhostMouseDownWithMenus = useCallback(
     (animationId: string, delta: Position, e: React.MouseEvent) => {
-      setContextMenu(null)
-      setAnimationContextMenu(null)
+      closeAllMenus()
       handleAnimationGhostMouseDown(animationId, delta, e)
     },
-    [handleAnimationGhostMouseDown]
+    [closeAllMenus, handleAnimationGhostMouseDown]
   )
 
   const handleAnimationSelect = useCallback(
@@ -347,17 +321,6 @@ export function SlideCanvas(): React.JSX.Element {
       e.preventDefault()
       e.stopPropagation()
       selectAnimation(animationId)
-    },
-    [selectAnimation]
-  )
-
-  const handleAnimationContextMenu = useCallback(
-    (animationId: string, e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      selectAnimation(animationId)
-      setAnimationContextMenu({ x: e.clientX, y: e.clientY, animationId })
-      setContextMenu(null)
     },
     [selectAnimation]
   )
@@ -527,39 +490,21 @@ export function SlideCanvas(): React.JSX.Element {
           </div>
         )}
       </div>
-      {contextMenu && (
-        <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
-          <ContextMenuItem
-            submenu={
-              <>
-                <ContextMenuItem onClick={handleAddMoveAnimation}>Move</ContextMenuItem>
-                <ContextMenuItem disabled>Scale</ContextMenuItem>
-                <ContextMenuItem disabled>Rotate</ContextMenuItem>
-              </>
-            }
-          >
-            Add animation
-          </ContextMenuItem>
-          {document?.mastersById[contextMenu.masterId]?.isMultiSlideObject ? (
-            <ContextMenuItem onClick={handleConvertToSingle}>
-              Convert to Single Appearance
-            </ContextMenuItem>
-          ) : (
-            <ContextMenuItem onClick={handleConvertToMso}>
-              Convert to Multi Slide Object
-            </ContextMenuItem>
-          )}
-        </ContextMenu>
-      )}
-      {animationContextMenu && (
-        <ContextMenu
-          x={animationContextMenu.x}
-          y={animationContextMenu.y}
-          onClose={() => setAnimationContextMenu(null)}
-        >
-          <ContextMenuItem onClick={handleDeleteAnimation}>Delete animation</ContextMenuItem>
-        </ContextMenu>
-      )}
+      <SlideCanvasContextMenus
+        elementContextMenu={elementContextMenu}
+        animationContextMenu={animationContextMenu}
+        isElementMultiSlideObject={
+          elementContextMenu
+            ? Boolean(document?.mastersById[elementContextMenu.masterId]?.isMultiSlideObject)
+            : false
+        }
+        onCloseElementMenu={closeElementMenu}
+        onCloseAnimationMenu={closeAnimationMenu}
+        onAddMoveAnimation={handleAddMoveAnimation}
+        onConvertToSingle={handleConvertToSingle}
+        onConvertToMso={handleConvertToMso}
+        onDeleteAnimation={handleDeleteAnimation}
+      />
     </>
   )
 }
