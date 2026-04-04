@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import { resolveBackgroundGrain, resolveBackgroundStyle } from '@shared/model/background'
-import { buildGrainBackgroundImage, getGrainBackgroundSize } from '@shared/model/grainCanvas'
-import { getRenderedGrainIntensity } from '@shared/model/grain'
+import { GrainCanvas } from '@viewer/components/GrainCanvas/GrainCanvas'
 import {
   isGradientFill,
   resolveLinearGradientEndpoints,
@@ -340,21 +339,7 @@ export function SlideCanvas(): React.JSX.Element {
             }}
           >
             {resolveBackgroundGrain(slide.background).enabled ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  backgroundImage: buildGrainBackgroundImage(
-                    resolveBackgroundGrain(slide.background)
-                  ),
-                  backgroundSize: getGrainBackgroundSize(resolveBackgroundGrain(slide.background)),
-                  mixBlendMode: resolveBackgroundGrain(slide.background).blendMode,
-                  opacity: getRenderedGrainIntensity(
-                    resolveBackgroundGrain(slide.background).intensity
-                  ),
-                  pointerEvents: 'none'
-                }}
-              />
+              <GrainCanvas grain={resolveBackgroundGrain(slide.background)} />
             ) : null}
             {renderedAppearances.map((renderedAppearance) => {
               const { appearance, master, visible, opacity, transform } = renderedAppearance

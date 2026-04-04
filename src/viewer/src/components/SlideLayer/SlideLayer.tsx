@@ -2,8 +2,7 @@ import React from 'react'
 import type { RenderedSlide, RenderedAppearance } from '@shared/animation/types'
 import { SLIDE_WIDTH, SLIDE_HEIGHT } from '@shared/model/types'
 import { resolveBackgroundGrain, resolveBackgroundStyle } from '@shared/model/background'
-import { getRenderedGrainIntensity } from '@shared/model/grain'
-import { buildGrainBackgroundImage, getGrainBackgroundSize } from '@shared/model/grainCanvas'
+import { GrainCanvas } from '../GrainCanvas/GrainCanvas'
 import { TextElementRenderer } from '../TextElementRenderer/TextElementRenderer'
 import { ImageElementRenderer } from '../ImageElementRenderer/ImageElementRenderer'
 import { ShapeElementRenderer } from '../ShapeElementRenderer/ShapeElementRenderer'
@@ -37,19 +36,7 @@ export function SlideLayer({ renderedSlide, style }: SlideLayerProps): React.JSX
         ...style
       }}
     >
-      {grain.enabled ? (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: buildGrainBackgroundImage(grain),
-            backgroundSize: getGrainBackgroundSize(grain),
-            mixBlendMode: grain.blendMode,
-            opacity: getRenderedGrainIntensity(grain.intensity),
-            pointerEvents: 'none'
-          }}
-        />
-      ) : null}
+      {grain.enabled ? <GrainCanvas grain={grain} /> : null}
       {appearances.map(renderAppearance)}
     </div>
   )
