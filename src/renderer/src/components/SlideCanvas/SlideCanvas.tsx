@@ -11,7 +11,7 @@ import {
   resolveLinearGradientEndpoints,
   setLinearGradientEndpoints
 } from '@shared/model/fill'
-import type { LinearGradientFill, Position, Transform } from '@shared/model/types'
+import type { LinearGradientFill, Position } from '@shared/model/types'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
@@ -30,28 +30,14 @@ import { ImageView } from './ImageView'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
+import { useElementTransformInteraction } from './useElementTransformInteraction'
 import styles from './SlideCanvas.module.css'
 
 type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotation'
 
-interface HandleDragData {
-  handle: HandleType
-  masterId: string
-  startSlideX: number
-  startSlideY: number
-  originalTransform: Transform
-}
-
 const HANDLE_PX = 8 // handle square size in screen pixels
 const ROT_LINE_PX = 32 // rotation arm length in screen pixels
 const ROT_HANDLE_PX = 6 // rotation handle radius in screen pixels
-
-interface DragData {
-  masterId: string
-  startClientX: number
-  startClientY: number
-  originalTransform: Transform
-}
 
 interface GradientDragData {
   masterId: string
@@ -101,60 +87,6 @@ function getResizeCursor(handle: HandleType, rotation: number): string {
   return cursors[Math.round((visual % 180) / 45) % 4]
 }
 
-// Computes new Transform from a handle drag to mouse position (slide coordinates)
-function computeResizeTransform(
-  handle: HandleType,
-  orig: Transform,
-  slideX: number,
-  slideY: number
-): Partial<Transform> {
-  const { x, y, width, height, rotation } = orig
-  const hw = width / 2
-  const hh = height / 2
-  const cx = x + hw
-  const cy = y + hh
-  const θ = (rotation * Math.PI) / 180
-  const cosθ = Math.cos(θ)
-  const sinθ = Math.sin(θ)
-
-  // Anchor offset from center in local space (opposite corner/edge)
-  const anchorOffsets: Record<HandleType, [number, number]> = {
-    tl: [hw, hh],
-    tc: [0, hh],
-    tr: [-hw, hh],
-    ml: [hw, 0],
-    mr: [-hw, 0],
-    bl: [hw, -hh],
-    bc: [0, -hh],
-    br: [-hw, -hh],
-    rotation: [0, 0]
-  }
-  const [ax, ay] = anchorOffsets[handle]
-
-  // Anchor in slide space
-  const anchorX = cx + ax * cosθ - ay * sinθ
-  const anchorY = cy + ax * sinθ + ay * cosθ
-
-  // New center = midpoint of anchor and mouse
-  const ncx = (anchorX + slideX) / 2
-  const ncy = (anchorY + slideY) / 2
-
-  // Mouse–center vector rotated into local space
-  const dvx = slideX - ncx
-  const dvy = slideY - ncy
-  const dlx = dvx * cosθ + dvy * sinθ
-  const dly = -dvx * sinθ + dvy * cosθ
-
-  const MIN = 4
-  const isHEdge = handle === 'tc' || handle === 'bc'
-  const isVEdge = handle === 'ml' || handle === 'mr'
-
-  const nhw = isHEdge ? hw : Math.max(MIN / 2, Math.abs(dlx))
-  const nhh = isVEdge ? hh : Math.max(MIN / 2, Math.abs(dly))
-
-  return { x: ncx - nhw, y: ncy - nhh, width: nhw * 2, height: nhh * 2 }
-}
-
 function getOverlayEndpoints(
   width: number,
   height: number,
@@ -182,12 +114,12 @@ export function SlideCanvas(): React.JSX.Element {
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const selectedAnimationId = useDocumentStore((s) => s.ui.selectedAnimationId)
-  const moveElement = useDocumentStore((s) => s.moveElement)
   const selectElements = useDocumentStore((s) => s.selectElements)
   const selectAnimation = useDocumentStore((s) => s.selectAnimation)
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
   const updateObjectFill = useDocumentStore((s) => s.updateObjectFill)
   const updateSlideBackgroundFill = useDocumentStore((s) => s.updateSlideBackgroundFill)
+  const moveElement = useDocumentStore((s) => s.moveElement)
   const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
@@ -213,7 +145,6 @@ export function SlideCanvas(): React.JSX.Element {
   const offsetY = fitOffsetY + userPan.y
 
   // Stable refs so event handlers never go stale
-  const dragRef = useRef<DragData | null>(null)
   const gradientDragRef = useRef<GradientDragData | null>(null)
   const backgroundGradientDragRef = useRef<BackgroundGradientDragData | null>(null)
   const panDragRef = useRef<{
@@ -222,14 +153,11 @@ export function SlideCanvas(): React.JSX.Element {
     startPanX: number
     startPanY: number
   } | null>(null)
-  const handleDragRef = useRef<HandleDragData | null>(null)
   const isSpaceDownRef = useRef(false)
   const scaleRef = useRef(scale)
-  const moveElementRef = useRef(moveElement)
   const setPreviewPatchRef = useRef(setPreviewPatch)
   const updateObjectFillRef = useRef(updateObjectFill)
   const updateSlideBackgroundFillRef = useRef(updateSlideBackgroundFill)
-  const updateMasterTransformRef = useRef(updateMasterTransform)
   const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
 
@@ -237,10 +165,6 @@ export function SlideCanvas(): React.JSX.Element {
     scaleRef.current = scale
     zoomStateRef.current = { fitScale, fitOffsetX, fitOffsetY, userZoom, userPan }
   })
-
-  useEffect(() => {
-    moveElementRef.current = moveElement
-  }, [moveElement])
 
   useEffect(() => {
     setPreviewPatchRef.current = setPreviewPatch
@@ -254,10 +178,6 @@ export function SlideCanvas(): React.JSX.Element {
     updateSlideBackgroundFillRef.current = updateSlideBackgroundFill
   }, [updateSlideBackgroundFill])
 
-  useEffect(() => {
-    updateMasterTransformRef.current = updateMasterTransform
-  }, [updateMasterTransform])
-
   const { ghostPreview, handleAnimationGhostMouseDown, updateGhostDragPreview, commitGhostDrag } =
     useAnimationGhostDrag({
       isSpaceDownRef,
@@ -266,6 +186,23 @@ export function SlideCanvas(): React.JSX.Element {
       selectedAnimationGroup,
       updateAnimationMoveDelta
     })
+
+  const {
+    draggingMasterId,
+    handleElementMouseDown,
+    handleHandleMouseDown,
+    updateElementTransformPreview,
+    commitElementTransform
+  } = useElementTransformInteraction({
+    document,
+    isSpaceDownRef,
+    scaleRef,
+    slideRef,
+    moveElement,
+    selectElements,
+    setPreviewPatch,
+    updateMasterTransform
+  })
 
   // Wheel: pinch / Ctrl+scroll = zoom around cursor, plain scroll = pan
   useEffect(() => {
@@ -294,7 +231,12 @@ export function SlideCanvas(): React.JSX.Element {
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [])
+  }, [
+    commitElementTransform,
+    commitGhostDrag,
+    updateElementTransformPreview,
+    updateGhostDragPreview
+  ])
 
   // Keyboard: Cmd+0 resets view, Space enables pan mode
   useEffect(() => {
@@ -340,8 +282,6 @@ export function SlideCanvas(): React.JSX.Element {
     y: number
     animationId: string
   } | null>(null)
-  const [draggingMasterId, setDraggingMasterId] = useState<string | null>(null)
-
   useEffect(() => {
     const el = outerRef.current
     if (!el) return
@@ -367,59 +307,11 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
-      const handleDrag = handleDragRef.current
-      const slideEl = slideRef.current
-      if (handleDrag && slideEl) {
-        const slideRect = slideEl.getBoundingClientRect()
-        const slideX = (e.clientX - slideRect.left) / scaleRef.current
-        const slideY = (e.clientY - slideRect.top) / scaleRef.current
-
-        if (handleDrag.handle === 'rotation') {
-          const cx = handleDrag.originalTransform.x + handleDrag.originalTransform.width / 2
-          const cy = handleDrag.originalTransform.y + handleDrag.originalTransform.height / 2
-          const startAngle = Math.atan2(handleDrag.startSlideY - cy, handleDrag.startSlideX - cx)
-          const currentAngle = Math.atan2(slideY - cy, slideX - cx)
-          const delta = (currentAngle - startAngle) * (180 / Math.PI)
-          setPreviewPatchRef.current({
-            masterId: handleDrag.masterId,
-            transform: {
-              ...handleDrag.originalTransform,
-              rotation: handleDrag.originalTransform.rotation + delta
-            }
-          })
-        } else {
-          setPreviewPatchRef.current({
-            masterId: handleDrag.masterId,
-            transform: {
-              ...handleDrag.originalTransform,
-              ...computeResizeTransform(
-                handleDrag.handle,
-                handleDrag.originalTransform,
-                slideX,
-                slideY
-              )
-            }
-          })
-        }
+      if (updateElementTransformPreview(e)) {
         return
       }
 
       if (updateGhostDragPreview(e)) {
-        return
-      }
-
-      const drag = dragRef.current
-      if (drag) {
-        const dx = (e.clientX - drag.startClientX) / scaleRef.current
-        const dy = (e.clientY - drag.startClientY) / scaleRef.current
-        setPreviewPatchRef.current({
-          masterId: drag.masterId,
-          transform: {
-            ...drag.originalTransform,
-            x: drag.originalTransform.x + dx,
-            y: drag.originalTransform.y + dy
-          }
-        })
         return
       }
 
@@ -469,47 +361,7 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
-      const handleDrag = handleDragRef.current
-      if (handleDrag && slideRef.current) {
-        const slideRect = slideRef.current.getBoundingClientRect()
-        const slideX = (e.clientX - slideRect.left) / scaleRef.current
-        const slideY = (e.clientY - slideRect.top) / scaleRef.current
-
-        let newTransform: Partial<Transform>
-        if (handleDrag.handle === 'rotation') {
-          const cx = handleDrag.originalTransform.x + handleDrag.originalTransform.width / 2
-          const cy = handleDrag.originalTransform.y + handleDrag.originalTransform.height / 2
-          const startAngle = Math.atan2(handleDrag.startSlideY - cy, handleDrag.startSlideX - cx)
-          const currentAngle = Math.atan2(slideY - cy, slideX - cx)
-          const delta = (currentAngle - startAngle) * (180 / Math.PI)
-          newTransform = { rotation: handleDrag.originalTransform.rotation + delta }
-        } else {
-          newTransform = computeResizeTransform(
-            handleDrag.handle,
-            handleDrag.originalTransform,
-            slideX,
-            slideY
-          )
-        }
-
-        updateMasterTransformRef.current(handleDrag.masterId, newTransform)
-        setPreviewPatchRef.current(null)
-        handleDragRef.current = null
-        return
-      }
-
-      const drag = dragRef.current
-      if (drag) {
-        const dx = (e.clientX - drag.startClientX) / scaleRef.current
-        const dy = (e.clientY - drag.startClientY) / scaleRef.current
-        moveElementRef.current(
-          drag.masterId,
-          drag.originalTransform.x + dx,
-          drag.originalTransform.y + dy
-        )
-        setPreviewPatchRef.current(null)
-        dragRef.current = null
-        setDraggingMasterId(null)
+      if (commitElementTransform(e)) {
         return
       }
 
@@ -615,26 +467,6 @@ export function SlideCanvas(): React.JSX.Element {
     }
   }, [])
 
-  const handleElementMouseDown = useCallback(
-    (masterId: string, e: React.MouseEvent) => {
-      if (isSpaceDownRef.current) return
-      // Read the original (unpatched) transform as the drag start position
-      const master = document?.mastersById[masterId]
-      if (!master) return
-      e.preventDefault()
-      e.stopPropagation()
-      selectElements([masterId])
-      dragRef.current = {
-        masterId,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        originalTransform: { ...master.transform }
-      }
-      setDraggingMasterId(masterId)
-    },
-    [document, selectElements]
-  )
-
   const handleAnimationGhostMouseDownWithMenus = useCallback(
     (animationId: string, delta: Position, e: React.MouseEvent) => {
       setContextMenu(null)
@@ -701,27 +533,6 @@ export function SlideCanvas(): React.JSX.Element {
       }
     },
     []
-  )
-
-  const handleHandleMouseDown = useCallback(
-    (handle: HandleType, masterId: string, e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      const master = document?.mastersById[masterId]
-      if (!master) return
-      const slideEl = slideRef.current
-      if (!slideEl) return
-      const slideRect = slideEl.getBoundingClientRect()
-      const currentScale = scaleRef.current
-      handleDragRef.current = {
-        handle,
-        masterId,
-        startSlideX: (e.clientX - slideRect.left) / currentScale,
-        startSlideY: (e.clientY - slideRect.top) / currentScale,
-        originalTransform: { ...master.transform }
-      }
-    },
-    [document]
   )
 
   const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
