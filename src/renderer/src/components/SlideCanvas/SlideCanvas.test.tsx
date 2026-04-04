@@ -435,7 +435,7 @@ describe('SlideCanvas', () => {
     expect(container.querySelectorAll('path').length).toBeGreaterThan(1)
   })
 
-  it('renders one move ghost and path segment per move step in the chain', () => {
+  it('renders one move ghost per step and only the selected path with earlier dashed history', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
     const appearanceId = pres.slidesById[slideId].appearanceIds[0]
@@ -462,7 +462,7 @@ describe('SlideCanvas', () => {
       target: { kind: 'appearance', appearanceId }
     }
 
-    mockStore(slideId, pres, [], 'move-1')
+    mockStore(slideId, pres, [], 'move-2')
     render(<SlideCanvas />)
 
     const ghosts = screen.getAllByTestId('animation-ghost')
@@ -513,6 +513,58 @@ describe('SlideCanvas', () => {
     expect(paths[1].getAttribute('class')).toMatch(/animationPathSelected/)
   })
 
+  it('renders active path points and bezier handles for the selected move step only', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 10, y: -20 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            {
+              id: 'mid',
+              position: { x: 35, y: -10 },
+              type: 'bezier',
+              inHandle: { x: 20, y: 10 },
+              outHandle: { x: 45, y: -20 }
+            },
+            { id: 'end', position: { x: 10, y: -20 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-2')
+    render(<SlideCanvas />)
+
+    expect(screen.getAllByTestId('animation-path-point')).toHaveLength(3)
+    expect(screen.getAllByTestId('animation-path-handle')).toHaveLength(2)
+    expect(screen.getAllByTestId('animation-path-handle-line')).toHaveLength(2)
+  })
+
   it('selects the animation when clicking the move ghost or path', async () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -559,7 +611,7 @@ describe('SlideCanvas', () => {
     expect(selectAnimation).toHaveBeenCalledWith('move-1')
   })
 
-  it('selects the matching move step when clicking a downstream path segment', async () => {
+  it('selects the matching move step when clicking an earlier history path segment', async () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
     const appearanceId = pres.slidesById[slideId].appearanceIds[0]
@@ -591,7 +643,7 @@ describe('SlideCanvas', () => {
       return selector({
         document: pres,
         previewPatch: null,
-        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-2' },
         moveElement: vi.fn(),
         selectElements: vi.fn(),
         selectAnimation,
@@ -609,9 +661,9 @@ describe('SlideCanvas', () => {
 
     render(<SlideCanvas />)
 
-    await userEvent.click(screen.getAllByTestId('animation-path')[1])
+    await userEvent.click(screen.getAllByTestId('animation-path')[0])
 
-    expect(selectAnimation).toHaveBeenCalledWith('move-2')
+    expect(selectAnimation).toHaveBeenCalledWith('move-1')
   })
 
   it('updates the move delta when dragging the ghost', () => {

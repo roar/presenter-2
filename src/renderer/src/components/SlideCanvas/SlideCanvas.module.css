@@ -38,6 +38,30 @@
   stroke-dasharray: none;
 }
 
+.animationPathHandleLine {
+  stroke: color-mix(in srgb, white 55%, var(--accent));
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.animationPathHandle {
+  fill: color-mix(in srgb, white 72%, var(--accent));
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.animationPathPoint {
+  fill: color-mix(in srgb, white 92%, var(--surface, white));
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.animationPathPointEndpoint {
+  fill: color-mix(in srgb, white 96%, var(--surface, white));
+}
+
 .animationGhost {
   position: absolute;
   cursor: grab;

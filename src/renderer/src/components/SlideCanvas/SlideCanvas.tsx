@@ -18,7 +18,9 @@ import {
   selectSelectedAnimationGroup
 } from '../../store/documentStore'
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
+import { AnimationPathOverlay } from './AnimationPathOverlay'
 import { buildMoveChainStates } from '../../store/animationCanvasModel'
+import { getAnimationOverlayMetrics } from './animationOverlayMetrics'
 import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
 import { SlideCanvasObject } from './SlideCanvasObject'
 import { useCanvasContextMenus } from './useCanvasContextMenus'
@@ -377,6 +379,10 @@ export function SlideCanvas(): React.JSX.Element {
         }))
       : []
   const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
+  const selectedGroupOverlayMetrics =
+    selectedGroupRenderedAppearance && selectedGroupMaster
+      ? getAnimationOverlayMetrics(selectedGroupMaster, selectedGroupRenderedAppearance)
+      : null
 
   return (
     <>
@@ -478,15 +484,28 @@ export function SlideCanvas(): React.JSX.Element {
             {selectedGroupMoveAnimation &&
             selectedGroupRenderedAppearance &&
             selectedGroupMaster ? (
-              <AnimationCanvasOverlay
-                master={selectedGroupMaster}
-                renderedAppearance={selectedGroupRenderedAppearance}
-                moveChainStates={moveChainStates}
-                selectedAnimationId={selectedAnimationId}
-                onSelect={handleAnimationSelect}
-                onContextMenu={handleAnimationContextMenu}
-                onGhostMouseDown={handleAnimationGhostMouseDownWithMenus}
-              />
+              <>
+                {selectedGroupOverlayMetrics ? (
+                  <AnimationPathOverlay
+                    baseLeft={selectedGroupOverlayMetrics.baseLeft}
+                    baseTop={selectedGroupOverlayMetrics.baseTop}
+                    ghostWidth={selectedGroupOverlayMetrics.ghostWidth}
+                    ghostHeight={selectedGroupOverlayMetrics.ghostHeight}
+                    moveCanvasSelection={selectedAnimationGroup.moveCanvasSelection}
+                    onSelect={handleAnimationSelect}
+                    onContextMenu={handleAnimationContextMenu}
+                  />
+                ) : null}
+                <AnimationCanvasOverlay
+                  master={selectedGroupMaster}
+                  renderedAppearance={selectedGroupRenderedAppearance}
+                  moveChainStates={moveChainStates}
+                  selectedAnimationId={selectedAnimationId}
+                  onSelect={handleAnimationSelect}
+                  onContextMenu={handleAnimationContextMenu}
+                  onGhostMouseDown={handleAnimationGhostMouseDownWithMenus}
+                />
+              </>
             ) : null}
           </div>
         )}
