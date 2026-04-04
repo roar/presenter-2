@@ -82,6 +82,7 @@ interface PropertiesPanelProps {
   onSlideBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void
   onSlideBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void
   onSlideBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void
+  onResetSlideBackground?: (slideId: SlideId) => void
   onPresentationDefaultBackgroundFillChange?: (fill: Fill | undefined) => void
   onPresentationDefaultBackgroundGrainChange?: (grain: Partial<GrainEffect>) => void
   onObjectTransformChange?: (masterId: string, transform: Partial<Transform>) => void
@@ -539,10 +540,17 @@ function buildSlideSection(
   onBackgroundColorChange?: (slideId: SlideId, color: Color | undefined) => void,
   onBackgroundFillChange?: (slideId: SlideId, fill: Fill | undefined) => void,
   onBackgroundGrainChange?: (slideId: SlideId, grain: Partial<GrainEffect>) => void,
+  onResetSlideBackground?: (slideId: SlideId) => void,
   onNameColorConstant?: (value: string, name: string) => ColorConstantId | null
 ): SectionDefinition {
   const transition = slide.transition ?? DEFAULT_TRANSITION
   const trigger: SlideTransitionTrigger = slide.transitionTriggerId ? 'on-click' : 'none'
+  const hasDefaultBackground = document?.defaultBackground != null
+  const slideHasOwnBackground =
+    slide.background.color != null ||
+    slide.background.fill != null ||
+    slide.background.grain != null ||
+    slide.background.image != null
   const backgroundFill = getBackgroundFill(slide.background)
   const fillType = getFillType(backgroundFill)
   const grain = resolveGrainEffect(slide.background.grain)
@@ -673,6 +681,11 @@ function buildSlideSection(
                 onChange={(nextGrain) => onBackgroundGrainChange?.(slide.id, nextGrain)}
               />
             </div>
+            {hasDefaultBackground && slideHasOwnBackground ? (
+              <Button variant="secondary" onClick={() => onResetSlideBackground?.(slide.id)}>
+                Use presentation default
+              </Button>
+            ) : null}
           </div>
           <div className={styles.cardRows}>
             <PropertyRow label="Image" value={slide.background.image} />
@@ -1259,6 +1272,7 @@ export function PropertiesPanel({
   onSlideBackgroundColorChange,
   onSlideBackgroundFillChange,
   onSlideBackgroundGrainChange,
+  onResetSlideBackground,
   onPresentationDefaultBackgroundFillChange,
   onPresentationDefaultBackgroundGrainChange,
   onObjectTransformChange,
@@ -1315,6 +1329,7 @@ export function PropertiesPanel({
             onSlideBackgroundColorChange,
             onSlideBackgroundFillChange,
             onSlideBackgroundGrainChange,
+            onResetSlideBackground,
             onNameColorConstant
           )
         )
@@ -1408,6 +1423,7 @@ export function PropertiesPanel({
     onSlideBackgroundColorChange,
     onSlideBackgroundFillChange,
     onSlideBackgroundGrainChange,
+    onResetSlideBackground,
     onPresentationDefaultBackgroundFillChange,
     onPresentationDefaultBackgroundGrainChange,
     onSlideTransitionEasingChange,
