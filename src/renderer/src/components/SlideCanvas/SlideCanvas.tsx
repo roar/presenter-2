@@ -93,24 +93,45 @@ export function SlideCanvas(): React.JSX.Element {
   const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
 
   const outerRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
-  const [offsetX, setOffsetX] = useState(0)
-  const [offsetY, setOffsetY] = useState(0)
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+  const [userZoom, setUserZoom] = useState(1)
+  const [userPan, setUserPan] = useState({ x: 0, y: 0 })
+  const [isSpaceDown, setIsSpaceDown] = useState(false)
+  const [isPanning, setIsPanning] = useState(false)
+
+  const fitScale =
+    containerSize.width > 0
+      ? Math.min(containerSize.width / SLIDE_WIDTH, containerSize.height / SLIDE_HEIGHT)
+      : 1
+  const scale = fitScale * userZoom
+  const fitOffsetX = (containerSize.width - SLIDE_WIDTH * fitScale) / 2
+  const fitOffsetY = (containerSize.height - SLIDE_HEIGHT * fitScale) / 2
+  const offsetX = fitOffsetX + userPan.x
+  const offsetY = fitOffsetY + userPan.y
 
   // Stable refs so event handlers never go stale
   const dragRef = useRef<DragData | null>(null)
   const gradientDragRef = useRef<GradientDragData | null>(null)
   const backgroundGradientDragRef = useRef<BackgroundGradientDragData | null>(null)
+  const panDragRef = useRef<{
+    startX: number
+    startY: number
+    startPanX: number
+    startPanY: number
+  } | null>(null)
+  const isSpaceDownRef = useRef(false)
   const scaleRef = useRef(scale)
   const moveElementRef = useRef(moveElement)
   const setPreviewPatchRef = useRef(setPreviewPatch)
   const updateObjectFillRef = useRef(updateObjectFill)
   const updateSlideBackgroundFillRef = useRef(updateSlideBackgroundFill)
+  const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     scaleRef.current = scale
-  }, [scale])
+    zoomStateRef.current = { fitScale, fitOffsetX, fitOffsetY, userZoom, userPan }
+  })
 
   useEffect(() => {
     moveElementRef.current = moveElement
@@ -128,6 +149,68 @@ export function SlideCanvas(): React.JSX.Element {
     updateSlideBackgroundFillRef.current = updateSlideBackgroundFill
   }, [updateSlideBackgroundFill])
 
+  // Wheel: pinch / Ctrl+scroll = zoom around cursor, plain scroll = pan
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent): void => {
+      e.preventDefault()
+      const { fitScale, fitOffsetX, fitOffsetY, userZoom, userPan } = zoomStateRef.current
+      const rect = el.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+      if (e.ctrlKey || e.metaKey) {
+        const factor = Math.pow(1.001, -e.deltaY)
+        const oldScale = fitScale * userZoom
+        const newScale = Math.max(0.05, Math.min(8, oldScale * factor))
+        const newUserZoom = newScale / fitScale
+        const ratio = newScale / oldScale
+        setUserZoom(newUserZoom)
+        setUserPan({
+          x: mouseX - (mouseX - (fitOffsetX + userPan.x)) * ratio - fitOffsetX,
+          y: mouseY - (mouseY - (fitOffsetY + userPan.y)) * ratio - fitOffsetY
+        })
+      } else {
+        setUserPan((prev) => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }))
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // Keyboard: Cmd+0 resets view, Space enables pan mode
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+        e.preventDefault()
+        setUserZoom(1)
+        setUserPan({ x: 0, y: 0 })
+      }
+      if (
+        e.code === 'Space' &&
+        !e.repeat &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault()
+        isSpaceDownRef.current = true
+        setIsSpaceDown(true)
+      }
+    }
+    const onKeyUp = (e: KeyboardEvent): void => {
+      if (e.code === 'Space') {
+        isSpaceDownRef.current = false
+        setIsSpaceDown(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
+
   const [contextMenu, setContextMenu] = useState<{
     x: number
     y: number
@@ -142,10 +225,7 @@ export function SlideCanvas(): React.JSX.Element {
 
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect
-      const s = Math.min(width / SLIDE_WIDTH, height / SLIDE_HEIGHT)
-      setScale(s)
-      setOffsetX((width - SLIDE_WIDTH * s) / 2)
-      setOffsetY((height - SLIDE_HEIGHT * s) / 2)
+      setContainerSize({ width, height })
     })
 
     observer.observe(el)
@@ -155,6 +235,15 @@ export function SlideCanvas(): React.JSX.Element {
   // Stable global handlers — mounted once, read everything from refs
   useEffect(() => {
     function onMouseMove(e: MouseEvent): void {
+      const panDrag = panDragRef.current
+      if (panDrag) {
+        setUserPan({
+          x: panDrag.startPanX + (e.clientX - panDrag.startX),
+          y: panDrag.startPanY + (e.clientY - panDrag.startY)
+        })
+        return
+      }
+
       const drag = dragRef.current
       if (drag) {
         const dx = (e.clientX - drag.startClientX) / scaleRef.current
@@ -210,6 +299,12 @@ export function SlideCanvas(): React.JSX.Element {
     }
 
     function onMouseUp(e: MouseEvent): void {
+      if (panDragRef.current) {
+        panDragRef.current = null
+        setIsPanning(false)
+        return
+      }
+
       const drag = dragRef.current
       if (drag) {
         const dx = (e.clientX - drag.startClientX) / scaleRef.current
@@ -302,8 +397,23 @@ export function SlideCanvas(): React.JSX.Element {
     setContextMenu(null)
   }, [addMoveAnimation, contextMenu])
 
+  const handleOuterMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && isSpaceDownRef.current)) {
+      e.preventDefault()
+      const { userPan } = zoomStateRef.current
+      panDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPanX: userPan.x,
+        startPanY: userPan.y
+      }
+      setIsPanning(true)
+    }
+  }, [])
+
   const handleElementMouseDown = useCallback(
     (masterId: string, e: React.MouseEvent) => {
+      if (isSpaceDownRef.current) return
       // Read the original (unpatched) transform as the drag start position
       const master = document?.mastersById[masterId]
       if (!master) return
@@ -382,7 +492,12 @@ export function SlideCanvas(): React.JSX.Element {
 
   return (
     <>
-      <div ref={outerRef} className={styles.outer}>
+      <div
+        ref={outerRef}
+        className={styles.outer}
+        style={{ cursor: isPanning ? 'grabbing' : isSpaceDown ? 'grab' : undefined }}
+        onMouseDown={handleOuterMouseDown}
+      >
         {slide != null && patchedPresentation != null && (
           <div
             ref={slideRef}
