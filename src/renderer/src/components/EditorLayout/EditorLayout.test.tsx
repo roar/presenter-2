@@ -25,17 +25,19 @@ vi.mock('@shared/model/grainCanvas', () => ({
 
 vi.mock('../Toolbar/Toolbar', () => ({ Toolbar: () => <div data-testid="toolbar" /> }))
 vi.mock('../SlideCanvas/SlideCanvas', () => ({
-  SlideCanvas: () => <div data-testid="canvas" />
-}))
-vi.mock('../../../../viewer/src/components/SlideRenderer/SlideRenderer', () => ({
-  SlideRenderer: ({
-    frame
+  SlideCanvas: ({
+    previewFrame
   }: {
-    frame: { front: { slide: { id: string }; appearances: Array<{ transform: string }> } }
+    previewFrame?: {
+      front: { slide: { id: string }; appearances: Array<{ transform: string }> }
+    } | null
   }) => (
-    <div data-testid="slide-renderer">
-      {frame.front.slide.id}:
-      {frame.front.appearances.map((appearance) => appearance.transform).join('|')}
+    <div data-testid="canvas">
+      {previewFrame
+        ? `${previewFrame.front.slide.id}:${previewFrame.front.appearances
+            .map((appearance) => appearance.transform)
+            .join('|')}`
+        : 'static'}
     </div>
   )
 }))
@@ -587,7 +589,7 @@ describe('EditorLayout', () => {
     render(<EditorLayout />)
 
     expect(screen.getByTestId('canvas')).toBeInTheDocument()
-    expect(screen.queryByTestId('slide-renderer')).not.toBeInTheDocument()
+    expect(screen.getByTestId('canvas')).toHaveTextContent('static')
 
     const timelineRoot = screen.getByTestId('timeline-root')
     Object.defineProperty(timelineRoot, 'getBoundingClientRect', {
@@ -608,8 +610,7 @@ describe('EditorLayout', () => {
     await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
     fireEvent.mouseMove(timelineRoot, { clientX: 400, clientY: 40 })
 
-    expect(screen.queryByTestId('canvas')).not.toBeInTheDocument()
-    expect(screen.getByTestId('slide-renderer')).toHaveTextContent(
+    expect(screen.getByTestId('canvas')).toHaveTextContent(
       /translate\(100px, 0px\)|translate\(99\.9+px, 0px\)/
     )
   })

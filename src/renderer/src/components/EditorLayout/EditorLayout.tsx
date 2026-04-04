@@ -25,7 +25,6 @@ import {
 import { ThumbnailCard } from '../ThumbnailCard/ThumbnailCard'
 import { Toolbar } from '../Toolbar/Toolbar'
 import { getMasterDisplayName } from '../../utils/getMasterDisplayName'
-import { SlideRenderer } from '../../../../viewer/src/components/SlideRenderer/SlideRenderer'
 import styles from './EditorLayout.module.css'
 
 interface LayoutPanelProps {
@@ -560,11 +559,7 @@ export function EditorLayout(): React.JSX.Element {
               }
             >
               <div className={styles.slideCanvasContainer}>
-                {timelinePreviewFrame ? (
-                  <SlideRenderer frame={timelinePreviewFrame} />
-                ) : (
-                  <SlideCanvas />
-                )}
+                <SlideCanvas previewFrame={timelinePreviewFrame} />
               </div>
             </LayoutPanel>
             <div className={styles.centralLowerRow}>

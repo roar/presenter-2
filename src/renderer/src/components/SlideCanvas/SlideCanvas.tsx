@@ -13,6 +13,7 @@ import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
 } from '@shared/animation/computeSlideEntryStates'
+import type { FrameState, RenderedSlide } from '@shared/animation/types'
 import {
   useDocumentStore,
   selectPatchedPresentation,
@@ -32,6 +33,10 @@ import { useAnimationPathInteraction } from './useAnimationPathInteraction'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
 import styles from './SlideCanvas.module.css'
+
+interface SlideCanvasProps {
+  previewFrame?: FrameState | null
+}
 
 function getOverlayEndpoints(
   width: number,
@@ -53,7 +58,7 @@ function getOverlayEndpoints(
   }
 }
 
-export function SlideCanvas(): React.JSX.Element {
+export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JSX.Element {
   const document = useDocumentStore((s) => s.document)
   const patchedPresentation = useDocumentStore(selectPatchedPresentation)
   const selectedAnimationGroup = useDocumentStore(selectSelectedAnimationGroup)
@@ -365,7 +370,18 @@ export function SlideCanvas(): React.JSX.Element {
     [selectAnimation]
   )
 
-  const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
+  const previewRenderedSlide: RenderedSlide | null =
+    previewFrame && selectedSlideId
+      ? previewFrame.front.slide.id === selectedSlideId
+        ? previewFrame.front
+        : previewFrame.behind?.slide.id === selectedSlideId
+          ? previewFrame.behind
+          : null
+      : null
+
+  const slide =
+    previewRenderedSlide?.slide ??
+    (selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null)
   const resolvedSlideBackground =
     slide != null
       ? resolveSlideBackground(slide.background, patchedPresentation?.defaultBackground)
@@ -381,13 +397,32 @@ export function SlideCanvas(): React.JSX.Element {
     selectedSlideId != null && patchedPresentation != null
       ? patchedPresentation.slideOrder.indexOf(selectedSlideId)
       : -1
-  const renderedSlide =
+  const baseRenderedSlide =
     slideIndex >= 0 && slideIndex < allEntryStates.length ? allEntryStates[slideIndex] : null
 
-  const renderedAppearances =
-    renderedSlide != null
-      ? renderedSlide.appearances.slice().sort((a, b) => a.appearance.zIndex - b.appearance.zIndex)
-      : []
+  const renderedAppearances = (() => {
+    if (!baseRenderedSlide) return []
+    if (!previewFrame || !selectedSlideId) {
+      return baseRenderedSlide.appearances
+        .slice()
+        .sort((a, b) => a.appearance.zIndex - b.appearance.zIndex)
+    }
+
+    const previewAppearances = new Map(
+      [...(previewRenderedSlide?.appearances ?? []), ...previewFrame.msoAppearances].map(
+        (appearance) => [appearance.appearance.id, appearance]
+      )
+    )
+
+    return baseRenderedSlide.appearances
+      .map((appearance) => previewAppearances.get(appearance.appearance.id) ?? appearance)
+      .sort((a, b) => a.appearance.zIndex - b.appearance.zIndex)
+  })()
+
+  const baseRenderedAppearances =
+    baseRenderedSlide?.appearances
+      .slice()
+      .sort((a, b) => a.appearance.zIndex - b.appearance.zIndex) ?? []
 
   const selectedGroupMoveAnimation =
     selectedAnimationGroup?.slideId === selectedSlideId &&
@@ -395,9 +430,9 @@ export function SlideCanvas(): React.JSX.Element {
       ? selectedAnimationGroup.moveAnimation
       : null
 
-  const selectedGroupRenderedAppearance =
+  const selectedGroupOverlayAppearance =
     selectedAnimationGroup != null
-      ? (renderedAppearances.find(
+      ? (baseRenderedAppearances.find(
           (renderedAppearance) =>
             renderedAppearance.appearance.id === selectedAnimationGroup.appearanceId
         ) ?? null)
@@ -425,8 +460,8 @@ export function SlideCanvas(): React.JSX.Element {
       ? buildMoveCanvasSelection(moveChainSteps, selectedAnimationId, ghostPreview)
       : { historySegments: [], activeSegment: null, activePoints: [] }
   const selectedGroupOverlayMetrics =
-    selectedGroupRenderedAppearance && selectedGroupMaster
-      ? getAnimationOverlayMetrics(selectedGroupMaster, selectedGroupRenderedAppearance)
+    selectedGroupOverlayAppearance && selectedGroupMaster
+      ? getAnimationOverlayMetrics(selectedGroupMaster, selectedGroupOverlayAppearance)
       : null
 
   return (
@@ -526,9 +561,7 @@ export function SlideCanvas(): React.JSX.Element {
                 onGradientOverlayMouseDown={handleGradientOverlayMouseDown}
               />
             ))}
-            {selectedGroupMoveAnimation &&
-            selectedGroupRenderedAppearance &&
-            selectedGroupMaster ? (
+            {selectedGroupMoveAnimation && selectedGroupOverlayAppearance && selectedGroupMaster ? (
               <>
                 {selectedGroupOverlayMetrics ? (
                   <AnimationPathOverlay
@@ -547,7 +580,7 @@ export function SlideCanvas(): React.JSX.Element {
                 ) : null}
                 <AnimationCanvasOverlay
                   master={selectedGroupMaster}
-                  renderedAppearance={selectedGroupRenderedAppearance}
+                  renderedAppearance={selectedGroupOverlayAppearance}
                   moveChainStates={moveChainStates}
                   selectedAnimationId={selectedAnimationId}
                   onSelect={handleAnimationSelect}

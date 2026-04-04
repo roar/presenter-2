@@ -8,6 +8,7 @@ import {
   createPresentation,
   createSlide
 } from '@shared/model/factories'
+import type { FrameState } from '@shared/animation/types'
 import type { Presentation } from '@shared/model/types'
 import { SlideCanvas } from './SlideCanvas'
 
@@ -109,6 +110,53 @@ describe('SlideCanvas', () => {
     const { container } = render(<SlideCanvas />)
     expect(container.querySelector('svg')).not.toBeNull()
     expect(container.querySelector('path')).not.toBeNull()
+  })
+
+  it('keeps base slide objects visible when a preview frame omits some appearances', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const master2 = createMsoMaster('shape')
+    master2.transform = { x: 450, y: 100, width: 150, height: 120, rotation: 0 }
+    master2.objectStyle = {
+      defaultState: { fill: '#ff0000', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    master2.geometry = { type: 'path', pathData: 'M 0 0 L 150 0 L 150 120 L 0 120 Z' }
+    const appearance2 = createAppearance(master2.id, slideId)
+
+    pres.mastersById[master2.id] = master2
+    pres.appearancesById[appearance2.id] = appearance2
+    pres.slidesById[slideId].appearanceIds.push(appearance2.id)
+
+    mockStore(slideId, pres)
+
+    const previewFrame: FrameState = {
+      front: {
+        slide: pres.slidesById[slideId],
+        appearances: [
+          {
+            appearance: pres.appearancesById[pres.slidesById[slideId].appearanceIds[0]],
+            master:
+              pres.mastersById[
+                pres.appearancesById[pres.slidesById[slideId].appearanceIds[0]].masterId
+              ],
+            visible: true,
+            opacity: 1,
+            transform: 'translate(100px, 0px)',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      behind: null,
+      transition: null,
+      msoAppearances: []
+    }
+
+    const { container } = render(<SlideCanvas previewFrame={previewFrame} />)
+    expect(container.querySelectorAll('[data-testid="element-hitbox"]')).toHaveLength(2)
   })
 
   it('renders no shapes when slide has no appearances', () => {
@@ -412,6 +460,51 @@ describe('SlideCanvas', () => {
 
     expect(screen.getByTestId('animation-ghost')).toHaveStyle({ left: '140px', top: '180px' })
     expect(screen.getByTestId('animation-path')).toBeInTheDocument()
+  })
+
+  it('keeps ghosts and guidelines anchored while preview playback moves the object', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    const previewFrame: FrameState = {
+      front: {
+        slide: pres.slidesById[slideId],
+        appearances: [
+          {
+            appearance: pres.appearancesById[appearanceId],
+            master: pres.mastersById[pres.appearancesById[appearanceId].masterId],
+            visible: true,
+            opacity: 1,
+            transform: 'translate(100px, 0px)',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      behind: null,
+      transition: null,
+      msoAppearances: []
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    render(<SlideCanvas previewFrame={previewFrame} />)
+
+    expect(screen.getByTestId('animation-ghost')).toHaveStyle({ left: '140px', top: '180px' })
   })
 
   it('renders the ghost using the original object geometry', () => {
