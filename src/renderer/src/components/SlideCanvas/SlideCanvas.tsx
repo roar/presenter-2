@@ -25,6 +25,20 @@ import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
 import styles from './SlideCanvas.module.css'
 
+type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotation'
+
+interface HandleDragData {
+  handle: HandleType
+  masterId: string
+  startSlideX: number
+  startSlideY: number
+  originalTransform: Transform
+}
+
+const HANDLE_PX = 8 // handle square size in screen pixels
+const ROT_LINE_PX = 32 // rotation arm length in screen pixels
+const ROT_HANDLE_PX = 6 // rotation handle radius in screen pixels
+
 interface DragData {
   masterId: string
   startClientX: number
@@ -62,31 +76,76 @@ function parseRenderedTransform(transform: string): {
   }
 }
 
-function computeSelectionAabb(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  rotation: number,
-  translateX: number,
-  translateY: number,
-  renderedScale: number
-): { left: number; top: number; width: number; height: number } {
-  const w = width * renderedScale
-  const h = height * renderedScale
-  const θ = (rotation * Math.PI) / 180
-  const cosθ = Math.abs(Math.cos(θ))
-  const sinθ = Math.abs(Math.sin(θ))
-  const aabbWidth = w * cosθ + h * sinθ
-  const aabbHeight = w * sinθ + h * cosθ
-  const cx = x + width / 2 + translateX
-  const cy = y + height / 2 + translateY
-  return {
-    left: cx - aabbWidth / 2,
-    top: cy - aabbHeight / 2,
-    width: aabbWidth,
-    height: aabbHeight
+// Maps handle type + object rotation → CSS resize cursor
+function getResizeCursor(handle: HandleType, rotation: number): string {
+  const naturalAngles: Record<HandleType, number> = {
+    tl: 315,
+    tc: 270,
+    tr: 45,
+    ml: 180,
+    mr: 0,
+    bl: 225,
+    bc: 90,
+    br: 135,
+    rotation: 0
   }
+  const cursors = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']
+  const visual = (((naturalAngles[handle] + rotation) % 360) + 360) % 360
+  return cursors[Math.round((visual % 180) / 45) % 4]
+}
+
+// Computes new Transform from a handle drag to mouse position (slide coordinates)
+function computeResizeTransform(
+  handle: HandleType,
+  orig: Transform,
+  slideX: number,
+  slideY: number
+): Partial<Transform> {
+  const { x, y, width, height, rotation } = orig
+  const hw = width / 2
+  const hh = height / 2
+  const cx = x + hw
+  const cy = y + hh
+  const θ = (rotation * Math.PI) / 180
+  const cosθ = Math.cos(θ)
+  const sinθ = Math.sin(θ)
+
+  // Anchor offset from center in local space (opposite corner/edge)
+  const anchorOffsets: Record<HandleType, [number, number]> = {
+    tl: [hw, hh],
+    tc: [0, hh],
+    tr: [-hw, hh],
+    ml: [hw, 0],
+    mr: [-hw, 0],
+    bl: [hw, -hh],
+    bc: [0, -hh],
+    br: [-hw, -hh],
+    rotation: [0, 0]
+  }
+  const [ax, ay] = anchorOffsets[handle]
+
+  // Anchor in slide space
+  const anchorX = cx + ax * cosθ - ay * sinθ
+  const anchorY = cy + ax * sinθ + ay * cosθ
+
+  // New center = midpoint of anchor and mouse
+  const ncx = (anchorX + slideX) / 2
+  const ncy = (anchorY + slideY) / 2
+
+  // Mouse–center vector rotated into local space
+  const dvx = slideX - ncx
+  const dvy = slideY - ncy
+  const dlx = dvx * cosθ + dvy * sinθ
+  const dly = -dvx * sinθ + dvy * cosθ
+
+  const MIN = 4
+  const isHEdge = handle === 'tc' || handle === 'bc'
+  const isVEdge = handle === 'ml' || handle === 'mr'
+
+  const nhw = isHEdge ? hw : Math.max(MIN / 2, Math.abs(dlx))
+  const nhh = isVEdge ? hh : Math.max(MIN / 2, Math.abs(dly))
+
+  return { x: ncx - nhw, y: ncy - nhh, width: nhw * 2, height: nhh * 2 }
 }
 
 function getOverlayEndpoints(
@@ -119,6 +178,7 @@ export function SlideCanvas(): React.JSX.Element {
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
   const updateObjectFill = useDocumentStore((s) => s.updateObjectFill)
   const updateSlideBackgroundFill = useDocumentStore((s) => s.updateSlideBackgroundFill)
+  const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
   const convertToMultiSlideObject = useDocumentStore((s) => s.convertToMultiSlideObject)
   const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
@@ -150,12 +210,14 @@ export function SlideCanvas(): React.JSX.Element {
     startPanX: number
     startPanY: number
   } | null>(null)
+  const handleDragRef = useRef<HandleDragData | null>(null)
   const isSpaceDownRef = useRef(false)
   const scaleRef = useRef(scale)
   const moveElementRef = useRef(moveElement)
   const setPreviewPatchRef = useRef(setPreviewPatch)
   const updateObjectFillRef = useRef(updateObjectFill)
   const updateSlideBackgroundFillRef = useRef(updateSlideBackgroundFill)
+  const updateMasterTransformRef = useRef(updateMasterTransform)
   const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
 
@@ -179,6 +241,10 @@ export function SlideCanvas(): React.JSX.Element {
   useEffect(() => {
     updateSlideBackgroundFillRef.current = updateSlideBackgroundFill
   }, [updateSlideBackgroundFill])
+
+  useEffect(() => {
+    updateMasterTransformRef.current = updateMasterTransform
+  }, [updateMasterTransform])
 
   // Wheel: pinch / Ctrl+scroll = zoom around cursor, plain scroll = pan
   useEffect(() => {
@@ -275,6 +341,43 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
+      const handleDrag = handleDragRef.current
+      const slideEl = slideRef.current
+      if (handleDrag && slideEl) {
+        const slideRect = slideEl.getBoundingClientRect()
+        const slideX = (e.clientX - slideRect.left) / scaleRef.current
+        const slideY = (e.clientY - slideRect.top) / scaleRef.current
+
+        if (handleDrag.handle === 'rotation') {
+          const cx = handleDrag.originalTransform.x + handleDrag.originalTransform.width / 2
+          const cy = handleDrag.originalTransform.y + handleDrag.originalTransform.height / 2
+          const startAngle = Math.atan2(handleDrag.startSlideY - cy, handleDrag.startSlideX - cx)
+          const currentAngle = Math.atan2(slideY - cy, slideX - cx)
+          const delta = (currentAngle - startAngle) * (180 / Math.PI)
+          setPreviewPatchRef.current({
+            masterId: handleDrag.masterId,
+            transform: {
+              ...handleDrag.originalTransform,
+              rotation: handleDrag.originalTransform.rotation + delta
+            }
+          })
+        } else {
+          setPreviewPatchRef.current({
+            masterId: handleDrag.masterId,
+            transform: {
+              ...handleDrag.originalTransform,
+              ...computeResizeTransform(
+                handleDrag.handle,
+                handleDrag.originalTransform,
+                slideX,
+                slideY
+              )
+            }
+          })
+        }
+        return
+      }
+
       const drag = dragRef.current
       if (drag) {
         const dx = (e.clientX - drag.startClientX) / scaleRef.current
@@ -333,6 +436,35 @@ export function SlideCanvas(): React.JSX.Element {
       if (panDragRef.current) {
         panDragRef.current = null
         setIsPanning(false)
+        return
+      }
+
+      const handleDrag = handleDragRef.current
+      if (handleDrag && slideRef.current) {
+        const slideRect = slideRef.current.getBoundingClientRect()
+        const slideX = (e.clientX - slideRect.left) / scaleRef.current
+        const slideY = (e.clientY - slideRect.top) / scaleRef.current
+
+        let newTransform: Partial<Transform>
+        if (handleDrag.handle === 'rotation') {
+          const cx = handleDrag.originalTransform.x + handleDrag.originalTransform.width / 2
+          const cy = handleDrag.originalTransform.y + handleDrag.originalTransform.height / 2
+          const startAngle = Math.atan2(handleDrag.startSlideY - cy, handleDrag.startSlideX - cx)
+          const currentAngle = Math.atan2(slideY - cy, slideX - cx)
+          const delta = (currentAngle - startAngle) * (180 / Math.PI)
+          newTransform = { rotation: handleDrag.originalTransform.rotation + delta }
+        } else {
+          newTransform = computeResizeTransform(
+            handleDrag.handle,
+            handleDrag.originalTransform,
+            slideX,
+            slideY
+          )
+        }
+
+        updateMasterTransformRef.current(handleDrag.masterId, newTransform)
+        setPreviewPatchRef.current(null)
+        handleDragRef.current = null
         return
       }
 
@@ -501,6 +633,27 @@ export function SlideCanvas(): React.JSX.Element {
     []
   )
 
+  const handleHandleMouseDown = useCallback(
+    (handle: HandleType, masterId: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const master = document?.mastersById[masterId]
+      if (!master) return
+      const slideEl = slideRef.current
+      if (!slideEl) return
+      const slideRect = slideEl.getBoundingClientRect()
+      const currentScale = scaleRef.current
+      handleDragRef.current = {
+        handle,
+        masterId,
+        startSlideX: (e.clientX - slideRect.left) / currentScale,
+        startSlideY: (e.clientY - slideRect.top) / currentScale,
+        originalTransform: { ...master.transform }
+      }
+    },
+    [document]
+  )
+
   const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
   const resolvedSlideBackground =
     slide != null
@@ -648,30 +801,106 @@ export function SlideCanvas(): React.JSX.Element {
                   {master.isMultiSlideObject && (
                     <MsoIndicator x={left} y={top} width={scaledWidth} />
                   )}
-                  {selectedElementIds.includes(master.id) && (
-                    <div
-                      data-testid="selection-indicator"
-                      style={{
-                        position: 'absolute',
-                        ...computeSelectionAabb(
-                          x,
-                          y,
-                          width,
-                          height,
-                          master.transform.rotation,
-                          translateX,
-                          translateY,
-                          renderedScale
-                        ),
-                        outline: '2px solid var(--accent)',
-                        outlineOffset: 2,
-                        pointerEvents: 'none',
-                        boxSizing: 'border-box',
-                        opacity,
-                        visibility: visible ? 'visible' : 'hidden'
-                      }}
-                    />
-                  )}
+                  {selectedElementIds.includes(master.id) &&
+                    (() => {
+                      const cx = x + width / 2 + translateX
+                      const cy = y + height / 2 + translateY
+                      const hw = scaledWidth / 2
+                      const hh = scaledHeight / 2
+                      const hs = HANDLE_PX / scale // handle size in slide units
+                      const rl = ROT_LINE_PX / scale // rotation arm length in slide units
+                      const rr = ROT_HANDLE_PX / scale // rotation handle radius in slide units
+                      const sw = 2 / scale // stroke width in slide units
+
+                      const handles: Array<{ h: HandleType; hx: number; hy: number }> = [
+                        { h: 'tl', hx: cx - hw, hy: cy - hh },
+                        { h: 'tc', hx: cx, hy: cy - hh },
+                        { h: 'tr', hx: cx + hw, hy: cy - hh },
+                        { h: 'ml', hx: cx - hw, hy: cy },
+                        { h: 'mr', hx: cx + hw, hy: cy },
+                        { h: 'bl', hx: cx - hw, hy: cy + hh },
+                        { h: 'bc', hx: cx, hy: cy + hh },
+                        { h: 'br', hx: cx + hw, hy: cy + hh }
+                      ]
+
+                      return (
+                        <svg
+                          data-testid="selection-indicator"
+                          style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            width: SLIDE_WIDTH,
+                            height: SLIDE_HEIGHT,
+                            overflow: 'visible',
+                            pointerEvents: 'none',
+                            opacity,
+                            visibility: visible ? 'visible' : 'hidden',
+                            zIndex: 3
+                          }}
+                        >
+                          <g transform={`rotate(${master.transform.rotation} ${cx} ${cy})`}>
+                            {/* Outline */}
+                            <rect
+                              x={cx - hw}
+                              y={cy - hh}
+                              width={scaledWidth}
+                              height={scaledHeight}
+                              fill="none"
+                              stroke="var(--accent)"
+                              strokeWidth={sw}
+                            />
+
+                            {/* Rotation arm + handle (only when not body-dragging) */}
+                            {!draggingMasterId && (
+                              <>
+                                <line
+                                  x1={cx}
+                                  y1={cy - hh}
+                                  x2={cx}
+                                  y2={cy - hh - rl}
+                                  stroke="var(--accent)"
+                                  strokeWidth={sw}
+                                />
+                                <circle
+                                  cx={cx}
+                                  cy={cy - hh - rl}
+                                  r={rr}
+                                  fill="white"
+                                  stroke="var(--accent)"
+                                  strokeWidth={sw}
+                                  style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+                                  onMouseDown={(e) =>
+                                    handleHandleMouseDown('rotation', master.id, e)
+                                  }
+                                />
+                              </>
+                            )}
+
+                            {/* Resize handles (only when not body-dragging) */}
+                            {!draggingMasterId &&
+                              handles.map(({ h, hx, hy }) => (
+                                <rect
+                                  key={h}
+                                  x={hx - hs / 2}
+                                  y={hy - hs / 2}
+                                  width={hs}
+                                  height={hs}
+                                  rx={1 / scale}
+                                  fill="white"
+                                  stroke="var(--accent)"
+                                  strokeWidth={sw}
+                                  style={{
+                                    pointerEvents: 'all',
+                                    cursor: getResizeCursor(h, master.transform.rotation)
+                                  }}
+                                  onMouseDown={(e) => handleHandleMouseDown(h, master.id, e)}
+                                />
+                              ))}
+                          </g>
+                        </svg>
+                      )
+                    })()}
                   {selectedElementIds.includes(master.id) &&
                   master.type === 'shape' &&
                   isGradientFill(master.objectStyle.defaultState.fill) &&
