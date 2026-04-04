@@ -5,7 +5,7 @@ import type { Appearance, MsoMaster, Position } from '@shared/model/types'
 import { ImageView } from './ImageView'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
-import type { MoveChainStepState } from './animationCanvasModel'
+import type { MoveChainStepState } from '../../store/animationCanvasModel'
 import styles from './SlideCanvas.module.css'
 
 interface AnimationCanvasOverlayProps {

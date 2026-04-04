@@ -820,9 +820,32 @@ describe('documentStore', () => {
           {
             animationId: animation.id,
             delta: { x: 24, y: 48 },
+            path: undefined,
             cumulativeDelta: { x: 24, y: 48 }
           }
-        ]
+        ],
+        moveCanvasSelection: {
+          historySegments: [],
+          activeSegment: {
+            animationId: animation.id,
+            startDelta: { x: 0, y: 0 },
+            endDelta: { x: 24, y: 48 }
+          },
+          activePoints: [
+            {
+              id: `${animation.id}:start`,
+              type: 'sharp',
+              position: { x: 0, y: 0 },
+              isEndpoint: true
+            },
+            {
+              id: `${animation.id}:end`,
+              type: 'sharp',
+              position: { x: 24, y: 48 },
+              isEndpoint: true
+            }
+          ]
+        }
       })
     })
 
@@ -888,14 +911,44 @@ describe('documentStore', () => {
           {
             animationId: move2.id,
             delta: { x: -5, y: 40 },
+            path: undefined,
             cumulativeDelta: { x: -5, y: 40 }
           },
           {
             animationId: move1.id,
             delta: { x: 10, y: 20 },
+            path: undefined,
             cumulativeDelta: { x: 5, y: 60 }
           }
-        ]
+        ],
+        moveCanvasSelection: {
+          historySegments: [
+            {
+              animationId: move2.id,
+              startDelta: { x: 0, y: 0 },
+              endDelta: { x: -5, y: 40 }
+            }
+          ],
+          activeSegment: {
+            animationId: move1.id,
+            startDelta: { x: -5, y: 40 },
+            endDelta: { x: 5, y: 60 }
+          },
+          activePoints: [
+            {
+              id: `${move1.id}:start`,
+              type: 'sharp',
+              position: { x: -5, y: 40 },
+              isEndpoint: true
+            },
+            {
+              id: `${move1.id}:end`,
+              type: 'sharp',
+              position: { x: 5, y: 60 },
+              isEndpoint: true
+            }
+          ]
+        }
       })
     })
 
@@ -958,9 +1011,44 @@ describe('documentStore', () => {
           {
             animationId: move.id,
             delta: { x: 90, y: 120 },
+            path: move.effect.path,
             cumulativeDelta: { x: 90, y: 120 }
           }
-        ]
+        ],
+        moveCanvasSelection: {
+          historySegments: [],
+          activeSegment: {
+            animationId: move.id,
+            startDelta: { x: 0, y: 0 },
+            endDelta: { x: 90, y: 120 }
+          },
+          activePoints: [
+            {
+              id: 'start',
+              type: 'sharp',
+              position: { x: 0, y: 0 },
+              inHandle: undefined,
+              outHandle: undefined,
+              isEndpoint: true
+            },
+            {
+              id: 'mid',
+              type: 'bezier',
+              position: { x: 40, y: 30 },
+              inHandle: { x: 20, y: 10 },
+              outHandle: { x: 55, y: 40 },
+              isEndpoint: false
+            },
+            {
+              id: 'end',
+              type: 'sharp',
+              position: { x: 90, y: 120 },
+              inHandle: undefined,
+              outHandle: undefined,
+              isEndpoint: true
+            }
+          ]
+        }
       })
     })
   })

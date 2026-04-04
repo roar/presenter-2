@@ -29,6 +29,7 @@ import {
   ensurePresentationColorConstants
 } from '../../../shared/model/colors'
 import { getMoveEffectDelta, syncMoveEffectDelta } from '../../../shared/model/movePath'
+import { buildMoveCanvasSelection, type MoveCanvasSelectionState } from './animationCanvasModel'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
 
@@ -225,7 +226,9 @@ export interface SelectedAnimationGroup {
     animationId: AnimationId
     delta: Position
     cumulativeDelta: Position
+    path?: Extract<TargetedAnimation['effect'], { type: 'move' }>['path']
   }>
+  moveCanvasSelection: MoveCanvasSelectionState
 }
 
 function getAnimationTargetAppearanceId(animation: TargetedAnimation): AppearanceId | null {
@@ -268,6 +271,7 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
       steps.push({
         animationId: animation.id,
         delta,
+        path: animation.effect.path,
         cumulativeDelta: {
           x: previous.x + delta.x,
           y: previous.y + delta.y
@@ -276,6 +280,14 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
       return steps
     },
     []
+  )
+  const moveCanvasSelection = buildMoveCanvasSelection(
+    moveSteps.map((step) => ({
+      animationId: step.animationId,
+      delta: step.delta,
+      path: step.path
+    })),
+    selectedAnimation.effect.type === 'move' ? selectedAnimation.id : null
   )
 
   if (
@@ -289,12 +301,19 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
     ) &&
     selectedAnimationGroupCache.result?.selectedAnimation === selectedAnimation &&
     selectedAnimationGroupCache.result?.moveAnimation === moveAnimation &&
+    selectedAnimationGroupCache.result?.moveCanvasSelection.activeSegment?.animationId ===
+      moveCanvasSelection.activeSegment?.animationId &&
+    selectedAnimationGroupCache.result?.moveCanvasSelection.historySegments.length ===
+      moveCanvasSelection.historySegments.length &&
+    selectedAnimationGroupCache.result?.moveCanvasSelection.activePoints.length ===
+      moveCanvasSelection.activePoints.length &&
     selectedAnimationGroupCache.result?.moveSteps.length === moveSteps.length &&
     selectedAnimationGroupCache.result?.moveSteps.every(
       (step, index) =>
         step.animationId === moveSteps[index]?.animationId &&
         step.delta.x === moveSteps[index]?.delta.x &&
         step.delta.y === moveSteps[index]?.delta.y &&
+        step.path === moveSteps[index]?.path &&
         step.cumulativeDelta.x === moveSteps[index]?.cumulativeDelta.x &&
         step.cumulativeDelta.y === moveSteps[index]?.cumulativeDelta.y
     )
@@ -309,7 +328,8 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
     animationIds,
     selectedAnimation,
     moveAnimation,
-    moveSteps
+    moveSteps,
+    moveCanvasSelection
   }
 
   selectedAnimationGroupCache.document = document

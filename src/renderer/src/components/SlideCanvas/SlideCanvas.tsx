@@ -18,7 +18,7 @@ import {
   selectSelectedAnimationGroup
 } from '../../store/documentStore'
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
-import { buildMoveChainStates } from './animationCanvasModel'
+import { buildMoveChainStates } from '../../store/animationCanvasModel'
 import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
 import { SlideCanvasObject } from './SlideCanvasObject'
 import { useCanvasContextMenus } from './useCanvasContextMenus'
@@ -372,7 +372,8 @@ export function SlideCanvas(): React.JSX.Element {
     selectedAnimationGroup?.slideId === selectedSlideId
       ? selectedAnimationGroup.moveSteps.map((step) => ({
           animationId: step.animationId,
-          delta: step.delta
+          delta: step.delta,
+          path: step.path
         }))
       : []
   const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
