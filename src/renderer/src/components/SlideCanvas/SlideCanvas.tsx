@@ -29,6 +29,7 @@ import { buildMoveChainStates } from './animationCanvasModel'
 import { ImageView } from './ImageView'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
+import { useAnimationGhostDrag } from './useAnimationGhostDrag'
 import styles from './SlideCanvas.module.css'
 
 type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotation'
@@ -66,13 +67,6 @@ interface BackgroundGradientDragData {
   slideId: string
   target: 'start' | 'end'
   originalFill: LinearGradientFill
-}
-
-interface GhostDragData {
-  animationId: string
-  startClientX: number
-  startClientY: number
-  originalDelta: Position
 }
 
 function parseRenderedTransform(transform: string): {
@@ -207,9 +201,6 @@ export function SlideCanvas(): React.JSX.Element {
   const [userPan, setUserPan] = useState({ x: 0, y: 0 })
   const [isSpaceDown, setIsSpaceDown] = useState(false)
   const [isPanning, setIsPanning] = useState(false)
-  const [ghostPreview, setGhostPreview] = useState<{ animationId: string; delta: Position } | null>(
-    null
-  )
 
   const fitScale =
     containerSize.width > 0
@@ -225,7 +216,6 @@ export function SlideCanvas(): React.JSX.Element {
   const dragRef = useRef<DragData | null>(null)
   const gradientDragRef = useRef<GradientDragData | null>(null)
   const backgroundGradientDragRef = useRef<BackgroundGradientDragData | null>(null)
-  const ghostDragRef = useRef<GhostDragData | null>(null)
   const panDragRef = useRef<{
     startX: number
     startY: number
@@ -240,8 +230,6 @@ export function SlideCanvas(): React.JSX.Element {
   const updateObjectFillRef = useRef(updateObjectFill)
   const updateSlideBackgroundFillRef = useRef(updateSlideBackgroundFill)
   const updateMasterTransformRef = useRef(updateMasterTransform)
-  const updateAnimationMoveDeltaRef = useRef(updateAnimationMoveDelta)
-  const selectedAnimationGroupRef = useRef(selectedAnimationGroup)
   const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
 
@@ -270,13 +258,14 @@ export function SlideCanvas(): React.JSX.Element {
     updateMasterTransformRef.current = updateMasterTransform
   }, [updateMasterTransform])
 
-  useEffect(() => {
-    updateAnimationMoveDeltaRef.current = updateAnimationMoveDelta
-  }, [updateAnimationMoveDelta])
-
-  useEffect(() => {
-    selectedAnimationGroupRef.current = selectedAnimationGroup
-  }, [selectedAnimationGroup])
+  const { ghostPreview, handleAnimationGhostMouseDown, updateGhostDragPreview, commitGhostDrag } =
+    useAnimationGhostDrag({
+      isSpaceDownRef,
+      scaleRef,
+      selectAnimation,
+      selectedAnimationGroup,
+      updateAnimationMoveDelta
+    })
 
   // Wheel: pinch / Ctrl+scroll = zoom around cursor, plain scroll = pan
   useEffect(() => {
@@ -415,17 +404,7 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
-      const ghostDrag = ghostDragRef.current
-      if (ghostDrag) {
-        const dx = (e.clientX - ghostDrag.startClientX) / scaleRef.current
-        const dy = (e.clientY - ghostDrag.startClientY) / scaleRef.current
-        setGhostPreview({
-          animationId: ghostDrag.animationId,
-          delta: {
-            x: ghostDrag.originalDelta.x + dx,
-            y: ghostDrag.originalDelta.y + dy
-          }
-        })
+      if (updateGhostDragPreview(e)) {
         return
       }
 
@@ -534,28 +513,7 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
-      const ghostDrag = ghostDragRef.current
-      if (ghostDrag) {
-        const dx = (e.clientX - ghostDrag.startClientX) / scaleRef.current
-        const dy = (e.clientY - ghostDrag.startClientY) / scaleRef.current
-        const nextDelta = {
-          x: ghostDrag.originalDelta.x + dx,
-          y: ghostDrag.originalDelta.y + dy
-        }
-        updateAnimationMoveDeltaRef.current(ghostDrag.animationId, nextDelta)
-        const moveSteps = selectedAnimationGroupRef.current?.moveSteps ?? []
-        const currentIndex = moveSteps.findIndex(
-          (step) => step.animationId === ghostDrag.animationId
-        )
-        const nextStep = currentIndex >= 0 ? moveSteps[currentIndex + 1] : null
-        if (nextStep) {
-          updateAnimationMoveDeltaRef.current(nextStep.animationId, {
-            x: nextStep.delta.x - (nextDelta.x - ghostDrag.originalDelta.x),
-            y: nextStep.delta.y - (nextDelta.y - ghostDrag.originalDelta.y)
-          })
-        }
-        ghostDragRef.current = null
-        setGhostPreview(null)
+      if (commitGhostDrag(e)) {
         return
       }
 
@@ -677,23 +635,13 @@ export function SlideCanvas(): React.JSX.Element {
     [document, selectElements]
   )
 
-  const handleAnimationGhostMouseDown = useCallback(
+  const handleAnimationGhostMouseDownWithMenus = useCallback(
     (animationId: string, delta: Position, e: React.MouseEvent) => {
-      if (isSpaceDownRef.current) return
-      e.preventDefault()
-      e.stopPropagation()
       setContextMenu(null)
       setAnimationContextMenu(null)
-      selectAnimation(animationId)
-      ghostDragRef.current = {
-        animationId,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        originalDelta: delta
-      }
-      setGhostPreview({ animationId, delta })
+      handleAnimationGhostMouseDown(animationId, delta, e)
     },
-    [selectAnimation]
+    [handleAnimationGhostMouseDown]
   )
 
   const handleAnimationSelect = useCallback(
@@ -1153,7 +1101,7 @@ export function SlideCanvas(): React.JSX.Element {
                 selectedAnimationId={selectedAnimationId}
                 onSelect={handleAnimationSelect}
                 onContextMenu={handleAnimationContextMenu}
-                onGhostMouseDown={handleAnimationGhostMouseDown}
+                onGhostMouseDown={handleAnimationGhostMouseDownWithMenus}
               />
             ) : null}
           </div>
