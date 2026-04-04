@@ -107,6 +107,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const scaleRef = useRef(scale)
   const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
+  const canvasSlideId = previewFrame?.front.slide.id ?? selectedSlideId
 
   useEffect(() => {
     scaleRef.current = scale
@@ -371,17 +372,17 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   )
 
   const previewRenderedSlide: RenderedSlide | null =
-    previewFrame && selectedSlideId
-      ? previewFrame.front.slide.id === selectedSlideId
+    previewFrame && canvasSlideId
+      ? previewFrame.front.slide.id === canvasSlideId
         ? previewFrame.front
-        : previewFrame.behind?.slide.id === selectedSlideId
+        : previewFrame.behind?.slide.id === canvasSlideId
           ? previewFrame.behind
           : null
       : null
 
   const slide =
     previewRenderedSlide?.slide ??
-    (selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null)
+    (canvasSlideId != null ? patchedPresentation?.slidesById[canvasSlideId] : null)
   const resolvedSlideBackground =
     slide != null
       ? resolveSlideBackground(slide.background, patchedPresentation?.defaultBackground)
@@ -394,8 +395,8 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       ? renderAllSlideEntryStates(patchedPresentation, msoExitStatesBySlide)
       : []
   const slideIndex =
-    selectedSlideId != null && patchedPresentation != null
-      ? patchedPresentation.slideOrder.indexOf(selectedSlideId)
+    canvasSlideId != null && patchedPresentation != null
+      ? patchedPresentation.slideOrder.indexOf(canvasSlideId)
       : -1
   const baseRenderedSlide =
     slideIndex >= 0 && slideIndex < allEntryStates.length ? allEntryStates[slideIndex] : null
@@ -425,7 +426,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       .sort((a, b) => a.appearance.zIndex - b.appearance.zIndex) ?? []
 
   const selectedGroupMoveAnimation =
-    selectedAnimationGroup?.slideId === selectedSlideId &&
+    selectedAnimationGroup?.slideId === canvasSlideId &&
     selectedAnimationGroup.moveAnimation?.effect.type === 'move'
       ? selectedAnimationGroup.moveAnimation
       : null
@@ -444,7 +445,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       : null
 
   const moveChainSteps =
-    selectedAnimationGroup?.slideId === selectedSlideId
+    selectedAnimationGroup?.slideId === canvasSlideId
       ? selectedAnimationGroup.moveSteps.map((step) => ({
           animationId: step.animationId,
           delta:
@@ -456,7 +457,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       : []
   const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
   const moveCanvasSelection =
-    selectedAnimationGroup?.slideId === selectedSlideId
+    selectedAnimationGroup?.slideId === canvasSlideId
       ? buildMoveCanvasSelection(moveChainSteps, selectedAnimationId, ghostPreview)
       : { historySegments: [], activeSegment: null, activePoints: [] }
   const selectedGroupOverlayMetrics =

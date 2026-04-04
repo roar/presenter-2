@@ -614,4 +614,71 @@ describe('EditorLayout', () => {
       /translate\(100px, 0px\)|translate\(99\.9+px, 0px\)/
     )
   })
+
+  it('previews the active slide when scrubbing the all-slides timeline', async () => {
+    const user = userEvent.setup()
+    const slide1 = createSlide()
+    const slide2 = createSlide()
+    const master1 = createMsoMaster('shape')
+    const master2 = createMsoMaster('shape')
+    const appearance1 = createAppearance(master1.id, slide1.id)
+    const appearance2 = createAppearance(master2.id, slide2.id)
+    const animation1: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance1.id }
+    }
+    const animation2: TargetedAnimation = {
+      id: 'anim-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 200, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance2.id }
+    }
+
+    slide1.appearanceIds = [appearance1.id]
+    slide1.animationOrder = [animation1.id]
+    slide2.appearanceIds = [appearance2.id]
+    slide2.animationOrder = [animation2.id]
+
+    const document = {
+      ...makePresentation(slide1, slide2),
+      mastersById: { [master1.id]: master1, [master2.id]: master2 },
+      appearancesById: { [appearance1.id]: appearance1, [appearance2.id]: appearance2 },
+      animationsById: { [animation1.id]: animation1, [animation2.id]: animation2 }
+    }
+
+    mockStore(document, slide1.id)
+    render(<EditorLayout />)
+
+    const timelineRoot = screen.getByTestId('timeline-root')
+    Object.defineProperty(timelineRoot, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 0,
+        width: 300,
+        height: 80,
+        top: 0,
+        left: 100,
+        right: 400,
+        bottom: 80,
+        toJSON: () => ({})
+      })
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Show all slides timeline' }))
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    fireEvent.mouseMove(timelineRoot, { clientX: 399, clientY: 40 })
+
+    expect(screen.getByTestId('canvas')).toHaveTextContent(slide2.id)
+  })
 })
