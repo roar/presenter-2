@@ -68,6 +68,7 @@ function mockStore(
       updateMasterTransform: vi.fn(),
       addMoveAnimation: vi.fn(),
       updateAnimationMoveDelta: vi.fn(),
+      updateAnimationMovePath: vi.fn(),
       removeAnimation: vi.fn(),
       convertToMultiSlideObject: vi.fn(),
       convertToSingleAppearance: vi.fn()
@@ -825,6 +826,65 @@ describe('SlideCanvas', () => {
     const pointsAfter = container.querySelectorAll('[data-testid="animation-path-point"]')
     expect(pointsAfter[1]).toHaveAttribute('cx', '310')
     expect(pointsAfter[1]).toHaveAttribute('cy', '310')
+  })
+
+  it('previews and commits an active path anchor drag through move path updates', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    const { container } = render(<SlideCanvas />)
+
+    const pointsBefore = container.querySelectorAll('[data-testid="animation-path-point"]')
+    fireEvent.mouseDown(pointsBefore[1] as SVGCircleElement, { clientX: 290, clientY: 280 })
+    fireEvent.mouseMove(window, { clientX: 310, clientY: 310 })
+
+    const pointsAfter = container.querySelectorAll('[data-testid="animation-path-point"]')
+    expect(pointsAfter[1]).toHaveAttribute('cx', '310')
+    expect(pointsAfter[1]).toHaveAttribute('cy', '310')
+
+    fireEvent.mouseUp(window, { clientX: 310, clientY: 310 })
+
+    expect(updateAnimationMovePath).toHaveBeenCalledWith('move-1', {
+      points: [
+        { id: 'move-1:start', position: { x: 0, y: 0 }, type: 'sharp' },
+        { id: 'move-1:end', position: { x: 60, y: 110 }, type: 'sharp' }
+      ]
+    })
   })
 
   it('keeps later ghosts fixed when dragging a middle move step', () => {

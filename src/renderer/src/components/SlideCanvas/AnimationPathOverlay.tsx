@@ -12,6 +12,7 @@ interface AnimationPathOverlayProps {
   moveCanvasSelection: MoveCanvasSelectionState
   onSelect(animationId: string, event: React.MouseEvent): void
   onContextMenu(animationId: string, event: React.MouseEvent): void
+  onPointMouseDown(pointId: string, event: React.MouseEvent): void
 }
 
 function toAbsolutePoint(
@@ -83,7 +84,8 @@ export function AnimationPathOverlay({
   ghostHeight,
   moveCanvasSelection,
   onSelect,
-  onContextMenu
+  onContextMenu,
+  onPointMouseDown
 }: AnimationPathOverlayProps): React.JSX.Element | null {
   if (
     moveCanvasSelection.historySegments.length === 0 &&
@@ -219,6 +221,7 @@ export function AnimationPathOverlay({
             cx={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).x}
             cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).y}
             r={point.isEndpoint ? 5 : 4}
+            onMouseDown={(event) => onPointMouseDown(point.id, event)}
           />
         </React.Fragment>
       ))}

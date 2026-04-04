@@ -1,6 +1,6 @@
 import type { Animation, MovePath, Position } from './types'
 
-function getMovePathEndpoint(path: MovePath | undefined): Position | null {
+export function getMovePathEndpoint(path: MovePath | undefined): Position | null {
   if (!path || path.points.length === 0) return null
   return path.points[path.points.length - 1].position
 }

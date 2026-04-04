@@ -8,6 +8,7 @@ import {
 import { GrainCanvas } from '@viewer/components/GrainCanvas/GrainCanvas'
 import { isGradientFill, resolveLinearGradientEndpoints } from '@shared/model/fill'
 import type { LinearGradientFill, Position } from '@shared/model/types'
+import { getMovePathEndpoint } from '@shared/model/movePath'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
@@ -25,6 +26,7 @@ import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
 import { SlideCanvasObject } from './SlideCanvasObject'
 import { useCanvasContextMenus } from './useCanvasContextMenus'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
+import { useAnimationPathInteraction } from './useAnimationPathInteraction'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
 import styles from './SlideCanvas.module.css'
@@ -65,6 +67,7 @@ export function SlideCanvas(): React.JSX.Element {
   const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
+  const updateAnimationMovePath = useDocumentStore((s) => s.updateAnimationMovePath)
   const removeAnimation = useDocumentStore((s) => s.removeAnimation)
   const convertToMultiSlideObject = useDocumentStore((s) => s.convertToMultiSlideObject)
   const convertToSingleAppearance = useDocumentStore((s) => s.convertToSingleAppearance)
@@ -110,6 +113,14 @@ export function SlideCanvas(): React.JSX.Element {
       selectAnimation,
       selectedAnimationGroup,
       updateAnimationMoveDelta
+    })
+
+  const { pathPreview, handlePathPointMouseDown, updatePathDragPreview, commitPathDrag } =
+    useAnimationPathInteraction({
+      isSpaceDownRef,
+      scaleRef,
+      selectedAnimationGroup,
+      updateAnimationMovePath
     })
 
   const {
@@ -256,6 +267,10 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
+      if (updatePathDragPreview(e)) {
+        return
+      }
+
       if (updateGradientPreview(e)) {
         return
       }
@@ -276,6 +291,10 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
+      if (commitPathDrag(e)) {
+        return
+      }
+
       if (commitGradientPreview(e)) {
         return
       }
@@ -290,9 +309,11 @@ export function SlideCanvas(): React.JSX.Element {
   }, [
     commitElementTransform,
     commitGhostDrag,
+    commitPathDrag,
     commitGradientPreview,
     updateElementTransformPreview,
     updateGhostDragPreview,
+    updatePathDragPreview,
     updateGradientPreview
   ])
 
@@ -374,8 +395,11 @@ export function SlideCanvas(): React.JSX.Element {
     selectedAnimationGroup?.slideId === selectedSlideId
       ? selectedAnimationGroup.moveSteps.map((step) => ({
           animationId: step.animationId,
-          delta: step.delta,
-          path: step.path
+          delta:
+            pathPreview?.animationId === step.animationId
+              ? (getMovePathEndpoint(pathPreview.path) ?? step.delta)
+              : step.delta,
+          path: pathPreview?.animationId === step.animationId ? pathPreview.path : step.path
         }))
       : []
   const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
@@ -498,6 +522,7 @@ export function SlideCanvas(): React.JSX.Element {
                     moveCanvasSelection={moveCanvasSelection}
                     onSelect={handleAnimationSelect}
                     onContextMenu={handleAnimationContextMenu}
+                    onPointMouseDown={handlePathPointMouseDown}
                   />
                 ) : null}
                 <AnimationCanvasOverlay

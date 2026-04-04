@@ -55,11 +55,16 @@
   fill: color-mix(in srgb, white 92%, var(--surface, white));
   stroke: var(--accent);
   stroke-width: 1.5;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: grab;
 }
 
 .animationPathPointEndpoint {
   fill: color-mix(in srgb, white 96%, var(--surface, white));
+}
+
+.animationPathPoint:active {
+  cursor: grabbing;
 }
 
 .animationGhost {
