@@ -1039,6 +1039,216 @@ describe('SlideCanvas', () => {
     })
   })
 
+  it('converts a selected point to sharp from the point context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            {
+              id: 'mid',
+              position: { x: 20, y: 40 },
+              type: 'bezier',
+              inHandle: { x: 10, y: 30 },
+              outHandle: { x: 30, y: 50 }
+            },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({
+      keys: '[MouseRight]',
+      target: screen.getAllByTestId('animation-path-point')[1]
+    })
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Make Sharp Point' }))
+
+    expect(updateAnimationMovePath).toHaveBeenCalledWith('move-1', {
+      points: [
+        { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+        {
+          id: 'mid',
+          position: { x: 20, y: 40 },
+          type: 'sharp',
+          inHandle: undefined,
+          outHandle: undefined
+        },
+        { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+      ]
+    })
+  })
+
+  it('converts a selected point to bezier from the point context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            { id: 'mid', position: { x: 20, y: 40 }, type: 'sharp' },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({
+      keys: '[MouseRight]',
+      target: screen.getAllByTestId('animation-path-point')[1]
+    })
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Make Bezier Point' }))
+
+    expect(updateAnimationMovePath).toHaveBeenCalled()
+    const pathArg = updateAnimationMovePath.mock.calls.at(-1)?.[1]
+    expect(pathArg.points[1].type).toBe('bezier')
+    expect(pathArg.points[1].inHandle).toBeTruthy()
+    expect(pathArg.points[1].outHandle).toBeTruthy()
+  })
+
+  it('deletes an interior point from the point context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            { id: 'mid', position: { x: 20, y: 40 }, type: 'sharp' },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({
+      keys: '[MouseRight]',
+      target: screen.getAllByTestId('animation-path-point')[1]
+    })
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Delete Point' }))
+
+    expect(updateAnimationMovePath).toHaveBeenCalledWith('move-1', {
+      points: [
+        { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+        { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+      ]
+    })
+  })
+
   it('keeps later ghosts fixed when dragging a middle move step', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]

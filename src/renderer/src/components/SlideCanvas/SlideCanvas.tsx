@@ -19,6 +19,7 @@ import {
   selectSelectedAnimationGroup
 } from '../../store/documentStore'
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
+import { AnimationPathContextMenu } from './AnimationPathContextMenu'
 import { AnimationPathOverlay } from './AnimationPathOverlay'
 import { buildMoveCanvasSelection, buildMoveChainStates } from '../../store/animationCanvasModel'
 import { getAnimationOverlayMetrics } from './animationOverlayMetrics'
@@ -26,6 +27,7 @@ import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
 import { SlideCanvasObject } from './SlideCanvasObject'
 import { useCanvasContextMenus } from './useCanvasContextMenus'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
+import { useAnimationPathContextMenu } from './useAnimationPathContextMenu'
 import { useAnimationPathInteraction } from './useAnimationPathInteraction'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
@@ -118,6 +120,9 @@ export function SlideCanvas(): React.JSX.Element {
   const {
     pathPreview,
     handlePathPointMouseDown,
+    convertPointToBezier,
+    convertPointToSharp,
+    deletePoint,
     handlePathHandleMouseDown,
     handleInsertPointMouseDown,
     updatePathDragPreview,
@@ -128,6 +133,11 @@ export function SlideCanvas(): React.JSX.Element {
     selectedAnimationGroup,
     updateAnimationMovePath
   })
+  const {
+    contextMenu: pathPointContextMenu,
+    closeContextMenu: closePathPointContextMenu,
+    openPointContextMenu
+  } = useAnimationPathContextMenu()
 
   const {
     draggingMasterId,
@@ -529,6 +539,7 @@ export function SlideCanvas(): React.JSX.Element {
                     onSelect={handleAnimationSelect}
                     onContextMenu={handleAnimationContextMenu}
                     onPointMouseDown={handlePathPointMouseDown}
+                    onPointContextMenu={openPointContextMenu}
                     onHandleMouseDown={handlePathHandleMouseDown}
                     onInsertPointMouseDown={handleInsertPointMouseDown}
                   />
@@ -561,6 +572,25 @@ export function SlideCanvas(): React.JSX.Element {
         onConvertToSingle={handleConvertToSingle}
         onConvertToMso={handleConvertToMso}
         onDeleteAnimation={handleDeleteAnimation}
+      />
+      <AnimationPathContextMenu
+        contextMenu={pathPointContextMenu}
+        onClose={closePathPointContextMenu}
+        onConvertToSharp={() => {
+          if (!pathPointContextMenu) return
+          convertPointToSharp(pathPointContextMenu.pointId)
+          closePathPointContextMenu()
+        }}
+        onConvertToBezier={() => {
+          if (!pathPointContextMenu) return
+          convertPointToBezier(pathPointContextMenu.pointId)
+          closePathPointContextMenu()
+        }}
+        onDeletePoint={() => {
+          if (!pathPointContextMenu) return
+          deletePoint(pathPointContextMenu.pointId)
+          closePathPointContextMenu()
+        }}
       />
     </>
   )

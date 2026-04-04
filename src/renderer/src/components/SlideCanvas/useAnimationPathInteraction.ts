@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MovePath } from '@shared/model/types'
+import {
+  cloneMovePath,
+  convertPointToBezier as convertPathPointToBezier,
+  convertPointToSharp as convertPathPointToSharp,
+  deletePoint as deletePathPoint,
+  insertBezierPointAtSegment
+} from '@shared/model/bezierPath'
 import type { SelectedAnimationGroup } from '../../store/documentStore'
 
 interface PathPointDragData {
@@ -27,19 +34,11 @@ interface UseAnimationPathInteractionResult {
     event: React.MouseEvent
   ) => void
   handleInsertPointMouseDown: (segmentIndex: number, event: React.MouseEvent) => void
+  convertPointToSharp: (pointId: string) => void
+  convertPointToBezier: (pointId: string) => void
+  deletePoint: (pointId: string) => void
   updatePathDragPreview: (event: MouseEvent) => boolean
   commitPathDrag: (event: MouseEvent) => boolean
-}
-
-function clonePath(path: MovePath): MovePath {
-  return {
-    points: path.points.map((point) => ({
-      ...point,
-      position: { ...point.position },
-      inHandle: point.inHandle ? { ...point.inHandle } : undefined,
-      outHandle: point.outHandle ? { ...point.outHandle } : undefined
-    }))
-  }
 }
 
 function buildEditablePath(selectedAnimationGroup: SelectedAnimationGroup): MovePath | null {
@@ -47,7 +46,7 @@ function buildEditablePath(selectedAnimationGroup: SelectedAnimationGroup): Move
     (step) => step.animationId === selectedAnimationGroup.selectedAnimation.id
   )
   if (!moveStep) return null
-  if (moveStep.path) return clonePath(moveStep.path)
+  if (moveStep.path) return cloneMovePath(moveStep.path)
 
   const activeSegment = selectedAnimationGroup.moveCanvasSelection.activeSegment
   if (!activeSegment) return null
@@ -102,32 +101,6 @@ function translatePathHandle(
         [key]: { x: current.x + dx, y: current.y + dy }
       }
     })
-  }
-}
-
-function insertBezierPointAtSegment(path: MovePath, segmentIndex: number): MovePath {
-  const start = path.points[segmentIndex]
-  const end = path.points[segmentIndex + 1]
-  if (!start || !end) return path
-
-  const midX = (start.position.x + end.position.x) / 2
-  const midY = (start.position.y + end.position.y) / 2
-  const dx = end.position.x - start.position.x
-  const dy = end.position.y - start.position.y
-  const newPoint = {
-    id: `point-${Math.random().toString(36).slice(2, 10)}`,
-    position: { x: midX, y: midY },
-    type: 'bezier' as const,
-    inHandle: { x: midX - dx / 4, y: midY - dy / 4 },
-    outHandle: { x: midX + dx / 4, y: midY + dy / 4 }
-  }
-
-  return {
-    points: [
-      ...path.points.slice(0, segmentIndex + 1),
-      newPoint,
-      ...path.points.slice(segmentIndex + 1)
-    ]
   }
 }
 
@@ -207,7 +180,11 @@ export function useAnimationPathInteraction({
       const editablePath = buildEditablePath(group)
       if (!editablePath) return
 
-      const nextPath = insertBezierPointAtSegment(editablePath, segmentIndex)
+      const nextPath = insertBezierPointAtSegment(
+        editablePath,
+        segmentIndex,
+        `point-${Math.random().toString(36).slice(2, 10)}`
+      )
       const insertedPoint = nextPath.points[segmentIndex + 1]
       if (!insertedPoint) return
 
@@ -235,8 +212,8 @@ export function useAnimationPathInteraction({
       setPathPreview({
         animationId: drag.animationId,
         path: drag.handle
-          ? translatePathHandle(clonePath(drag.originalPath), drag.pointId, drag.handle, dx, dy)
-          : translatePathPoint(clonePath(drag.originalPath), drag.pointId, dx, dy)
+          ? translatePathHandle(cloneMovePath(drag.originalPath), drag.pointId, drag.handle, dx, dy)
+          : translatePathPoint(cloneMovePath(drag.originalPath), drag.pointId, dx, dy)
       })
       return true
     },
@@ -251,8 +228,8 @@ export function useAnimationPathInteraction({
       const dx = (event.clientX - drag.startClientX) / scaleRef.current
       const dy = (event.clientY - drag.startClientY) / scaleRef.current
       const nextPath = drag.handle
-        ? translatePathHandle(clonePath(drag.originalPath), drag.pointId, drag.handle, dx, dy)
-        : translatePathPoint(clonePath(drag.originalPath), drag.pointId, dx, dy)
+        ? translatePathHandle(cloneMovePath(drag.originalPath), drag.pointId, drag.handle, dx, dy)
+        : translatePathPoint(cloneMovePath(drag.originalPath), drag.pointId, dx, dy)
 
       updateAnimationMovePathRef.current(drag.animationId, nextPath)
       dragRef.current = null
@@ -262,11 +239,24 @@ export function useAnimationPathInteraction({
     [scaleRef]
   )
 
+  const applyPathOperation = useCallback((operation: (path: MovePath) => MovePath) => {
+    const group = selectedAnimationGroupRef.current
+    if (!group || group.selectedAnimation.effect.type !== 'move') return
+    const editablePath = buildEditablePath(group)
+    if (!editablePath) return
+    updateAnimationMovePathRef.current(group.selectedAnimation.id, operation(editablePath))
+  }, [])
+
   return {
     pathPreview,
     handlePathPointMouseDown,
     handlePathHandleMouseDown,
     handleInsertPointMouseDown,
+    convertPointToSharp: (pointId) =>
+      applyPathOperation((path) => convertPathPointToSharp(path, pointId)),
+    convertPointToBezier: (pointId) =>
+      applyPathOperation((path) => convertPathPointToBezier(path, pointId)),
+    deletePoint: (pointId) => applyPathOperation((path) => deletePathPoint(path, pointId)),
     updatePathDragPreview,
     commitPathDrag
   }

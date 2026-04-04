@@ -1,7 +1,10 @@
 import React, { useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { Position } from '@shared/model/types'
-import type { MoveCanvasSelectionState } from '../../store/animationCanvasModel'
+import type {
+  MoveCanvasPointState,
+  MoveCanvasSelectionState
+} from '../../store/animationCanvasModel'
 import styles from './SlideCanvas.module.css'
 
 interface AnimationPathOverlayProps {
@@ -13,6 +16,7 @@ interface AnimationPathOverlayProps {
   onSelect(animationId: string, event: React.MouseEvent): void
   onContextMenu(animationId: string, event: React.MouseEvent): void
   onPointMouseDown(pointId: string, event: React.MouseEvent): void
+  onPointContextMenu(point: MoveCanvasPointState, event: React.MouseEvent): void
   onHandleMouseDown(pointId: string, handle: 'in' | 'out', event: React.MouseEvent): void
   onInsertPointMouseDown(segmentIndex: number, event: React.MouseEvent): void
 }
@@ -126,6 +130,7 @@ export function AnimationPathOverlay({
   onSelect,
   onContextMenu,
   onPointMouseDown,
+  onPointContextMenu,
   onHandleMouseDown,
   onInsertPointMouseDown
 }: AnimationPathOverlayProps): React.JSX.Element | null {
@@ -336,6 +341,7 @@ export function AnimationPathOverlay({
             cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).y}
             r={point.isEndpoint ? 5 : 4}
             onMouseDown={(event) => onPointMouseDown(point.id, event)}
+            onContextMenu={(event) => onPointContextMenu(point, event)}
           />
         </React.Fragment>
       ))}
