@@ -19,7 +19,7 @@ import {
 } from '../../store/documentStore'
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
 import { AnimationPathOverlay } from './AnimationPathOverlay'
-import { buildMoveChainStates } from '../../store/animationCanvasModel'
+import { buildMoveCanvasSelection, buildMoveChainStates } from '../../store/animationCanvasModel'
 import { getAnimationOverlayMetrics } from './animationOverlayMetrics'
 import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
 import { SlideCanvasObject } from './SlideCanvasObject'
@@ -379,6 +379,10 @@ export function SlideCanvas(): React.JSX.Element {
         }))
       : []
   const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
+  const moveCanvasSelection =
+    selectedAnimationGroup?.slideId === selectedSlideId
+      ? buildMoveCanvasSelection(moveChainSteps, selectedAnimationId, ghostPreview)
+      : { historySegments: [], activeSegment: null, activePoints: [] }
   const selectedGroupOverlayMetrics =
     selectedGroupRenderedAppearance && selectedGroupMaster
       ? getAnimationOverlayMetrics(selectedGroupMaster, selectedGroupRenderedAppearance)
@@ -491,7 +495,7 @@ export function SlideCanvas(): React.JSX.Element {
                     baseTop={selectedGroupOverlayMetrics.baseTop}
                     ghostWidth={selectedGroupOverlayMetrics.ghostWidth}
                     ghostHeight={selectedGroupOverlayMetrics.ghostHeight}
-                    moveCanvasSelection={selectedAnimationGroup.moveCanvasSelection}
+                    moveCanvasSelection={moveCanvasSelection}
                     onSelect={handleAnimationSelect}
                     onContextMenu={handleAnimationContextMenu}
                   />

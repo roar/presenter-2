@@ -36,6 +36,7 @@ export interface MoveCanvasPointState {
 export interface MoveCanvasSelectionState {
   historySegments: MoveCanvasSegmentState[]
   activeSegment: MoveCanvasSegmentState | null
+  downstreamSegments: MoveCanvasSegmentState[]
   activePoints: MoveCanvasPointState[]
 }
 
@@ -83,15 +84,16 @@ export function buildMoveChainStates(
 
 export function buildMoveCanvasSelection(
   steps: MoveChainStepInput[],
-  selectedAnimationId: string | null
+  selectedAnimationId: string | null,
+  preview: MoveChainPreview | null = null
 ): MoveCanvasSelectionState {
-  const states = buildMoveChainStates(steps, null)
+  const states = buildMoveChainStates(steps, preview)
   const selectedIndex = selectedAnimationId
     ? states.findIndex((step) => step.animationId === selectedAnimationId)
     : -1
 
   if (selectedIndex < 0) {
-    return { historySegments: [], activeSegment: null, activePoints: [] }
+    return { historySegments: [], activeSegment: null, downstreamSegments: [], activePoints: [] }
   }
 
   const historySegments = states
@@ -113,6 +115,17 @@ export function buildMoveCanvasSelection(
     startDelta,
     endDelta: selectedStep.cumulativeDelta
   }
+
+  const downstreamSegments = states
+    .slice(selectedIndex + 1)
+    .map<MoveCanvasSegmentState>((step, index) => {
+      const previous = index === 0 ? states[selectedIndex] : states[selectedIndex + index]
+      return {
+        animationId: step.animationId,
+        startDelta: previous.cumulativeDelta,
+        endDelta: step.cumulativeDelta
+      }
+    })
 
   const activePoints = selectedStep.path?.points.length
     ? selectedStep.path.points.map((point, index, points) => ({
@@ -141,6 +154,7 @@ export function buildMoveCanvasSelection(
   return {
     historySegments,
     activeSegment,
+    downstreamSegments,
     activePoints
   }
 }

@@ -474,6 +474,49 @@ describe('SlideCanvas', () => {
     expect(ghosts[1]).toHaveStyle({ left: '150px', top: '160px' })
   })
 
+  it('renders downstream path segments after the selected step as dashed continuation', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2', 'move-3']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2', 'move-3']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-3'] = {
+      id: 'move-3',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: -15, y: 30 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-2')
+    render(<SlideCanvas />)
+
+    expect(screen.getAllByTestId('animation-path')).toHaveLength(3)
+  })
+
   it('highlights the selected ghost and its incoming path segment', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -750,6 +793,38 @@ describe('SlideCanvas', () => {
     const updatedGhosts = screen.getAllByTestId('animation-ghost')
     expect(updatedGhosts[0]).toHaveStyle({ left: '160px', top: '210px' })
     expect(updatedGhosts[1]).toHaveStyle({ left: '150px', top: '160px' })
+  })
+
+  it('moves the selected path points with the dragged ghost preview', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    const { container } = render(<SlideCanvas />)
+
+    const pointsBefore = container.querySelectorAll('[data-testid="animation-path-point"]')
+    expect(pointsBefore[1]).toHaveAttribute('cx', '290')
+    expect(pointsBefore[1]).toHaveAttribute('cy', '280')
+
+    fireEvent.mouseDown(screen.getByTestId('animation-ghost'), { clientX: 140, clientY: 180 })
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 210 })
+
+    const pointsAfter = container.querySelectorAll('[data-testid="animation-path-point"]')
+    expect(pointsAfter[1]).toHaveAttribute('cx', '310')
+    expect(pointsAfter[1]).toHaveAttribute('cy', '310')
   })
 
   it('keeps later ghosts fixed when dragging a middle move step', () => {

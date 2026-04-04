@@ -88,6 +88,7 @@ export function AnimationPathOverlay({
   if (
     moveCanvasSelection.historySegments.length === 0 &&
     moveCanvasSelection.activeSegment == null &&
+    moveCanvasSelection.downstreamSegments.length === 0 &&
     moveCanvasSelection.activePoints.length === 0
   ) {
     return null
@@ -108,6 +109,31 @@ export function AnimationPathOverlay({
       style={{ left: 0, top: 0, width: SLIDE_WIDTH, height: SLIDE_HEIGHT, zIndex: 4 }}
     >
       {moveCanvasSelection.historySegments.map((segment) => {
+        const start = toAbsolutePoint(
+          baseLeft,
+          baseTop,
+          ghostWidth,
+          ghostHeight,
+          segment.startDelta
+        )
+        const end = toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, segment.endDelta)
+
+        return (
+          <line
+            key={segment.animationId}
+            data-testid="animation-path"
+            aria-label="Move animation path"
+            className={styles.animationPath}
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
+            onClick={(event) => onSelect(segment.animationId, event)}
+            onContextMenu={(event) => onContextMenu(segment.animationId, event)}
+          />
+        )
+      })}
+      {moveCanvasSelection.downstreamSegments.map((segment) => {
         const start = toAbsolutePoint(
           baseLeft,
           baseTop,

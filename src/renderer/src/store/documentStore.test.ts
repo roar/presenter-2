@@ -831,6 +831,7 @@ describe('documentStore', () => {
             startDelta: { x: 0, y: 0 },
             endDelta: { x: 24, y: 48 }
           },
+          downstreamSegments: [],
           activePoints: [
             {
               id: `${animation.id}:start`,
@@ -934,6 +935,7 @@ describe('documentStore', () => {
             startDelta: { x: -5, y: 40 },
             endDelta: { x: 5, y: 60 }
           },
+          downstreamSegments: [],
           activePoints: [
             {
               id: `${move1.id}:start`,
@@ -1022,6 +1024,7 @@ describe('documentStore', () => {
             startDelta: { x: 0, y: 0 },
             endDelta: { x: 90, y: 120 }
           },
+          downstreamSegments: [],
           activePoints: [
             {
               id: 'start',
