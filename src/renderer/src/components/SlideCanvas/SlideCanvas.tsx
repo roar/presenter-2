@@ -20,53 +20,12 @@ import {
 import { ContextMenu } from '../ContextMenu/ContextMenu'
 import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
-import { MsoIndicator } from './MsoIndicator'
 import { buildMoveChainStates } from './animationCanvasModel'
-import { ImageView } from './ImageView'
-import { ShapeView } from './ShapeView'
-import { TextView } from './TextView'
+import { SlideCanvasObject } from './SlideCanvasObject'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
 import styles from './SlideCanvas.module.css'
-
-type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotation'
-
-const HANDLE_PX = 8 // handle square size in screen pixels
-const ROT_LINE_PX = 32 // rotation arm length in screen pixels
-const ROT_HANDLE_PX = 6 // rotation handle radius in screen pixels
-
-function parseRenderedTransform(transform: string): {
-  translateX: number
-  translateY: number
-  scale: number
-} {
-  const translateMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/)
-  const scaleMatch = transform.match(/scale\(([-\d.]+)\)/)
-  return {
-    translateX: translateMatch ? Number(translateMatch[1]) : 0,
-    translateY: translateMatch ? Number(translateMatch[2]) : 0,
-    scale: scaleMatch ? Number(scaleMatch[1]) : 1
-  }
-}
-
-// Maps handle type + object rotation → CSS resize cursor
-function getResizeCursor(handle: HandleType, rotation: number): string {
-  const naturalAngles: Record<HandleType, number> = {
-    tl: 315,
-    tc: 270,
-    tr: 45,
-    ml: 180,
-    mr: 0,
-    bl: 225,
-    bc: 90,
-    br: 135,
-    rotation: 0
-  }
-  const cursors = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']
-  const visual = (((naturalAngles[handle] + rotation) % 360) + 360) % 360
-  return cursors[Math.round((visual % 180) / 45) % 4]
-}
 
 function getOverlayEndpoints(
   width: number,
@@ -539,237 +498,19 @@ export function SlideCanvas(): React.JSX.Element {
                   )
                 })()
               : null}
-            {renderedAppearances.map((renderedAppearance) => {
-              const { appearance, master, visible, opacity, transform } = renderedAppearance
-              const isDraggingThis = draggingMasterId === master.id
-              const { x, y, width, height } = master.transform
-              const {
-                translateX,
-                translateY,
-                scale: renderedScale
-              } = parseRenderedTransform(transform)
-              const left = x + translateX
-              const top = y + translateY
-              const scaledWidth = width * renderedScale
-              const scaledHeight = height * renderedScale
-              return (
-                <React.Fragment key={appearance.id}>
-                  {master.type === 'shape' && (
-                    <ShapeView
-                      master={master}
-                      appearance={appearance}
-                      rendered={renderedAppearance}
-                    />
-                  )}
-                  {master.type === 'text' && (
-                    <TextView
-                      master={master}
-                      appearance={appearance}
-                      rendered={renderedAppearance}
-                    />
-                  )}
-                  {master.type === 'image' && (
-                    <ImageView
-                      master={master}
-                      appearance={appearance}
-                      rendered={renderedAppearance}
-                    />
-                  )}
-                  {master.isMultiSlideObject && (
-                    <MsoIndicator x={left} y={top} width={scaledWidth} />
-                  )}
-                  {selectedElementIds.includes(master.id) &&
-                    (() => {
-                      const cx = x + width / 2 + translateX
-                      const cy = y + height / 2 + translateY
-                      const hw = scaledWidth / 2
-                      const hh = scaledHeight / 2
-                      const hs = HANDLE_PX / scale // handle size in slide units
-                      const rl = ROT_LINE_PX / scale // rotation arm length in slide units
-                      const rr = ROT_HANDLE_PX / scale // rotation handle radius in slide units
-                      const sw = 2 / scale // stroke width in slide units
-
-                      const handles: Array<{ h: HandleType; hx: number; hy: number }> = [
-                        { h: 'tl', hx: cx - hw, hy: cy - hh },
-                        { h: 'tc', hx: cx, hy: cy - hh },
-                        { h: 'tr', hx: cx + hw, hy: cy - hh },
-                        { h: 'ml', hx: cx - hw, hy: cy },
-                        { h: 'mr', hx: cx + hw, hy: cy },
-                        { h: 'bl', hx: cx - hw, hy: cy + hh },
-                        { h: 'bc', hx: cx, hy: cy + hh },
-                        { h: 'br', hx: cx + hw, hy: cy + hh }
-                      ]
-
-                      return (
-                        <svg
-                          data-testid="selection-indicator"
-                          style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            width: SLIDE_WIDTH,
-                            height: SLIDE_HEIGHT,
-                            overflow: 'visible',
-                            pointerEvents: 'none',
-                            opacity,
-                            visibility: visible ? 'visible' : 'hidden',
-                            zIndex: 3
-                          }}
-                        >
-                          <g transform={`rotate(${master.transform.rotation} ${cx} ${cy})`}>
-                            {/* Outline */}
-                            <rect
-                              x={cx - hw}
-                              y={cy - hh}
-                              width={scaledWidth}
-                              height={scaledHeight}
-                              fill="none"
-                              stroke="var(--accent)"
-                              strokeWidth={sw}
-                            />
-
-                            {/* Rotation arm + handle (only when not body-dragging) */}
-                            {!draggingMasterId && (
-                              <>
-                                <line
-                                  x1={cx}
-                                  y1={cy - hh}
-                                  x2={cx}
-                                  y2={cy - hh - rl}
-                                  stroke="var(--accent)"
-                                  strokeWidth={sw}
-                                />
-                                <circle
-                                  cx={cx}
-                                  cy={cy - hh - rl}
-                                  r={rr}
-                                  fill="white"
-                                  stroke="var(--accent)"
-                                  strokeWidth={sw}
-                                  style={{ pointerEvents: 'all', cursor: 'crosshair' }}
-                                  onMouseDown={(e) =>
-                                    handleHandleMouseDown('rotation', master.id, e)
-                                  }
-                                />
-                              </>
-                            )}
-
-                            {/* Resize handles (only when not body-dragging) */}
-                            {!draggingMasterId &&
-                              handles.map(({ h, hx, hy }) => (
-                                <rect
-                                  key={h}
-                                  x={hx - hs / 2}
-                                  y={hy - hs / 2}
-                                  width={hs}
-                                  height={hs}
-                                  rx={1 / scale}
-                                  fill="white"
-                                  stroke="var(--accent)"
-                                  strokeWidth={sw}
-                                  style={{
-                                    pointerEvents: 'all',
-                                    cursor: getResizeCursor(h, master.transform.rotation)
-                                  }}
-                                  onMouseDown={(e) => handleHandleMouseDown(h, master.id, e)}
-                                />
-                              ))}
-                          </g>
-                        </svg>
-                      )
-                    })()}
-                  {selectedElementIds.includes(master.id) &&
-                  master.type === 'shape' &&
-                  isGradientFill(master.objectStyle.defaultState.fill) &&
-                  master.objectStyle.defaultState.fill.kind === 'linear-gradient'
-                    ? (() => {
-                        const fill = master.objectStyle.defaultState.fill as LinearGradientFill
-                        const { x1, y1, x2, y2 } = getOverlayEndpoints(
-                          scaledWidth,
-                          scaledHeight,
-                          fill
-                        )
-                        return (
-                          <svg
-                            aria-label="Gradient angle overlay"
-                            className={styles.gradientOverlay}
-                            style={{
-                              left,
-                              top,
-                              width: scaledWidth,
-                              height: scaledHeight,
-                              zIndex: 2,
-                              opacity,
-                              visibility: visible ? 'visible' : 'hidden'
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <line
-                              className={styles.gradientLineHitArea}
-                              x1={x1}
-                              y1={y1}
-                              x2={x2}
-                              y2={y2}
-                            />
-                            <line className={styles.gradientLine} x1={x1} y1={y1} x2={x2} y2={y2} />
-                            <circle
-                              className={styles.gradientHandle}
-                              cx={x1}
-                              cy={y1}
-                              r={8}
-                              onMouseDown={(e) =>
-                                handleGradientOverlayMouseDown(
-                                  master.id,
-                                  fill,
-                                  left,
-                                  top,
-                                  scaledWidth,
-                                  scaledHeight,
-                                  'start',
-                                  e
-                                )
-                              }
-                            />
-                            <circle
-                              className={styles.gradientHandle}
-                              cx={x2}
-                              cy={y2}
-                              r={8}
-                              onMouseDown={(e) =>
-                                handleGradientOverlayMouseDown(
-                                  master.id,
-                                  fill,
-                                  left,
-                                  top,
-                                  scaledWidth,
-                                  scaledHeight,
-                                  'end',
-                                  e
-                                )
-                              }
-                            />
-                          </svg>
-                        )
-                      })()
-                    : null}
-                  <div
-                    data-testid="element-hitbox"
-                    style={{
-                      position: 'absolute',
-                      left,
-                      top,
-                      width: scaledWidth,
-                      height: scaledHeight,
-                      zIndex: 1,
-                      cursor: isDraggingThis ? 'grabbing' : 'grab'
-                    }}
-                    onMouseDown={(e) => handleElementMouseDown(master.id, e)}
-                    onClick={(e) => e.stopPropagation()}
-                    onContextMenu={(e) => handleElementContextMenu(master.id, appearance.id, e)}
-                  />
-                </React.Fragment>
-              )
-            })}
+            {renderedAppearances.map((renderedAppearance) => (
+              <SlideCanvasObject
+                key={renderedAppearance.appearance.id}
+                renderedAppearance={renderedAppearance}
+                scale={scale}
+                isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
+                isDragging={draggingMasterId === renderedAppearance.master.id}
+                onElementMouseDown={handleElementMouseDown}
+                onElementContextMenu={handleElementContextMenu}
+                onHandleMouseDown={handleHandleMouseDown}
+                onGradientOverlayMouseDown={handleGradientOverlayMouseDown}
+              />
+            ))}
             {selectedGroupMoveAnimation &&
             selectedGroupRenderedAppearance &&
             selectedGroupMaster ? (
