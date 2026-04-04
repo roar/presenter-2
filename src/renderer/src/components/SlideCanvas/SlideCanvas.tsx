@@ -11,13 +11,7 @@ import {
   resolveLinearGradientEndpoints,
   setLinearGradientEndpoints
 } from '@shared/model/fill'
-import type {
-  Appearance,
-  LinearGradientFill,
-  MsoMaster,
-  Position,
-  Transform
-} from '@shared/model/types'
+import type { LinearGradientFill, Position, Transform } from '@shared/model/types'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
@@ -29,7 +23,9 @@ import {
 } from '../../store/documentStore'
 import { ContextMenu } from '../ContextMenu/ContextMenu'
 import { ContextMenuItem } from '../ContextMenu/ContextMenuItem'
+import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
 import { MsoIndicator } from './MsoIndicator'
+import { buildMoveChainStates } from './animationCanvasModel'
 import { ImageView } from './ImageView'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
@@ -77,44 +73,6 @@ interface GhostDragData {
   startClientX: number
   startClientY: number
   originalDelta: Position
-}
-
-function buildMoveChainStates(
-  steps: Array<{ animationId: string; delta: Position }>,
-  preview: { animationId: string; delta: Position } | null
-): Array<{ animationId: string; delta: Position; cumulativeDelta: Position }> {
-  const baseStates = steps.reduce<
-    Array<{ animationId: string; delta: Position; cumulativeDelta: Position }>
-  >((states, step) => {
-    const previous = states[states.length - 1]?.cumulativeDelta ?? { x: 0, y: 0 }
-    states.push({
-      animationId: step.animationId,
-      delta: step.delta,
-      cumulativeDelta: {
-        x: previous.x + step.delta.x,
-        y: previous.y + step.delta.y
-      }
-    })
-    return states
-  }, [])
-
-  if (!preview) return baseStates
-
-  const previewIndex = baseStates.findIndex((step) => step.animationId === preview.animationId)
-  if (previewIndex < 0) return baseStates
-
-  return baseStates.map((step, index) => {
-    if (index !== previewIndex) return step
-
-    return {
-      animationId: step.animationId,
-      delta: preview.delta,
-      cumulativeDelta: {
-        x: step.cumulativeDelta.x + (preview.delta.x - step.delta.x),
-        y: step.cumulativeDelta.y + (preview.delta.y - step.delta.y)
-      }
-    }
-  })
 }
 
 function parseRenderedTransform(transform: string): {
@@ -221,39 +179,6 @@ function getOverlayEndpoints(
     x2: endpoints.x2 * width,
     y2: endpoints.y2 * height
   }
-}
-
-function renderAnimationGhostObject(
-  master: MsoMaster,
-  appearance: Appearance,
-  width: number,
-  height: number
-): React.JSX.Element | null {
-  const ghostMaster = {
-    ...master,
-    transform: {
-      ...master.transform,
-      x: 0,
-      y: 0,
-      width,
-      height,
-      rotation: 0
-    }
-  }
-
-  if (master.type === 'shape') {
-    return <ShapeView master={ghostMaster} appearance={appearance} />
-  }
-
-  if (master.type === 'text') {
-    return <TextView master={ghostMaster} appearance={appearance} />
-  }
-
-  if (master.type === 'image') {
-    return <ImageView master={ghostMaster} appearance={appearance} />
-  }
-
-  return null
 }
 
 export function SlideCanvas(): React.JSX.Element {
@@ -1220,102 +1145,17 @@ export function SlideCanvas(): React.JSX.Element {
             })}
             {selectedGroupMoveAnimation &&
             selectedGroupRenderedAppearance &&
-            selectedGroupMaster &&
-            moveChainStates.length > 0
-              ? (() => {
-                  const { master, transform } = selectedGroupRenderedAppearance
-                  const {
-                    translateX,
-                    translateY,
-                    scale: renderedScale
-                  } = parseRenderedTransform(transform)
-                  const baseLeft = master.transform.x + translateX
-                  const baseTop = master.transform.y + translateY
-                  const ghostWidth = master.transform.width * renderedScale
-                  const ghostHeight = master.transform.height * renderedScale
-
-                  return (
-                    <>
-                      {moveChainStates.map((step, index) => {
-                        const isSelected = step.animationId === selectedAnimationId
-                        const previousState = index === 0 ? null : moveChainStates[index - 1]
-                        const segmentStartLeft = previousState
-                          ? baseLeft + previousState.cumulativeDelta.x
-                          : baseLeft
-                        const segmentStartTop = previousState
-                          ? baseTop + previousState.cumulativeDelta.y
-                          : baseTop
-                        const ghostLeft = baseLeft + step.cumulativeDelta.x
-                        const ghostTop = baseTop + step.cumulativeDelta.y
-                        const startCenterX = segmentStartLeft + ghostWidth / 2
-                        const startCenterY = segmentStartTop + ghostHeight / 2
-                        const ghostCenterX = ghostLeft + ghostWidth / 2
-                        const ghostCenterY = ghostTop + ghostHeight / 2
-
-                        return (
-                          <React.Fragment key={step.animationId}>
-                            <svg
-                              aria-label="Move animation path"
-                              className={styles.animationOverlay}
-                              style={{
-                                left: 0,
-                                top: 0,
-                                width: SLIDE_WIDTH,
-                                height: SLIDE_HEIGHT,
-                                zIndex: 4
-                              }}
-                            >
-                              <line
-                                data-testid="animation-path"
-                                className={`${styles.animationPath} ${isSelected ? styles.animationPathSelected : ''}`}
-                                x1={startCenterX}
-                                y1={startCenterY}
-                                x2={ghostCenterX}
-                                y2={ghostCenterY}
-                                onClick={(e) => handleAnimationSelect(step.animationId, e)}
-                                onContextMenu={(e) =>
-                                  handleAnimationContextMenu(step.animationId, e)
-                                }
-                              />
-                            </svg>
-                            <div
-                              aria-label="Move animation ghost"
-                              data-testid="animation-ghost"
-                              className={`${styles.animationGhost} ${isSelected ? styles.animationGhostSelected : ''}`}
-                              style={{
-                                left: ghostLeft,
-                                top: ghostTop,
-                                width: ghostWidth,
-                                height: ghostHeight,
-                                transform: `rotate(${selectedGroupMaster.transform.rotation}deg)`,
-                                zIndex: 5
-                              }}
-                              onMouseDown={(e) =>
-                                handleAnimationGhostMouseDown(step.animationId, step.delta, e)
-                              }
-                              onClick={(e) => handleAnimationSelect(step.animationId, e)}
-                              onContextMenu={(e) => handleAnimationContextMenu(step.animationId, e)}
-                            >
-                              <div
-                                className={`${styles.animationGhostContent} ${
-                                  isSelected ? styles.animationGhostContentSelected : ''
-                                }`}
-                              >
-                                {renderAnimationGhostObject(
-                                  selectedGroupMaster,
-                                  selectedGroupRenderedAppearance.appearance,
-                                  ghostWidth,
-                                  ghostHeight
-                                )}
-                              </div>
-                            </div>
-                          </React.Fragment>
-                        )
-                      })}
-                    </>
-                  )
-                })()
-              : null}
+            selectedGroupMaster ? (
+              <AnimationCanvasOverlay
+                master={selectedGroupMaster}
+                renderedAppearance={selectedGroupRenderedAppearance}
+                moveChainStates={moveChainStates}
+                selectedAnimationId={selectedAnimationId}
+                onSelect={handleAnimationSelect}
+                onContextMenu={handleAnimationContextMenu}
+                onGhostMouseDown={handleAnimationGhostMouseDown}
+              />
+            ) : null}
           </div>
         )}
       </div>
