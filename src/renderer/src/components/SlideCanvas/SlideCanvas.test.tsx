@@ -507,6 +507,109 @@ describe('SlideCanvas', () => {
     expect(screen.getByTestId('animation-ghost')).toHaveStyle({ left: '140px', top: '180px' })
   })
 
+  it('renders transition previews with behind, front, and mso content through the preview layer', () => {
+    const pres = createPresentation()
+    const slide1 = createSlide()
+    slide1.id = 'slide-1'
+    slide1.background = { color: '#111111' }
+    const slide2 = createSlide()
+    slide2.id = 'slide-2'
+    slide2.background = { color: '#222222' }
+
+    const behindMaster = createMsoMaster('shape')
+    behindMaster.transform = { x: 50, y: 60, width: 120, height: 90, rotation: 0 }
+    behindMaster.objectStyle = {
+      defaultState: { fill: '#ff0000', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    behindMaster.geometry = { type: 'path', pathData: 'M 0 0 L 120 0 L 120 90 L 0 90 Z' }
+    const behindAppearance = createAppearance(behindMaster.id, slide1.id)
+    slide1.appearanceIds = [behindAppearance.id]
+
+    const frontMaster = createMsoMaster('shape')
+    frontMaster.transform = { x: 220, y: 80, width: 120, height: 90, rotation: 0 }
+    frontMaster.objectStyle = {
+      defaultState: { fill: '#0000ff', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    frontMaster.geometry = { type: 'path', pathData: 'M 0 0 L 120 0 L 120 90 L 0 90 Z' }
+    const frontAppearance = createAppearance(frontMaster.id, slide2.id)
+    slide2.appearanceIds = [frontAppearance.id]
+
+    const msoMaster = createMsoMaster('shape')
+    msoMaster.isMultiSlideObject = true
+    msoMaster.transform = { x: 400, y: 120, width: 100, height: 70, rotation: 0 }
+    msoMaster.objectStyle = {
+      defaultState: { fill: '#00ff00', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    msoMaster.geometry = { type: 'path', pathData: 'M 0 0 L 100 0 L 100 70 L 0 70 Z' }
+    const msoAppearance = createAppearance(msoMaster.id, slide2.id)
+
+    pres.slideOrder = [slide1.id, slide2.id]
+    pres.slidesById[slide1.id] = slide1
+    pres.slidesById[slide2.id] = slide2
+    pres.mastersById[behindMaster.id] = behindMaster
+    pres.mastersById[frontMaster.id] = frontMaster
+    pres.mastersById[msoMaster.id] = msoMaster
+    pres.appearancesById[behindAppearance.id] = behindAppearance
+    pres.appearancesById[frontAppearance.id] = frontAppearance
+    pres.appearancesById[msoAppearance.id] = msoAppearance
+
+    mockStore(slide2.id, pres)
+
+    const previewFrame: FrameState = {
+      front: {
+        slide: slide2,
+        appearances: [
+          {
+            appearance: frontAppearance,
+            master: frontMaster,
+            visible: true,
+            opacity: 1,
+            transform: 'translate(0px, 0px)',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      behind: {
+        slide: slide1,
+        appearances: [
+          {
+            appearance: behindAppearance,
+            master: behindMaster,
+            visible: true,
+            opacity: 1,
+            transform: 'translate(0px, 0px)',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      transition: { kind: 'dissolve', progress: 0.5 },
+      msoAppearances: [
+        {
+          appearance: msoAppearance,
+          master: msoMaster,
+          visible: true,
+          opacity: 1,
+          transform: 'translate(0px, 0px)',
+          textShadow: null,
+          strokeDashoffset: null
+        }
+      ]
+    }
+
+    const { container } = render(<SlideCanvas previewFrame={previewFrame} />)
+    expect(container.querySelectorAll('[data-testid="element-hitbox"]')).toHaveLength(0)
+    expect(container.querySelectorAll('path').length).toBeGreaterThanOrEqual(3)
+  })
+
   it('renders the ghost using the original object geometry', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]

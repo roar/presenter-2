@@ -30,13 +30,15 @@ vi.mock('../SlideCanvas/SlideCanvas', () => ({
   }: {
     previewFrame?: {
       front: { slide: { id: string }; appearances: Array<{ transform: string }> }
+      behind?: { slide: { id: string } } | null
+      transition?: unknown
     } | null
   }) => (
     <div data-testid="canvas">
       {previewFrame
-        ? `${previewFrame.front.slide.id}:${previewFrame.front.appearances
+        ? `${previewFrame.behind ? `${previewFrame.behind.slide.id}->` : ''}${previewFrame.front.slide.id}:${previewFrame.front.appearances
             .map((appearance) => appearance.transform)
-            .join('|')}`
+            .join('|')}${previewFrame.transition ? ':transition' : ''}`
         : 'static'}
     </div>
   )
@@ -680,5 +682,52 @@ describe('EditorLayout', () => {
     fireEvent.mouseMove(timelineRoot, { clientX: 399, clientY: 40 })
 
     expect(screen.getByTestId('canvas')).toHaveTextContent(slide2.id)
+  })
+
+  it('passes transition preview data through the canvas during all-slides scrubbing', async () => {
+    const user = userEvent.setup()
+    const slide1 = createSlide()
+    const slide2 = createSlide()
+    const master1 = createMsoMaster('shape')
+    const master2 = createMsoMaster('shape')
+    const appearance1 = createAppearance(master1.id, slide1.id)
+    const appearance2 = createAppearance(master2.id, slide2.id)
+
+    slide1.appearanceIds = [appearance1.id]
+    slide1.transitionTriggerId = 'trans'
+    slide1.transition = { kind: 'dissolve', duration: 1, easing: 'linear' }
+    slide2.appearanceIds = [appearance2.id]
+
+    const document = {
+      ...makePresentation(slide1, slide2),
+      mastersById: { [master1.id]: master1, [master2.id]: master2 },
+      appearancesById: { [appearance1.id]: appearance1, [appearance2.id]: appearance2 },
+      animationsById: {}
+    }
+
+    mockStore(document, slide2.id)
+    render(<EditorLayout />)
+
+    const timelineRoot = screen.getByTestId('timeline-root')
+    Object.defineProperty(timelineRoot, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 0,
+        width: 300,
+        height: 80,
+        top: 0,
+        left: 100,
+        right: 400,
+        bottom: 80,
+        toJSON: () => ({})
+      })
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Show all slides timeline' }))
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    fireEvent.mouseMove(timelineRoot, { clientX: 340, clientY: 40 })
+
+    expect(screen.getByTestId('canvas')).toHaveTextContent(':transition')
   })
 })

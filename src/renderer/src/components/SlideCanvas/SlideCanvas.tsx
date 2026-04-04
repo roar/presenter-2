@@ -1,13 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
-import {
-  resolveBackgroundGrain,
-  resolveBackgroundStyle,
-  resolveSlideBackground
-} from '@shared/model/background'
-import { GrainCanvas } from '@viewer/components/GrainCanvas/GrainCanvas'
-import { isGradientFill, resolveLinearGradientEndpoints } from '@shared/model/fill'
-import type { LinearGradientFill, Position } from '@shared/model/types'
+import { resolveBackgroundStyle, resolveSlideBackground } from '@shared/model/background'
+import type { Position } from '@shared/model/types'
 import { getMovePathEndpoint } from '@shared/model/movePath'
 import {
   computeMsoExitStateChains,
@@ -24,8 +18,8 @@ import { AnimationPathContextMenu } from './AnimationPathContextMenu'
 import { AnimationPathOverlay } from './AnimationPathOverlay'
 import { buildMoveCanvasSelection, buildMoveChainStates } from '../../store/animationCanvasModel'
 import { getAnimationOverlayMetrics } from './animationOverlayMetrics'
+import { SlideCanvasPreviewLayer } from './SlideCanvasPreviewLayer'
 import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
-import { SlideCanvasObject } from './SlideCanvasObject'
 import { useCanvasContextMenus } from './useCanvasContextMenus'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
 import { useAnimationPathContextMenu } from './useAnimationPathContextMenu'
@@ -36,26 +30,6 @@ import styles from './SlideCanvas.module.css'
 
 interface SlideCanvasProps {
   previewFrame?: FrameState | null
-}
-
-function getOverlayEndpoints(
-  width: number,
-  height: number,
-  fill: LinearGradientFill
-): {
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-} {
-  const endpoints = resolveLinearGradientEndpoints(fill)
-
-  return {
-    x1: endpoints.x1 * width,
-    y1: endpoints.y1 * height,
-    x2: endpoints.x2 * width,
-    y2: endpoints.y2 * height
-  }
 }
 
 export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JSX.Element {
@@ -383,10 +357,6 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const slide =
     previewRenderedSlide?.slide ??
     (canvasSlideId != null ? patchedPresentation?.slidesById[canvasSlideId] : null)
-  const resolvedSlideBackground =
-    slide != null
-      ? resolveSlideBackground(slide.background, patchedPresentation?.defaultBackground)
-      : null
   const msoExitStatesBySlide = patchedPresentation
     ? computeMsoExitStateChains(patchedPresentation)
     : []
@@ -426,6 +396,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       .sort((a, b) => a.appearance.zIndex - b.appearance.zIndex) ?? []
 
   const selectedGroupMoveAnimation =
+    !previewFrame?.transition &&
     selectedAnimationGroup?.slideId === canvasSlideId &&
     selectedAnimationGroup.moveAnimation?.effect.type === 'move'
       ? selectedAnimationGroup.moveAnimation
@@ -483,7 +454,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
               height: SLIDE_HEIGHT,
               background:
                 resolveBackgroundStyle(
-                  resolvedSlideBackground ?? slide.background,
+                  resolveSlideBackground(slide.background, patchedPresentation?.defaultBackground),
                   patchedPresentation.colorConstantsById
                 ) ?? '#ffffff',
               transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`,
@@ -495,73 +466,20 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
               }
             }}
           >
-            {resolveBackgroundGrain(resolvedSlideBackground ?? slide.background).enabled ? (
-              <GrainCanvas
-                grain={resolveBackgroundGrain(resolvedSlideBackground ?? slide.background)}
-              />
-            ) : null}
-            {isGradientFill((resolvedSlideBackground ?? slide.background).fill) &&
-            (resolvedSlideBackground ?? slide.background).fill?.kind === 'linear-gradient'
-              ? (() => {
-                  const fill = (resolvedSlideBackground ?? slide.background)
-                    .fill as LinearGradientFill
-                  const { x1, y1, x2, y2 } = getOverlayEndpoints(SLIDE_WIDTH, SLIDE_HEIGHT, fill)
-                  return (
-                    <svg
-                      aria-label="Background gradient angle overlay"
-                      className={styles.gradientOverlay}
-                      style={{
-                        left: 0,
-                        top: 0,
-                        width: SLIDE_WIDTH,
-                        height: SLIDE_HEIGHT,
-                        zIndex: 2
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <line
-                        className={styles.gradientLineHitArea}
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                      />
-                      <line className={styles.gradientLine} x1={x1} y1={y1} x2={x2} y2={y2} />
-                      <circle
-                        className={styles.gradientHandle}
-                        cx={x1}
-                        cy={y1}
-                        r={8}
-                        onMouseDown={(e) =>
-                          handleBackgroundGradientMouseDown(slide.id, fill, 'start', e)
-                        }
-                      />
-                      <circle
-                        className={styles.gradientHandle}
-                        cx={x2}
-                        cy={y2}
-                        r={8}
-                        onMouseDown={(e) =>
-                          handleBackgroundGradientMouseDown(slide.id, fill, 'end', e)
-                        }
-                      />
-                    </svg>
-                  )
-                })()
-              : null}
-            {renderedAppearances.map((renderedAppearance) => (
-              <SlideCanvasObject
-                key={renderedAppearance.appearance.id}
-                renderedAppearance={renderedAppearance}
-                scale={scale}
-                isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
-                isDragging={draggingMasterId === renderedAppearance.master.id}
-                onElementMouseDown={handleElementMouseDown}
-                onElementContextMenu={handleElementContextMenu}
-                onHandleMouseDown={handleHandleMouseDown}
-                onGradientOverlayMouseDown={handleGradientOverlayMouseDown}
-              />
-            ))}
+            <SlideCanvasPreviewLayer
+              defaultBackground={patchedPresentation.defaultBackground}
+              draggingMasterId={draggingMasterId}
+              previewFrame={previewFrame}
+              renderedAppearances={renderedAppearances}
+              scale={scale}
+              selectedElementIds={selectedElementIds}
+              slide={slide}
+              onBackgroundGradientMouseDown={handleBackgroundGradientMouseDown}
+              onElementContextMenu={handleElementContextMenu}
+              onElementMouseDown={handleElementMouseDown}
+              onGradientOverlayMouseDown={handleGradientOverlayMouseDown}
+              onHandleMouseDown={handleHandleMouseDown}
+            />
             {selectedGroupMoveAnimation && selectedGroupOverlayAppearance && selectedGroupMaster ? (
               <>
                 {selectedGroupOverlayMetrics ? (
