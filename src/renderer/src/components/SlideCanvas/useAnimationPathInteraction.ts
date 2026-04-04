@@ -5,6 +5,7 @@ import type { SelectedAnimationGroup } from '../../store/documentStore'
 interface PathPointDragData {
   animationId: string
   pointId: string
+  handle?: 'in' | 'out'
   startClientX: number
   startClientY: number
   originalPath: MovePath
@@ -20,6 +21,12 @@ interface UseAnimationPathInteractionParams {
 interface UseAnimationPathInteractionResult {
   pathPreview: { animationId: string; path: MovePath } | null
   handlePathPointMouseDown: (pointId: string, event: React.MouseEvent) => void
+  handlePathHandleMouseDown: (
+    pointId: string,
+    handle: 'in' | 'out',
+    event: React.MouseEvent
+  ) => void
+  handleInsertPointMouseDown: (segmentIndex: number, event: React.MouseEvent) => void
   updatePathDragPreview: (event: MouseEvent) => boolean
   commitPathDrag: (event: MouseEvent) => boolean
 }
@@ -78,6 +85,52 @@ function translatePathPoint(path: MovePath, pointId: string, dx: number, dy: num
   }
 }
 
+function translatePathHandle(
+  path: MovePath,
+  pointId: string,
+  handle: 'in' | 'out',
+  dx: number,
+  dy: number
+): MovePath {
+  return {
+    points: path.points.map((point) => {
+      if (point.id !== pointId) return point
+      const key = handle === 'in' ? 'inHandle' : 'outHandle'
+      const current = point[key] ?? point.position
+      return {
+        ...point,
+        [key]: { x: current.x + dx, y: current.y + dy }
+      }
+    })
+  }
+}
+
+function insertBezierPointAtSegment(path: MovePath, segmentIndex: number): MovePath {
+  const start = path.points[segmentIndex]
+  const end = path.points[segmentIndex + 1]
+  if (!start || !end) return path
+
+  const midX = (start.position.x + end.position.x) / 2
+  const midY = (start.position.y + end.position.y) / 2
+  const dx = end.position.x - start.position.x
+  const dy = end.position.y - start.position.y
+  const newPoint = {
+    id: `point-${Math.random().toString(36).slice(2, 10)}`,
+    position: { x: midX, y: midY },
+    type: 'bezier' as const,
+    inHandle: { x: midX - dx / 4, y: midY - dy / 4 },
+    outHandle: { x: midX + dx / 4, y: midY + dy / 4 }
+  }
+
+  return {
+    points: [
+      ...path.points.slice(0, segmentIndex + 1),
+      newPoint,
+      ...path.points.slice(segmentIndex + 1)
+    ]
+  }
+}
+
 export function useAnimationPathInteraction({
   isSpaceDownRef,
   scaleRef,
@@ -122,6 +175,56 @@ export function useAnimationPathInteraction({
     [isSpaceDownRef]
   )
 
+  const handlePathHandleMouseDown = useCallback(
+    (pointId: string, handle: 'in' | 'out', event: React.MouseEvent) => {
+      if (isSpaceDownRef.current) return
+      const group = selectedAnimationGroupRef.current
+      if (!group || group.selectedAnimation.effect.type !== 'move') return
+
+      const editablePath = buildEditablePath(group)
+      if (!editablePath) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      dragRef.current = {
+        animationId: group.selectedAnimation.id,
+        pointId,
+        handle,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        originalPath: editablePath
+      }
+      setPathPreview({ animationId: group.selectedAnimation.id, path: editablePath })
+    },
+    [isSpaceDownRef]
+  )
+
+  const handleInsertPointMouseDown = useCallback(
+    (segmentIndex: number, event: React.MouseEvent) => {
+      if (isSpaceDownRef.current) return
+      const group = selectedAnimationGroupRef.current
+      if (!group || group.selectedAnimation.effect.type !== 'move') return
+      const editablePath = buildEditablePath(group)
+      if (!editablePath) return
+
+      const nextPath = insertBezierPointAtSegment(editablePath, segmentIndex)
+      const insertedPoint = nextPath.points[segmentIndex + 1]
+      if (!insertedPoint) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      dragRef.current = {
+        animationId: group.selectedAnimation.id,
+        pointId: insertedPoint.id,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        originalPath: nextPath
+      }
+      setPathPreview({ animationId: group.selectedAnimation.id, path: nextPath })
+    },
+    [isSpaceDownRef]
+  )
+
   const updatePathDragPreview = useCallback(
     (event: MouseEvent) => {
       const drag = dragRef.current
@@ -131,7 +234,9 @@ export function useAnimationPathInteraction({
       const dy = (event.clientY - drag.startClientY) / scaleRef.current
       setPathPreview({
         animationId: drag.animationId,
-        path: translatePathPoint(clonePath(drag.originalPath), drag.pointId, dx, dy)
+        path: drag.handle
+          ? translatePathHandle(clonePath(drag.originalPath), drag.pointId, drag.handle, dx, dy)
+          : translatePathPoint(clonePath(drag.originalPath), drag.pointId, dx, dy)
       })
       return true
     },
@@ -145,7 +250,9 @@ export function useAnimationPathInteraction({
 
       const dx = (event.clientX - drag.startClientX) / scaleRef.current
       const dy = (event.clientY - drag.startClientY) / scaleRef.current
-      const nextPath = translatePathPoint(clonePath(drag.originalPath), drag.pointId, dx, dy)
+      const nextPath = drag.handle
+        ? translatePathHandle(clonePath(drag.originalPath), drag.pointId, drag.handle, dx, dy)
+        : translatePathPoint(clonePath(drag.originalPath), drag.pointId, dx, dy)
 
       updateAnimationMovePathRef.current(drag.animationId, nextPath)
       dragRef.current = null
@@ -158,6 +265,8 @@ export function useAnimationPathInteraction({
   return {
     pathPreview,
     handlePathPointMouseDown,
+    handlePathHandleMouseDown,
+    handleInsertPointMouseDown,
     updatePathDragPreview,
     commitPathDrag
   }

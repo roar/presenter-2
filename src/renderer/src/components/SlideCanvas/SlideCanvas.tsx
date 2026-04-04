@@ -115,13 +115,19 @@ export function SlideCanvas(): React.JSX.Element {
       updateAnimationMoveDelta
     })
 
-  const { pathPreview, handlePathPointMouseDown, updatePathDragPreview, commitPathDrag } =
-    useAnimationPathInteraction({
-      isSpaceDownRef,
-      scaleRef,
-      selectedAnimationGroup,
-      updateAnimationMovePath
-    })
+  const {
+    pathPreview,
+    handlePathPointMouseDown,
+    handlePathHandleMouseDown,
+    handleInsertPointMouseDown,
+    updatePathDragPreview,
+    commitPathDrag
+  } = useAnimationPathInteraction({
+    isSpaceDownRef,
+    scaleRef,
+    selectedAnimationGroup,
+    updateAnimationMovePath
+  })
 
   const {
     draggingMasterId,
@@ -523,6 +529,8 @@ export function SlideCanvas(): React.JSX.Element {
                     onSelect={handleAnimationSelect}
                     onContextMenu={handleAnimationContextMenu}
                     onPointMouseDown={handlePathPointMouseDown}
+                    onHandleMouseDown={handlePathHandleMouseDown}
+                    onInsertPointMouseDown={handleInsertPointMouseDown}
                   />
                 ) : null}
                 <AnimationCanvasOverlay

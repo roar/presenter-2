@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { Position } from '@shared/model/types'
 import type { MoveCanvasSelectionState } from '../../store/animationCanvasModel'
@@ -13,6 +13,8 @@ interface AnimationPathOverlayProps {
   onSelect(animationId: string, event: React.MouseEvent): void
   onContextMenu(animationId: string, event: React.MouseEvent): void
   onPointMouseDown(pointId: string, event: React.MouseEvent): void
+  onHandleMouseDown(pointId: string, handle: 'in' | 'out', event: React.MouseEvent): void
+  onInsertPointMouseDown(segmentIndex: number, event: React.MouseEvent): void
 }
 
 function toAbsolutePoint(
@@ -77,6 +79,44 @@ function buildActivePathData(
   return commands.join(' ')
 }
 
+function getSegmentMidpoint(start: Position, end: Position): Position {
+  return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+}
+
+function interpolateCubic(a: number, b: number, c: number, d: number, t: number): number {
+  const mt = 1 - t
+  return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d
+}
+
+function getSegmentInsertPoint(
+  previous: Position & { outHandle?: Position },
+  current: Position & { inHandle?: Position }
+): Position {
+  if (previous.outHandle || current.inHandle) {
+    const control1 = previous.outHandle ?? previous
+    const control2 = current.inHandle ?? current
+    return {
+      x: interpolateCubic(previous.x, control1.x, control2.x, current.x, 0.5),
+      y: interpolateCubic(previous.y, control1.y, control2.y, current.y, 0.5)
+    }
+  }
+
+  return getSegmentMidpoint(previous, current)
+}
+
+function buildSegmentPathData(
+  previous: Position & { outHandle?: Position },
+  current: Position & { inHandle?: Position }
+): string {
+  if (previous.outHandle || current.inHandle) {
+    const control1 = previous.outHandle ?? previous
+    const control2 = current.inHandle ?? current
+    return `M ${previous.x} ${previous.y} C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${current.x} ${current.y}`
+  }
+
+  return `M ${previous.x} ${previous.y} L ${current.x} ${current.y}`
+}
+
 export function AnimationPathOverlay({
   baseLeft,
   baseTop,
@@ -85,8 +125,12 @@ export function AnimationPathOverlay({
   moveCanvasSelection,
   onSelect,
   onContextMenu,
-  onPointMouseDown
+  onPointMouseDown,
+  onHandleMouseDown,
+  onInsertPointMouseDown
 }: AnimationPathOverlayProps): React.JSX.Element | null {
+  const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState<number | null>(null)
+
   if (
     moveCanvasSelection.historySegments.length === 0 &&
     moveCanvasSelection.activeSegment == null &&
@@ -167,12 +211,80 @@ export function AnimationPathOverlay({
           className={`${styles.animationPath} ${styles.animationPathSelected}`}
           d={activePathData}
           fill="none"
-          onClick={(event) => onSelect(moveCanvasSelection.activeSegment!.animationId, event)}
+          onClick={(event) => onSelect(moveCanvasSelection.activeSegment.animationId, event)}
           onContextMenu={(event) =>
-            onContextMenu(moveCanvasSelection.activeSegment!.animationId, event)
+            onContextMenu(moveCanvasSelection.activeSegment.animationId, event)
           }
         />
       ) : null}
+      {moveCanvasSelection.activePoints.slice(0, -1).map((point, index) => {
+        const nextPoint = moveCanvasSelection.activePoints[index + 1]
+        const midpoint = getSegmentInsertPoint(
+          {
+            ...point.position,
+            outHandle: point.outHandle
+          },
+          {
+            ...nextPoint.position,
+            inHandle: nextPoint.inHandle
+          }
+        )
+        const absoluteMidpoint = toAbsolutePoint(
+          baseLeft,
+          baseTop,
+          ghostWidth,
+          ghostHeight,
+          midpoint
+        )
+        const previousAbsolute = toAbsolutePoint(
+          baseLeft,
+          baseTop,
+          ghostWidth,
+          ghostHeight,
+          point.position
+        )
+        const currentAbsolute = toAbsolutePoint(
+          baseLeft,
+          baseTop,
+          ghostWidth,
+          ghostHeight,
+          nextPoint.position
+        )
+        const previousOutHandle = point.outHandle
+          ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle)
+          : undefined
+        const currentInHandle = nextPoint.inHandle
+          ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, nextPoint.inHandle)
+          : undefined
+
+        return (
+          <React.Fragment key={`insert-${point.id}-${nextPoint.id}`}>
+            <path
+              data-testid="animation-path-insert-hit-area"
+              className={styles.animationPathInsertHitArea}
+              d={buildSegmentPathData(
+                { ...previousAbsolute, outHandle: previousOutHandle },
+                { ...currentAbsolute, inHandle: currentInHandle }
+              )}
+              fill="none"
+              onMouseEnter={() => setHoveredSegmentIndex(index)}
+              onMouseLeave={() =>
+                setHoveredSegmentIndex((current) => (current === index ? null : current))
+              }
+            />
+            {hoveredSegmentIndex === index ? (
+              <circle
+                data-testid="animation-path-insert-point"
+                className={styles.animationPathInsertPoint}
+                cx={absoluteMidpoint.x}
+                cy={absoluteMidpoint.y}
+                r={10}
+                onMouseDown={(event) => onInsertPointMouseDown(index, event)}
+              />
+            ) : null}
+          </React.Fragment>
+        )
+      })}
       {moveCanvasSelection.activePoints.map((point) => (
         <React.Fragment key={point.id}>
           {point.inHandle ? (
@@ -191,6 +303,7 @@ export function AnimationPathOverlay({
                 cx={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle).x}
                 cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle).y}
                 r={4}
+                onMouseDown={(event) => onHandleMouseDown(point.id, 'in', event)}
               />
             </>
           ) : null}
@@ -210,6 +323,7 @@ export function AnimationPathOverlay({
                 cx={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle).x}
                 cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle).y}
                 r={4}
+                onMouseDown={(event) => onHandleMouseDown(point.id, 'out', event)}
               />
             </>
           ) : null}

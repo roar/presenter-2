@@ -177,6 +177,7 @@ describe('SlideCanvas', () => {
         updateMasterTransform: vi.fn(),
         addMoveAnimation,
         updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
@@ -246,6 +247,7 @@ describe('SlideCanvas', () => {
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
@@ -341,6 +343,7 @@ describe('SlideCanvas', () => {
         setPreviewPatch,
         addMoveAnimation: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn(),
@@ -641,6 +644,7 @@ describe('SlideCanvas', () => {
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
@@ -697,6 +701,7 @@ describe('SlideCanvas', () => {
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
@@ -887,6 +892,153 @@ describe('SlideCanvas', () => {
     })
   })
 
+  it('shows the insert point on segment hover and inserts a draggable bezier point on mouse down', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    const { container } = render(<SlideCanvas />)
+
+    expect(screen.queryByTestId('animation-path-insert-point')).toBeNull()
+
+    fireEvent.mouseEnter(screen.getByTestId('animation-path-insert-hit-area'))
+    const insertPoint = screen.getByTestId('animation-path-insert-point')
+    fireEvent.mouseDown(insertPoint, { clientX: 270, clientY: 240 })
+    fireEvent.mouseMove(window, { clientX: 290, clientY: 250 })
+
+    const pointsAfter = container.querySelectorAll('[data-testid="animation-path-point"]')
+    expect(pointsAfter).toHaveLength(3)
+    expect(pointsAfter[1]).toHaveAttribute('cx', '290')
+    expect(pointsAfter[1]).toHaveAttribute('cy', '250')
+
+    fireEvent.mouseUp(window, { clientX: 290, clientY: 250 })
+
+    expect(updateAnimationMovePath).toHaveBeenCalledTimes(1)
+    const pathArg = updateAnimationMovePath.mock.calls[0][1]
+    expect(pathArg.points).toHaveLength(3)
+    expect(pathArg.points[1].type).toBe('bezier')
+    expect(pathArg.points[1].position).toEqual({ x: 40, y: 50 })
+    expect(pathArg.points[1].inHandle).toBeTruthy()
+    expect(pathArg.points[1].outHandle).toBeTruthy()
+  })
+
+  it('previews and commits a bezier handle drag through move path updates', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            {
+              id: 'mid',
+              position: { x: 20, y: 40 },
+              type: 'bezier',
+              inHandle: { x: 10, y: 30 },
+              outHandle: { x: 30, y: 50 }
+            },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    const { container } = render(<SlideCanvas />)
+
+    const handlesBefore = container.querySelectorAll('[data-testid="animation-path-handle"]')
+    fireEvent.mouseDown(handlesBefore[1] as SVGCircleElement, { clientX: 280, clientY: 250 })
+    fireEvent.mouseMove(window, { clientX: 300, clientY: 260 })
+
+    const handlesAfter = container.querySelectorAll('[data-testid="animation-path-handle"]')
+    expect(handlesAfter[1]).toHaveAttribute('cx', '300')
+    expect(handlesAfter[1]).toHaveAttribute('cy', '260')
+
+    fireEvent.mouseUp(window, { clientX: 300, clientY: 260 })
+
+    expect(updateAnimationMovePath).toHaveBeenCalledWith('move-1', {
+      points: [
+        { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+        {
+          id: 'mid',
+          position: { x: 20, y: 40 },
+          type: 'bezier',
+          inHandle: { x: 10, y: 30 },
+          outHandle: { x: 50, y: 60 }
+        },
+        { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+      ]
+    })
+  })
+
   it('keeps later ghosts fixed when dragging a middle move step', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -1037,6 +1189,7 @@ describe('SlideCanvas', () => {
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
         convertToMultiSlideObject: vi.fn(),
         convertToSingleAppearance: vi.fn()
