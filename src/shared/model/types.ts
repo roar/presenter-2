@@ -100,7 +100,7 @@ export interface Transform {
   rotation: number // degrees
 }
 
-export type MovePathPointType = 'sharp' | 'bezier'
+export type MovePathPointType = 'sharp' | 'smooth' | 'bezier'
 
 export interface MovePathPoint {
   id: string

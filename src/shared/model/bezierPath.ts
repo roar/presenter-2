@@ -95,6 +95,71 @@ export function convertPointToBezier(path: MovePath, pointId: string): MovePath 
   }
 }
 
+export function convertPointToSmooth(path: MovePath, pointId: string): MovePath {
+  const index = path.points.findIndex((point) => point.id === pointId)
+  if (index < 0) return path
+
+  const point = path.points[index]
+  const previous = path.points[index - 1]
+  const next = path.points[index + 1]
+  const inDx = point.inHandle
+    ? point.position.x - point.inHandle.x
+    : previous
+      ? (point.position.x - previous.position.x) / 4
+      : 20
+  const inDy = point.inHandle
+    ? point.position.y - point.inHandle.y
+    : previous
+      ? (point.position.y - previous.position.y) / 4
+      : 0
+  const outDx = point.outHandle
+    ? point.outHandle.x - point.position.x
+    : next
+      ? (next.position.x - point.position.x) / 4
+      : 20
+  const outDy = point.outHandle
+    ? point.outHandle.y - point.position.y
+    : next
+      ? (next.position.y - point.position.y) / 4
+      : 0
+
+  let tangentX = outDx
+  let tangentY = outDy
+  if (tangentX === 0 && tangentY === 0) {
+    tangentX = inDx
+    tangentY = inDy
+  }
+  if (tangentX === 0 && tangentY === 0) {
+    tangentX = 20
+    tangentY = 0
+  }
+
+  const tangentLength = Math.hypot(tangentX, tangentY) || 1
+  const unitX = tangentX / tangentLength
+  const unitY = tangentY / tangentLength
+  const inLength = Math.hypot(inDx, inDy) || tangentLength
+  const outLength = Math.hypot(outDx, outDy) || tangentLength
+
+  return {
+    points: path.points.map((candidate) =>
+      candidate.id === pointId
+        ? {
+            ...clonePoint(candidate),
+            type: 'smooth',
+            inHandle: {
+              x: candidate.position.x - unitX * inLength,
+              y: candidate.position.y - unitY * inLength
+            },
+            outHandle: {
+              x: candidate.position.x + unitX * outLength,
+              y: candidate.position.y + unitY * outLength
+            }
+          }
+        : clonePoint(candidate)
+    )
+  }
+}
+
 export function deletePoint(path: MovePath, pointId: string): MovePath {
   const index = path.points.findIndex((point) => point.id === pointId)
   if (index <= 0 || index >= path.points.length - 1) return cloneMovePath(path)

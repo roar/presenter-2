@@ -3,6 +3,7 @@ import type { MovePath } from '@shared/model/types'
 import {
   cloneMovePath,
   convertPointToBezier as convertPathPointToBezier,
+  convertPointToSmooth as convertPathPointToSmooth,
   convertPointToSharp as convertPathPointToSharp,
   deletePoint as deletePathPoint,
   insertBezierPointAtSegment
@@ -35,6 +36,7 @@ interface UseAnimationPathInteractionResult {
   ) => void
   handleInsertPointMouseDown: (segmentIndex: number, event: React.MouseEvent) => void
   convertPointToSharp: (pointId: string) => void
+  convertPointToSmooth: (pointId: string) => void
   convertPointToBezier: (pointId: string) => void
   deletePoint: (pointId: string) => void
   updatePathDragPreview: (event: MouseEvent) => boolean
@@ -95,10 +97,34 @@ function translatePathHandle(
     points: path.points.map((point) => {
       if (point.id !== pointId) return point
       const key = handle === 'in' ? 'inHandle' : 'outHandle'
+      const oppositeKey = handle === 'in' ? 'outHandle' : 'inHandle'
       const current = point[key] ?? point.position
+      const nextHandle = { x: current.x + dx, y: current.y + dy }
+
+      if (point.type === 'smooth') {
+        const oppositeCurrent = point[oppositeKey] ?? point.position
+        const vecX = nextHandle.x - point.position.x
+        const vecY = nextHandle.y - point.position.y
+        const vecLength = Math.hypot(vecX, vecY) || 1
+        const unitX = vecX / vecLength
+        const unitY = vecY / vecLength
+        const oppositeLength = Math.hypot(
+          oppositeCurrent.x - point.position.x,
+          oppositeCurrent.y - point.position.y
+        )
+        return {
+          ...point,
+          [key]: nextHandle,
+          [oppositeKey]: {
+            x: point.position.x - unitX * oppositeLength,
+            y: point.position.y - unitY * oppositeLength
+          }
+        }
+      }
+
       return {
         ...point,
-        [key]: { x: current.x + dx, y: current.y + dy }
+        [key]: nextHandle
       }
     })
   }
@@ -254,6 +280,8 @@ export function useAnimationPathInteraction({
     handleInsertPointMouseDown,
     convertPointToSharp: (pointId) =>
       applyPathOperation((path) => convertPathPointToSharp(path, pointId)),
+    convertPointToSmooth: (pointId) =>
+      applyPathOperation((path) => convertPathPointToSmooth(path, pointId)),
     convertPointToBezier: (pointId) =>
       applyPathOperation((path) => convertPathPointToBezier(path, pointId)),
     deletePoint: (pointId) => applyPathOperation((path) => deletePathPoint(path, pointId)),

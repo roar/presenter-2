@@ -121,6 +121,7 @@ export function SlideCanvas(): React.JSX.Element {
     pathPreview,
     handlePathPointMouseDown,
     convertPointToBezier,
+    convertPointToSmooth,
     convertPointToSharp,
     deletePoint,
     handlePathHandleMouseDown,
@@ -579,6 +580,11 @@ export function SlideCanvas(): React.JSX.Element {
         onConvertToSharp={() => {
           if (!pathPointContextMenu) return
           convertPointToSharp(pathPointContextMenu.pointId)
+          closePathPointContextMenu()
+        }}
+        onConvertToSmooth={() => {
+          if (!pathPointContextMenu) return
+          convertPointToSmooth(pathPointContextMenu.pointId)
           closePathPointContextMenu()
         }}
         onConvertToBezier={() => {

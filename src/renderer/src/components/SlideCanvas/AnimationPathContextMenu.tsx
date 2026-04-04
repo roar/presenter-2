@@ -6,7 +6,7 @@ export interface PathPointContextMenuState {
   x: number
   y: number
   pointId: string
-  pointType: 'sharp' | 'bezier'
+  pointType: 'sharp' | 'smooth' | 'bezier'
   isEndpoint: boolean
 }
 
@@ -14,6 +14,7 @@ interface AnimationPathContextMenuProps {
   contextMenu: PathPointContextMenuState | null
   onClose: () => void
   onConvertToSharp: () => void
+  onConvertToSmooth: () => void
   onConvertToBezier: () => void
   onDeletePoint: () => void
 }
@@ -22,6 +23,7 @@ export function AnimationPathContextMenu({
   contextMenu,
   onClose,
   onConvertToSharp,
+  onConvertToSmooth,
   onConvertToBezier,
   onDeletePoint
 }: AnimationPathContextMenuProps): React.JSX.Element | null {
@@ -31,6 +33,9 @@ export function AnimationPathContextMenu({
     <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={onClose}>
       <ContextMenuItem disabled={contextMenu.pointType === 'sharp'} onClick={onConvertToSharp}>
         Make Sharp Point
+      </ContextMenuItem>
+      <ContextMenuItem disabled={contextMenu.pointType === 'smooth'} onClick={onConvertToSmooth}>
+        Make Smooth Point
       </ContextMenuItem>
       <ContextMenuItem disabled={contextMenu.pointType === 'bezier'} onClick={onConvertToBezier}>
         Make Bezier Point

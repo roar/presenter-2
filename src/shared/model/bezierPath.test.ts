@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cloneMovePath,
   convertPointToBezier,
+  convertPointToSmooth,
   convertPointToSharp,
   deletePoint,
   insertBezierPointAtSegment
@@ -73,6 +74,27 @@ describe('bezierPath', () => {
       id: 'mid',
       position: { x: 20, y: 40 },
       type: 'bezier',
+      inHandle: { x: 15, y: 30 },
+      outHandle: { x: 25, y: 50 }
+    })
+  })
+
+  it('converts a point to smooth by creating opposite aligned handles', () => {
+    expect(
+      convertPointToSmooth(
+        {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            { id: 'mid', position: { x: 20, y: 40 }, type: 'sharp' },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        },
+        'mid'
+      ).points[1]
+    ).toEqual({
+      id: 'mid',
+      position: { x: 20, y: 40 },
+      type: 'smooth',
       inHandle: { x: 15, y: 30 },
       outHandle: { x: 25, y: 50 }
     })

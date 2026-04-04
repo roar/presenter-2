@@ -22,6 +22,7 @@ export interface MoveCanvasSegmentState {
   animationId: string
   startDelta: Position
   endDelta: Position
+  path?: MovePath
 }
 
 export interface MoveCanvasPointState {
@@ -103,7 +104,8 @@ export function buildMoveCanvasSelection(
       return {
         animationId: step.animationId,
         startDelta: previous?.cumulativeDelta ?? { x: 0, y: 0 },
-        endDelta: step.cumulativeDelta
+        endDelta: step.cumulativeDelta,
+        path: step.path
       }
     })
 
@@ -113,7 +115,8 @@ export function buildMoveCanvasSelection(
   const activeSegment = {
     animationId: selectedStep.animationId,
     startDelta,
-    endDelta: selectedStep.cumulativeDelta
+    endDelta: selectedStep.cumulativeDelta,
+    path: selectedStep.path
   }
 
   const downstreamSegments = states
@@ -123,7 +126,8 @@ export function buildMoveCanvasSelection(
       return {
         animationId: step.animationId,
         startDelta: previous.cumulativeDelta,
-        endDelta: step.cumulativeDelta
+        endDelta: step.cumulativeDelta,
+        path: step.path
       }
     })
 

@@ -521,6 +521,93 @@ describe('SlideCanvas', () => {
     expect(screen.getAllByTestId('animation-path')).toHaveLength(3)
   })
 
+  it('renders dashed history and downstream segments as curves when those steps use move paths', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2', 'move-3']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2', 'move-3']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            {
+              id: 'start',
+              position: { x: 0, y: 0 },
+              type: 'sharp',
+              outHandle: { x: 40, y: 0 }
+            },
+            {
+              id: 'end',
+              position: { x: 40, y: 80 },
+              type: 'sharp',
+              inHandle: { x: 40, y: 80 }
+            }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 10, y: -20 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-3'] = {
+      id: 'move-3',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: -15, y: 30 },
+        path: {
+          points: [
+            {
+              id: 'start',
+              position: { x: 0, y: 0 },
+              type: 'sharp',
+              outHandle: { x: 20, y: 30 }
+            },
+            {
+              id: 'end',
+              position: { x: -15, y: 30 },
+              type: 'sharp',
+              inHandle: { x: -5, y: 30 }
+            }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-2')
+    const { container } = render(<SlideCanvas />)
+
+    const paths = container.querySelectorAll('[data-testid="animation-path"]')
+    expect(paths[0]?.tagName).toBe('path')
+    expect(paths[0]?.getAttribute('d')).toContain('C')
+    expect(paths[1]?.tagName).toBe('path')
+    expect(paths[1]?.getAttribute('d')).toContain('C')
+  })
+
   it('highlights the selected ghost and its incoming path segment', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -1039,6 +1126,107 @@ describe('SlideCanvas', () => {
     })
   })
 
+  it('keeps the opposite handle aligned when dragging a smooth point handle', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            {
+              id: 'mid',
+              position: { x: 20, y: 40 },
+              type: 'smooth',
+              inHandle: { x: 10, y: 30 },
+              outHandle: { x: 30, y: 50 }
+            },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    const { container } = render(<SlideCanvas />)
+
+    const handlesBefore = container.querySelectorAll('[data-testid="animation-path-handle"]')
+    fireEvent.mouseDown(handlesBefore[1] as SVGCircleElement, { clientX: 280, clientY: 250 })
+    fireEvent.mouseMove(window, { clientX: 300, clientY: 260 })
+
+    const handlesAfter = container.querySelectorAll('[data-testid="animation-path-handle"]')
+    const point = container.querySelectorAll('[data-testid="animation-path-point"]')[1]
+    const pointX = Number(point?.getAttribute('cx'))
+    const pointY = Number(point?.getAttribute('cy'))
+    const inHandleX = Number(handlesAfter[0]?.getAttribute('cx'))
+    const inHandleY = Number(handlesAfter[0]?.getAttribute('cy'))
+    const outHandleX = Number(handlesAfter[1]?.getAttribute('cx'))
+    const outHandleY = Number(handlesAfter[1]?.getAttribute('cy'))
+    const inVectorX = inHandleX - pointX
+    const inVectorY = inHandleY - pointY
+    const outVectorX = outHandleX - pointX
+    const outVectorY = outHandleY - pointY
+
+    expect(outHandleX).toBe(300)
+    expect(outHandleY).toBe(260)
+    expect(inVectorX * outVectorY - inVectorY * outVectorX).toBeCloseTo(0, 6)
+    expect(inVectorX * outVectorX + inVectorY * outVectorY).toBeLessThan(0)
+    expect(Math.hypot(inVectorX, inVectorY)).toBeCloseTo(Math.hypot(-10, -10), 6)
+
+    fireEvent.mouseUp(window, { clientX: 300, clientY: 260 })
+
+    const pathArg = updateAnimationMovePath.mock.calls[0][1]
+    expect(pathArg.points[0]).toMatchObject({
+      id: 'start',
+      position: { x: 0, y: 0 },
+      type: 'sharp'
+    })
+    expect(pathArg.points[1].position).toEqual({ x: 20, y: 40 })
+    expect(pathArg.points[1].type).toBe('smooth')
+    expect(pathArg.points[1].outHandle).toEqual({ x: 50, y: 60 })
+    expect(pathArg.points[1].inHandle?.x ?? 0).toBeCloseTo(8.233031891708958, 6)
+    expect(pathArg.points[1].inHandle?.y ?? 0).toBeCloseTo(32.15535459447264, 6)
+    expect(pathArg.points[2]).toMatchObject({
+      id: 'end',
+      position: { x: 40, y: 80 },
+      type: 'sharp'
+    })
+  })
+
   it('converts a selected point to sharp from the point context menu', async () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -1181,6 +1369,74 @@ describe('SlideCanvas', () => {
     expect(pathArg.points[1].type).toBe('bezier')
     expect(pathArg.points[1].inHandle).toBeTruthy()
     expect(pathArg.points[1].outHandle).toBeTruthy()
+  })
+
+  it('converts a selected point to smooth from the point context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            { id: 'mid', position: { x: 20, y: 40 }, type: 'sharp' },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({
+      keys: '[MouseRight]',
+      target: screen.getAllByTestId('animation-path-point')[1]
+    })
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Make Smooth Point' }))
+
+    const pathArg = updateAnimationMovePath.mock.calls.at(-1)?.[1]
+    expect(pathArg.points[1]).toEqual({
+      id: 'mid',
+      position: { x: 20, y: 40 },
+      type: 'smooth',
+      inHandle: { x: 15, y: 30 },
+      outHandle: { x: 25, y: 50 }
+    })
   })
 
   it('deletes an interior point from the point context menu', async () => {

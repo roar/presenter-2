@@ -8,7 +8,7 @@ import type {
 } from './types'
 import { applyEasing } from './applyEasing'
 import { resolveColorValue } from '../model/colors'
-import { getMoveEffectDelta } from '../model/movePath'
+import { getMoveEffectDelta, getMovePathPositionAt } from '../model/movePath'
 
 // ─── Lerp helpers ─────────────────────────────────────────────────────────────
 
@@ -30,6 +30,25 @@ function lerpColor(a: string, b: string, t: number): string {
   const bl = Math.round(lerp(ca[2], cb[2], t))
   const al = lerp(ca[3], cb[3], t)
   return `rgba(${r}, ${g}, ${bl}, ${al.toFixed(4)})`
+}
+
+function getMoveTranslation(
+  effect: Extract<TargetedAnimation['effect'], { type: 'move' }>,
+  progress: number,
+  direction: 'forward' | 'reverse'
+) {
+  const pathPosition = getMovePathPositionAt(
+    effect.path,
+    direction === 'forward' ? progress : 1 - progress
+  )
+  if (pathPosition) return pathPosition
+
+  const delta = getMoveEffectDelta(effect)
+  const t = direction === 'forward' ? progress : 1 - progress
+  return {
+    x: lerp(0, delta.x, t),
+    y: lerp(0, delta.y, t)
+  }
 }
 
 function resolveShadowColor(
@@ -234,9 +253,9 @@ function resolveAppearanceState(
         opacity = lerp(opacity, effect.to, progress)
         if (completed) opacity = effect.to
       } else if (effect.type === 'move') {
-        const delta = getMoveEffectDelta(effect)
-        translateX = lerp(delta.x, 0, progress)
-        translateY = lerp(delta.y, 0, progress)
+        const translation = getMoveTranslation(effect, progress, 'reverse')
+        translateX = translation.x
+        translateY = translation.y
         if (completed) {
           translateX = 0
           translateY = 0
@@ -259,12 +278,13 @@ function resolveAppearanceState(
       }
     } else if (effect.kind === 'action') {
       if (effect.type === 'move') {
-        const delta = getMoveEffectDelta(effect)
         const fromX = translateX
         const fromY = translateY
-        translateX = lerp(fromX, fromX + delta.x, progress)
-        translateY = lerp(fromY, fromY + delta.y, progress)
+        const translation = getMoveTranslation(effect, progress, 'forward')
+        translateX = fromX + translation.x
+        translateY = fromY + translation.y
         if (completed) {
+          const delta = getMoveEffectDelta(effect)
           translateX = fromX + delta.x
           translateY = fromY + delta.y
         }

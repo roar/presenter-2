@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
-import type { Position } from '@shared/model/types'
+import type { MovePath, Position } from '@shared/model/types'
 import type {
   MoveCanvasPointState,
   MoveCanvasSelectionState
@@ -72,6 +72,58 @@ function buildActivePathData(
         ghostHeight,
         previous.position
       )
+      commands.push(
+        `C ${(control1 ?? fallbackStart).x} ${(control1 ?? fallbackStart).y} ${(control2 ?? currentPoint).x} ${(control2 ?? currentPoint).y} ${currentPoint.x} ${currentPoint.y}`
+      )
+    } else {
+      commands.push(`L ${currentPoint.x} ${currentPoint.y}`)
+    }
+  }
+
+  return commands.join(' ')
+}
+
+function buildPathDataFromMovePath(
+  baseLeft: number,
+  baseTop: number,
+  ghostWidth: number,
+  ghostHeight: number,
+  startDelta: Position,
+  path: MovePath
+): string | null {
+  if (path.points.length < 2) return null
+
+  const first = toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, {
+    x: startDelta.x + path.points[0].position.x,
+    y: startDelta.y + path.points[0].position.y
+  })
+  const commands = [`M ${first.x} ${first.y}`]
+
+  for (let index = 1; index < path.points.length; index += 1) {
+    const previous = path.points[index - 1]
+    const current = path.points[index]
+    const currentPoint = toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, {
+      x: startDelta.x + current.position.x,
+      y: startDelta.y + current.position.y
+    })
+    const control1 = previous.outHandle
+      ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, {
+          x: startDelta.x + previous.outHandle.x,
+          y: startDelta.y + previous.outHandle.y
+        })
+      : null
+    const control2 = current.inHandle
+      ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, {
+          x: startDelta.x + current.inHandle.x,
+          y: startDelta.y + current.inHandle.y
+        })
+      : null
+
+    if (control1 || control2) {
+      const fallbackStart = toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, {
+        x: startDelta.x + previous.position.x,
+        y: startDelta.y + previous.position.y
+      })
       commands.push(
         `C ${(control1 ?? fallbackStart).x} ${(control1 ?? fallbackStart).y} ${(control2 ?? currentPoint).x} ${(control2 ?? currentPoint).y} ${currentPoint.x} ${currentPoint.y}`
       )
@@ -160,6 +212,16 @@ export function AnimationPathOverlay({
       style={{ left: 0, top: 0, width: SLIDE_WIDTH, height: SLIDE_HEIGHT, zIndex: 4 }}
     >
       {moveCanvasSelection.historySegments.map((segment) => {
+        const pathData = segment.path
+          ? buildPathDataFromMovePath(
+              baseLeft,
+              baseTop,
+              ghostWidth,
+              ghostHeight,
+              segment.startDelta,
+              segment.path
+            )
+          : null
         const start = toAbsolutePoint(
           baseLeft,
           baseTop,
@@ -169,7 +231,18 @@ export function AnimationPathOverlay({
         )
         const end = toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, segment.endDelta)
 
-        return (
+        return pathData ? (
+          <path
+            key={segment.animationId}
+            data-testid="animation-path"
+            aria-label="Move animation path"
+            className={styles.animationPath}
+            d={pathData}
+            fill="none"
+            onClick={(event) => onSelect(segment.animationId, event)}
+            onContextMenu={(event) => onContextMenu(segment.animationId, event)}
+          />
+        ) : (
           <line
             key={segment.animationId}
             data-testid="animation-path"
@@ -185,6 +258,16 @@ export function AnimationPathOverlay({
         )
       })}
       {moveCanvasSelection.downstreamSegments.map((segment) => {
+        const pathData = segment.path
+          ? buildPathDataFromMovePath(
+              baseLeft,
+              baseTop,
+              ghostWidth,
+              ghostHeight,
+              segment.startDelta,
+              segment.path
+            )
+          : null
         const start = toAbsolutePoint(
           baseLeft,
           baseTop,
@@ -194,7 +277,18 @@ export function AnimationPathOverlay({
         )
         const end = toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, segment.endDelta)
 
-        return (
+        return pathData ? (
+          <path
+            key={segment.animationId}
+            data-testid="animation-path"
+            aria-label="Move animation path"
+            className={styles.animationPath}
+            d={pathData}
+            fill="none"
+            onClick={(event) => onSelect(segment.animationId, event)}
+            onContextMenu={(event) => onContextMenu(segment.animationId, event)}
+          />
+        ) : (
           <line
             key={segment.animationId}
             data-testid="animation-path"

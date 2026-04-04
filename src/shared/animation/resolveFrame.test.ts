@@ -294,6 +294,41 @@ describe('resolveFrame', () => {
       const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
       expect(frame.front.appearances[0].transform).toContain('translate(40px, 80px)')
     })
+
+    it('follows a bezier move path instead of interpolating linearly', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        {
+          kind: 'action',
+          type: 'move',
+          delta: { x: 40, y: 80 },
+          path: {
+            points: [
+              {
+                id: 'start',
+                position: { x: 0, y: 0 },
+                type: 'sharp',
+                outHandle: { x: 40, y: 0 }
+              },
+              {
+                id: 'end',
+                position: { x: 40, y: 80 },
+                type: 'sharp',
+                inHandle: { x: 40, y: 80 }
+              }
+            ]
+          }
+        },
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('translate(35px, 40px)')
+    })
   })
 
   describe('line-draw (build-in)', () => {
