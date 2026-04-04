@@ -28,7 +28,11 @@ import {
   deleteColorConstant,
   ensurePresentationColorConstants
 } from '../../../shared/model/colors'
-import { getMoveEffectDelta, syncMoveEffectDelta } from '../../../shared/model/movePath'
+import {
+  getMoveEffectDelta,
+  syncMoveEffectDelta,
+  syncMoveEffectPath
+} from '../../../shared/model/movePath'
 import { buildMoveCanvasSelection, type MoveCanvasSelectionState } from './animationCanvasModel'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
@@ -90,6 +94,10 @@ interface DocumentState {
   updateAnimationEasing(animationId: AnimationId, easing: Easing): void
   updateAnimationNumericTo(animationId: AnimationId, value: number): void
   updateAnimationMoveDelta(animationId: AnimationId, delta: Position): void
+  updateAnimationMovePath(
+    animationId: AnimationId,
+    path: Extract<TargetedAnimation['effect'], { type: 'move' }>['path']
+  ): void
   updateSlideTransitionTrigger(slideId: SlideId, trigger: 'none' | 'on-click'): void
   updateSlideTransitionDuration(slideId: SlideId, duration: number): void
   updateSlideTransitionEasing(slideId: SlideId, easing: Easing): void
@@ -707,6 +715,17 @@ export const useDocumentStore = create<DocumentState>()(
         const animation = state.document.animationsById[animationId]
         if (!animation || animation.effect.type !== 'move') return
         syncMoveEffectDelta(animation.effect, delta)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    updateAnimationMovePath(animationId, path) {
+      set((state) => {
+        if (!state.document) return
+        const animation = state.document.animationsById[animationId]
+        if (!animation || animation.effect.type !== 'move') return
+        syncMoveEffectPath(animation.effect, path)
         pushHistory(state, state.document)
         state.isDirty = true
       })

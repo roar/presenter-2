@@ -209,6 +209,129 @@ describe('documentStore', () => {
     })
   })
 
+  describe('updateAnimationMovePath', () => {
+    it('replaces the stored move path and syncs delta from its endpoint', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          animationsById: {
+            'anim-1': {
+              id: 'anim-1',
+              trigger: 'on-click',
+              offset: 0,
+              duration: 1,
+              easing: 'linear',
+              loop: { kind: 'none' },
+              effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
+              target: { kind: 'appearance', appearanceId: 'appearance-1' }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationMovePath('anim-1', {
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          {
+            id: 'mid',
+            position: { x: 40, y: 30 },
+            type: 'bezier',
+            inHandle: { x: 20, y: 10 },
+            outHandle: { x: 55, y: 40 }
+          },
+          { id: 'end', position: { x: 90, y: 120 }, type: 'sharp' }
+        ]
+      })
+
+      const animation = useDocumentStore.getState().document?.animationsById['anim-1']
+      if (!animation || animation.effect.type !== 'move') {
+        throw new Error('Expected move animation')
+      }
+      expect(animation.effect.path).toEqual({
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          {
+            id: 'mid',
+            position: { x: 40, y: 30 },
+            type: 'bezier',
+            inHandle: { x: 20, y: 10 },
+            outHandle: { x: 55, y: 40 }
+          },
+          { id: 'end', position: { x: 90, y: 120 }, type: 'sharp' }
+        ]
+      })
+      expect(animation.effect.delta).toEqual({ x: 90, y: 120 })
+      expect(useDocumentStore.getState().isDirty).toBe(true)
+    })
+
+    it('updates selected animation group path metadata after replacing the move path', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const move: Presentation['animationsById'][string] = {
+        id: 'move-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', delta: { x: 10, y: 20 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [move.id]
+      appearance.animationIds = [move.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [move.id]: move }
+        })
+      )
+
+      useDocumentStore.getState().selectAnimation(move.id)
+      useDocumentStore.getState().updateAnimationMovePath(move.id, {
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          { id: 'end', position: { x: 120, y: 160 }, type: 'sharp' }
+        ]
+      })
+
+      expect(
+        selectSelectedAnimationGroup(useDocumentStore.getState())?.moveCanvasSelection
+      ).toEqual({
+        historySegments: [],
+        activeSegment: {
+          animationId: move.id,
+          startDelta: { x: 0, y: 0 },
+          endDelta: { x: 120, y: 160 }
+        },
+        downstreamSegments: [],
+        activePoints: [
+          {
+            id: 'start',
+            type: 'sharp',
+            position: { x: 0, y: 0 },
+            inHandle: undefined,
+            outHandle: undefined,
+            isEndpoint: true
+          },
+          {
+            id: 'end',
+            type: 'sharp',
+            position: { x: 120, y: 160 },
+            inHandle: undefined,
+            outHandle: undefined,
+            isEndpoint: true
+          }
+        ]
+      })
+    })
+  })
+
   describe('color constants', () => {
     it('normalizes raw colors into named color constants when setting the document', () => {
       useDocumentStore.getState().setDocument(

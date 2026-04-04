@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getMoveEffectDelta, syncMoveEffectDelta } from './movePath'
+import { getMoveEffectDelta, syncMoveEffectDelta, syncMoveEffectPath } from './movePath'
 import type { Animation } from './types'
 
 describe('movePath', () => {
@@ -66,6 +66,31 @@ describe('movePath', () => {
 
       expect(effect.delta).toEqual({ x: 40, y: 80 })
       expect(effect.path?.points[1]?.position).toEqual({ x: 40, y: 80 })
+    })
+  })
+
+  describe('syncMoveEffectPath', () => {
+    it('replaces the path and syncs delta from the new endpoint', () => {
+      const effect: Extract<Animation, { type: 'move' }> = {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 10, y: 20 }
+      }
+
+      syncMoveEffectPath(effect, {
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          { id: 'end', position: { x: 120, y: 160 }, type: 'sharp' }
+        ]
+      })
+
+      expect(effect.path).toEqual({
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          { id: 'end', position: { x: 120, y: 160 }, type: 'sharp' }
+        ]
+      })
+      expect(effect.delta).toEqual({ x: 120, y: 160 })
     })
   })
 })

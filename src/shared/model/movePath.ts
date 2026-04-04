@@ -23,3 +23,11 @@ export function syncMoveEffectDelta(
     endpoint.position = delta
   }
 }
+
+export function syncMoveEffectPath(
+  effect: Extract<Animation, { type: 'move' }>,
+  path: MovePath | undefined
+): void {
+  effect.path = path
+  effect.delta = getMoveEffectDelta(effect)
+}
