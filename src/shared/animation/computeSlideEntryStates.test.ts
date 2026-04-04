@@ -201,6 +201,33 @@ describe('computeMsoExitStateChains', () => {
     expect(exitState?.translateY).toBe(34)
   })
 
+  it('uses the path endpoint for move animations when a path is present', () => {
+    const m = shapeMaster('m1')
+    const app1 = makeAppearance(m.id, '')
+    const app2 = makeAppearance(m.id, '')
+    const anim = makeAnim('a1', app1.id, {
+      kind: 'action',
+      type: 'move',
+      delta: { x: 10, y: 20 },
+      path: {
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          { id: 'end', position: { x: 60, y: 90 }, type: 'sharp' }
+        ]
+      }
+    })
+
+    const pres = buildPresentation([
+      { appearances: [app1], masters: [m], animations: [anim] },
+      { appearances: [app2], masters: [] }
+    ])
+
+    const chains = computeMsoExitStateChains(pres)
+    const exitState = chains[1].get(m.id)
+    expect(exitState?.translateX).toBe(60)
+    expect(exitState?.translateY).toBe(90)
+  })
+
   it('is independent of master transform — changing x/y does not affect exit state', () => {
     const m1 = shapeMaster('m1', { x: 100, y: 200 })
     const m2 = { ...shapeMaster('m1', { x: 999, y: 888 }) }

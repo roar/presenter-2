@@ -1,5 +1,6 @@
 import type { Presentation, MasterId, TargetedAnimation, TextShadow } from '../model/types'
 import type { RenderedSlide, RenderedAppearance } from './types'
+import { getMoveEffectDelta } from '../model/movePath'
 
 // ─── Propagated state ─────────────────────────────────────────────────────────
 
@@ -27,11 +28,6 @@ function hasEffect(
   return Object.values(animationsById).some(
     (a) => a.target.kind === 'appearance' && a.target.appearanceId === appearanceId && predicate(a)
   )
-}
-
-function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>) {
-  if ('delta' in effect) return effect.delta
-  return effect.fromOffset
 }
 
 /**
@@ -123,7 +119,7 @@ function computeAppearanceExitState(
       }
     } else if (effect.kind === 'action') {
       if (effect.type === 'move') {
-        const delta = getMoveDelta(effect)
+        const delta = getMoveEffectDelta(effect)
         state.translateX += delta.x
         state.translateY += delta.y
       } else if (effect.type === 'text-shadow') {

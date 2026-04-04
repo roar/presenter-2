@@ -28,6 +28,7 @@ import {
   deleteColorConstant,
   ensurePresentationColorConstants
 } from '../../../shared/model/colors'
+import { getMoveEffectDelta, syncMoveEffectDelta } from '../../../shared/model/movePath'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
 
@@ -231,11 +232,6 @@ function getAnimationTargetAppearanceId(animation: TargetedAnimation): Appearanc
   return animation.target.kind === 'appearance' ? animation.target.appearanceId : null
 }
 
-function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>): Position {
-  if ('delta' in effect) return effect.delta
-  return effect.fromOffset
-}
-
 export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnimationGroup | null {
   const document = state.document
   const selectedAnimationId = state.ui.selectedAnimationId
@@ -267,7 +263,7 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
   const moveAnimation = moveAnimations[0] ?? null
   const moveSteps = moveAnimations.reduce<SelectedAnimationGroup['moveSteps']>(
     (steps, animation) => {
-      const delta = getMoveDelta(animation.effect)
+      const delta = getMoveEffectDelta(animation.effect)
       const previous = steps[steps.length - 1]?.cumulativeDelta ?? { x: 0, y: 0 }
       steps.push({
         animationId: animation.id,
@@ -690,7 +686,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!state.document) return
         const animation = state.document.animationsById[animationId]
         if (!animation || animation.effect.type !== 'move') return
-        animation.effect.delta = delta
+        syncMoveEffectDelta(animation.effect, delta)
         pushHistory(state, state.document)
         state.isDirty = true
       })

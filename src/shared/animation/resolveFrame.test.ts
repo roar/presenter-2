@@ -189,6 +189,31 @@ describe('resolveFrame', () => {
       const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
       expect(frame.front.appearances[0].transform).toContain('translate(0px, 0px)')
     })
+
+    it('resolves build-in movement from the path endpoint when a path is present', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide', 'hidden')
+      const anim = makeAnim(
+        'a1',
+        app.id,
+        'on-click',
+        {
+          kind: 'build-in',
+          type: 'move',
+          delta: { x: 0, y: 0 },
+          path: {
+            points: [
+              { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+              { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+            ]
+          }
+        },
+        1
+      )
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('translate(20px, 40px)')
+    })
   })
 
   describe('build-in (scale)', () => {

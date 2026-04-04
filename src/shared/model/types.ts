@@ -100,6 +100,20 @@ export interface Transform {
   rotation: number // degrees
 }
 
+export type MovePathPointType = 'sharp' | 'bezier'
+
+export interface MovePathPoint {
+  id: string
+  position: Position
+  type: MovePathPointType
+  inHandle?: Position
+  outHandle?: Position
+}
+
+export interface MovePath {
+  points: MovePathPoint[]
+}
+
 // ─── Style ────────────────────────────────────────────────────────────────────
 
 export interface ColorConstant {
@@ -342,7 +356,7 @@ export type Animation =
   // delta is the total movement applied by the animation.
   // build-in move animations interpolate from delta to zero.
   // action move animations interpolate from the current offset to current + delta.
-  | { kind: AnimationKind; type: 'move'; delta: Position }
+  | { kind: AnimationKind; type: 'move'; delta: Position; path?: MovePath }
   | { kind: AnimationKind; type: 'scale'; to: number }
   | { kind: AnimationKind; type: 'text-shadow'; to: TextShadow }
   | { kind: AnimationKind; type: 'line-draw' }

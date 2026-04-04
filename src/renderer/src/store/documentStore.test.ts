@@ -169,6 +169,44 @@ describe('documentStore', () => {
       expect(animation.effect.delta).toEqual({ x: 24, y: 48 })
       expect(useDocumentStore.getState().isDirty).toBe(true)
     })
+
+    it('keeps a move path endpoint in sync with the stored delta', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          animationsById: {
+            'anim-1': {
+              id: 'anim-1',
+              trigger: 'on-click',
+              offset: 0,
+              duration: 1,
+              easing: 'linear',
+              loop: { kind: 'none' },
+              effect: {
+                kind: 'action',
+                type: 'move',
+                delta: { x: 0, y: 100 },
+                path: {
+                  points: [
+                    { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+                    { id: 'end', position: { x: 0, y: 100 }, type: 'sharp' }
+                  ]
+                }
+              },
+              target: { kind: 'appearance', appearanceId: 'appearance-1' }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationMoveDelta('anim-1', { x: 24, y: 48 })
+
+      const animation = useDocumentStore.getState().document?.animationsById['anim-1']
+      if (!animation || animation.effect.type !== 'move') {
+        throw new Error('Expected move animation')
+      }
+      expect(animation.effect.delta).toEqual({ x: 24, y: 48 })
+      expect(animation.effect.path?.points[1]?.position).toEqual({ x: 24, y: 48 })
+    })
   })
 
   describe('color constants', () => {
@@ -856,6 +894,71 @@ describe('documentStore', () => {
             animationId: move1.id,
             delta: { x: 10, y: 20 },
             cumulativeDelta: { x: 5, y: 60 }
+          }
+        ]
+      })
+    })
+
+    it('derives move step deltas from the path endpoint when a path is present', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const move: Presentation['animationsById'][string] = {
+        id: 'move-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: {
+          kind: 'action',
+          type: 'move',
+          delta: { x: 10, y: 20 },
+          path: {
+            points: [
+              { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+              {
+                id: 'mid',
+                position: { x: 40, y: 30 },
+                type: 'bezier',
+                inHandle: { x: 20, y: 10 },
+                outHandle: { x: 55, y: 40 }
+              },
+              { id: 'end', position: { x: 90, y: 120 }, type: 'sharp' }
+            ]
+          }
+        },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [move.id]
+      appearance.animationIds = [move.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [move.id]: move }
+        })
+      )
+
+      useDocumentStore.getState().selectAnimation(move.id)
+
+      expect(selectSelectedAnimationGroup(useDocumentStore.getState())).toEqual({
+        slideId: slide.id,
+        appearanceId: appearance.id,
+        masterId: master.id,
+        animationIds: [move.id],
+        selectedAnimation: move,
+        moveAnimation: move,
+        moveSteps: [
+          {
+            animationId: move.id,
+            delta: { x: 90, y: 120 },
+            cumulativeDelta: { x: 90, y: 120 }
           }
         ]
       })

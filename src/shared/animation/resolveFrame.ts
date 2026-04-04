@@ -8,6 +8,7 @@ import type {
 } from './types'
 import { applyEasing } from './applyEasing'
 import { resolveColorValue } from '../model/colors'
+import { getMoveEffectDelta } from '../model/movePath'
 
 // ─── Lerp helpers ─────────────────────────────────────────────────────────────
 
@@ -36,11 +37,6 @@ function resolveShadowColor(
   colorConstantsById?: Record<string, { value: string }>
 ): string {
   return resolveColorValue(shadow.color, colorConstantsById) ?? 'rgba(0,0,0,0)'
-}
-
-function getMoveDelta(effect: Extract<TargetedAnimation['effect'], { type: 'move' }>) {
-  if ('delta' in effect) return effect.delta
-  return effect.fromOffset
 }
 
 type PropagatedState = {
@@ -134,7 +130,7 @@ function applyCompletedAnimation(
     }
   } else if (effect.kind === 'action') {
     if (effect.type === 'move') {
-      const delta = getMoveDelta(effect)
+      const delta = getMoveEffectDelta(effect)
       next.translateX += delta.x
       next.translateY += delta.y
     } else if (effect.type === 'text-shadow') {
@@ -238,7 +234,7 @@ function resolveAppearanceState(
         opacity = lerp(opacity, effect.to, progress)
         if (completed) opacity = effect.to
       } else if (effect.type === 'move') {
-        const delta = getMoveDelta(effect)
+        const delta = getMoveEffectDelta(effect)
         translateX = lerp(delta.x, 0, progress)
         translateY = lerp(delta.y, 0, progress)
         if (completed) {
@@ -263,7 +259,7 @@ function resolveAppearanceState(
       }
     } else if (effect.kind === 'action') {
       if (effect.type === 'move') {
-        const delta = getMoveDelta(effect)
+        const delta = getMoveEffectDelta(effect)
         const fromX = translateX
         const fromY = translateY
         translateX = lerp(fromX, fromX + delta.x, progress)

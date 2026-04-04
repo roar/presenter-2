@@ -230,6 +230,11 @@ Add Keynote-style move-path editing without breaking the step-chain model.
 - Show path points and control points only for the selected move step.
 - Support point drag, insert, type change, and delete for the selected move step.
 - Support point-type conversion at minimum for sharp and bezier.
+- Treat the path as an ordered anchor-point list with optional bezier control handles per point.
+- Keep endpoint anchors as the source of the move step's start and end positions.
+- Allow interior point insertion on the active segment under the pointer.
+- Allow anchor drag, plus control-handle drag for bezier points.
+- Forbid endpoint deletion while a valid start/end path is required.
 - Show path context menus on selected points.
 - Recompute downstream ghosts when the selected move path changes.
 - Allow path-backed and delta-based move steps to coexist in the same chain.
@@ -241,6 +246,8 @@ Add Keynote-style move-path editing without breaking the step-chain model.
 - Canvas tests for selected-step path display only.
 - Canvas tests for dashed history segments plus one solid active segment.
 - Canvas tests for point context menus and sharp/bezier conversion actions.
+- Canvas tests for endpoint menu restrictions and control-handle visibility by point type.
+- Canvas tests for segment insertion targeting.
 - Canvas tests for downstream recomputation after editing a path-backed move step.
 
 ### Manual user test gate
@@ -254,7 +261,9 @@ The user must verify all of the following before declaring the sequence model co
 5. Drag a path point and confirm downstream ghosts update.
 6. Insert and delete path points and confirm only the selected step changes.
 7. Convert a selected point between sharp and bezier from the context menu.
-8. Save and reload and confirm the path-backed step persists correctly.
+8. Confirm bezier points show control handles and sharp points do not.
+9. Confirm endpoint points cannot be deleted.
+10. Save and reload and confirm the path-backed step persists correctly.
 
 ## Notes
 

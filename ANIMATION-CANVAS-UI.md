@@ -68,6 +68,11 @@ This document is a product/UI specification. It describes expected behavior and 
 - Earlier move segments remain visible as dashed history while a later move step is selected.
 - The selected move step's incoming segment is solid and visually stronger than history segments.
 - The selected move ghost uses the same rendered form as the original object, shown as a semi-transparent ghost image.
+- A path is edited as an ordered list of anchor points.
+- Each anchor point may be `sharp` or `bezier`.
+- A `sharp` point has no visible control handles.
+- A `bezier` point exposes control handles that define the incoming and outgoing curve.
+- The first and last anchor points are the step endpoints and define the move step's start and end positions.
 
 ### Scale
 
@@ -134,6 +139,12 @@ This document is a product/UI specification. It describes expected behavior and 
 - While a move path is active, only the selected move step exposes editable path points.
 - A new path point may be inserted on the selected move segment.
 - A selected path point may be converted between sharp and bezier.
+- Inserting a point targets the active segment under the pointer and inserts the new anchor into that segment.
+- Dragging an anchor point moves only that anchor point.
+- Dragging a bezier control handle changes only that handle's curve contribution for the selected point.
+- Converting a point from `sharp` to `bezier` creates visible control handles for that point.
+- Converting a point from `bezier` to `sharp` removes its control handles and keeps the anchor position.
+- Endpoints may be repositioned, but deleting an endpoint is not allowed while the path still needs a valid start and end.
 - The selected scale step may be edited through resize handles on that step's ghost.
 - The selected rotate step may be edited through a rotate handle on that step's ghost.
 - Path points and path control points are shown only for the selected move step.
@@ -146,6 +157,8 @@ This document is a product/UI specification. It describes expected behavior and 
 - Deleting one selected step updates the downstream chain accordingly.
 - Path-point deletion removes only the selected point on the selected move step.
 - Path-point deletion does not delete the step or the full chain.
+- Deleting an interior point reconnects the adjacent segments within the same selected move path.
+- Deleting a control handle is not a separate action; point-type conversion controls whether control handles exist.
 
 ## Validation Examples
 
@@ -168,6 +181,19 @@ This document is a product/UI specification. It describes expected behavior and 
 - The selected ghost keeps its object handles visible while its path is being edited.
 - Only the selected move step exposes editable path points and control points.
 - Right-clicking a selected path point allows sharp/bezier conversion and point deletion.
+- Right-clicking a selected point does not affect other points or other move steps.
+- Clicking directly on an active segment is the insertion target for a new point.
+- Only bezier points show control handles.
+- Dragging a control handle changes the curve without changing which move step owns the path.
+
+### Path point menu
+
+- A selected interior path point shows a context menu with:
+  - `Make Sharp Point` when the point is currently bezier
+  - `Make Bézier Point` when the point is currently sharp
+  - `Delete`
+- If a point is already in the requested type, that conversion action is disabled.
+- Endpoint context menus do not offer `Delete`.
 
 ### Mixed move, scale, and rotate sequence
 
