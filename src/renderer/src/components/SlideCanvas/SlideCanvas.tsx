@@ -62,6 +62,33 @@ function parseRenderedTransform(transform: string): {
   }
 }
 
+function computeSelectionAabb(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rotation: number,
+  translateX: number,
+  translateY: number,
+  renderedScale: number
+): { left: number; top: number; width: number; height: number } {
+  const w = width * renderedScale
+  const h = height * renderedScale
+  const θ = (rotation * Math.PI) / 180
+  const cosθ = Math.abs(Math.cos(θ))
+  const sinθ = Math.abs(Math.sin(θ))
+  const aabbWidth = w * cosθ + h * sinθ
+  const aabbHeight = w * sinθ + h * cosθ
+  const cx = x + width / 2 + translateX
+  const cy = y + height / 2 + translateY
+  return {
+    left: cx - aabbWidth / 2,
+    top: cy - aabbHeight / 2,
+    width: aabbWidth,
+    height: aabbHeight
+  }
+}
+
 function getOverlayEndpoints(
   width: number,
   height: number,
@@ -626,10 +653,16 @@ export function SlideCanvas(): React.JSX.Element {
                       data-testid="selection-indicator"
                       style={{
                         position: 'absolute',
-                        left,
-                        top,
-                        width: scaledWidth,
-                        height: scaledHeight,
+                        ...computeSelectionAabb(
+                          x,
+                          y,
+                          width,
+                          height,
+                          master.transform.rotation,
+                          translateX,
+                          translateY,
+                          renderedScale
+                        ),
                         outline: '2px solid var(--accent)',
                         outlineOffset: 2,
                         pointerEvents: 'none',
