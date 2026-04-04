@@ -6,11 +6,7 @@ import {
   resolveSlideBackground
 } from '@shared/model/background'
 import { GrainCanvas } from '@viewer/components/GrainCanvas/GrainCanvas'
-import {
-  isGradientFill,
-  resolveLinearGradientEndpoints,
-  setLinearGradientEndpoints
-} from '@shared/model/fill'
+import { isGradientFill, resolveLinearGradientEndpoints } from '@shared/model/fill'
 import type { LinearGradientFill, Position } from '@shared/model/types'
 import {
   computeMsoExitStateChains,
@@ -31,6 +27,7 @@ import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
 import { useAnimationGhostDrag } from './useAnimationGhostDrag'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
+import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
 import styles from './SlideCanvas.module.css'
 
 type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotation'
@@ -38,22 +35,6 @@ type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotat
 const HANDLE_PX = 8 // handle square size in screen pixels
 const ROT_LINE_PX = 32 // rotation arm length in screen pixels
 const ROT_HANDLE_PX = 6 // rotation handle radius in screen pixels
-
-interface GradientDragData {
-  masterId: string
-  left: number
-  top: number
-  width: number
-  height: number
-  target: 'start' | 'end'
-  originalFill: LinearGradientFill
-}
-
-interface BackgroundGradientDragData {
-  slideId: string
-  target: 'start' | 'end'
-  originalFill: LinearGradientFill
-}
 
 function parseRenderedTransform(transform: string): {
   translateX: number
@@ -145,8 +126,6 @@ export function SlideCanvas(): React.JSX.Element {
   const offsetY = fitOffsetY + userPan.y
 
   // Stable refs so event handlers never go stale
-  const gradientDragRef = useRef<GradientDragData | null>(null)
-  const backgroundGradientDragRef = useRef<BackgroundGradientDragData | null>(null)
   const panDragRef = useRef<{
     startX: number
     startY: number
@@ -155,9 +134,6 @@ export function SlideCanvas(): React.JSX.Element {
   } | null>(null)
   const isSpaceDownRef = useRef(false)
   const scaleRef = useRef(scale)
-  const setPreviewPatchRef = useRef(setPreviewPatch)
-  const updateObjectFillRef = useRef(updateObjectFill)
-  const updateSlideBackgroundFillRef = useRef(updateSlideBackgroundFill)
   const zoomStateRef = useRef({ fitScale, fitOffsetX, fitOffsetY, userZoom, userPan })
   const slideRef = useRef<HTMLDivElement>(null)
 
@@ -165,18 +141,6 @@ export function SlideCanvas(): React.JSX.Element {
     scaleRef.current = scale
     zoomStateRef.current = { fitScale, fitOffsetX, fitOffsetY, userZoom, userPan }
   })
-
-  useEffect(() => {
-    setPreviewPatchRef.current = setPreviewPatch
-  }, [setPreviewPatch])
-
-  useEffect(() => {
-    updateObjectFillRef.current = updateObjectFill
-  }, [updateObjectFill])
-
-  useEffect(() => {
-    updateSlideBackgroundFillRef.current = updateSlideBackgroundFill
-  }, [updateSlideBackgroundFill])
 
   const { ghostPreview, handleAnimationGhostMouseDown, updateGhostDragPreview, commitGhostDrag } =
     useAnimationGhostDrag({
@@ -202,6 +166,19 @@ export function SlideCanvas(): React.JSX.Element {
     selectElements,
     setPreviewPatch,
     updateMasterTransform
+  })
+
+  const {
+    handleBackgroundGradientMouseDown,
+    handleGradientOverlayMouseDown,
+    updateGradientPreview,
+    commitGradientPreview
+  } = useGradientOverlayInteraction({
+    scaleRef,
+    slideRef,
+    setPreviewPatch,
+    updateObjectFill,
+    updateSlideBackgroundFill
   })
 
   // Wheel: pinch / Ctrl+scroll = zoom around cursor, plain scroll = pan
@@ -231,12 +208,7 @@ export function SlideCanvas(): React.JSX.Element {
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [
-    commitElementTransform,
-    commitGhostDrag,
-    updateElementTransformPreview,
-    updateGhostDragPreview
-  ])
+  }, [])
 
   // Keyboard: Cmd+0 resets view, Space enables pan mode
   useEffect(() => {
@@ -315,42 +287,8 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
-      const gradientDrag = gradientDragRef.current
-      const slideElement = slideRef.current
-      if (slideElement) {
-        if (gradientDrag) {
-          const slideRect = slideElement.getBoundingClientRect()
-          const pointerX = (e.clientX - slideRect.left) / scaleRef.current
-          const pointerY = (e.clientY - slideRect.top) / scaleRef.current
-          const localX = (pointerX - gradientDrag.left) / gradientDrag.width
-          const localY = (pointerY - gradientDrag.top) / gradientDrag.height
-          const currentEndpoints = resolveLinearGradientEndpoints(gradientDrag.originalFill)
-          const endpoints =
-            gradientDrag.target === 'start'
-              ? { ...currentEndpoints, x1: localX, y1: localY }
-              : { ...currentEndpoints, x2: localX, y2: localY }
-          setPreviewPatchRef.current({
-            masterId: gradientDrag.masterId,
-            fill: setLinearGradientEndpoints(gradientDrag.originalFill, endpoints)
-          })
-          return
-        }
-
-        const bgGradientDrag = backgroundGradientDragRef.current
-        if (bgGradientDrag) {
-          const slideRect = slideElement.getBoundingClientRect()
-          const localX = (e.clientX - slideRect.left) / scaleRef.current / SLIDE_WIDTH
-          const localY = (e.clientY - slideRect.top) / scaleRef.current / SLIDE_HEIGHT
-          const currentEndpoints = resolveLinearGradientEndpoints(bgGradientDrag.originalFill)
-          const endpoints =
-            bgGradientDrag.target === 'start'
-              ? { ...currentEndpoints, x1: localX, y1: localY }
-              : { ...currentEndpoints, x2: localX, y2: localY }
-          setPreviewPatchRef.current({
-            slideId: bgGradientDrag.slideId,
-            backgroundFill: setLinearGradientEndpoints(bgGradientDrag.originalFill, endpoints)
-          })
-        }
+      if (updateGradientPreview(e)) {
+        return
       }
     }
 
@@ -369,46 +307,8 @@ export function SlideCanvas(): React.JSX.Element {
         return
       }
 
-      const gradientDrag = gradientDragRef.current
-      const slideElement = slideRef.current
-      if (slideElement) {
-        if (gradientDrag) {
-          const slideRect = slideElement.getBoundingClientRect()
-          const pointerX = (e.clientX - slideRect.left) / scaleRef.current
-          const pointerY = (e.clientY - slideRect.top) / scaleRef.current
-          const localX = (pointerX - gradientDrag.left) / gradientDrag.width
-          const localY = (pointerY - gradientDrag.top) / gradientDrag.height
-          const currentEndpoints = resolveLinearGradientEndpoints(gradientDrag.originalFill)
-          const endpoints =
-            gradientDrag.target === 'start'
-              ? { ...currentEndpoints, x1: localX, y1: localY }
-              : { ...currentEndpoints, x2: localX, y2: localY }
-          updateObjectFillRef.current(
-            gradientDrag.masterId,
-            setLinearGradientEndpoints(gradientDrag.originalFill, endpoints)
-          )
-          setPreviewPatchRef.current(null)
-          gradientDragRef.current = null
-          return
-        }
-
-        const bgGradientDrag = backgroundGradientDragRef.current
-        if (bgGradientDrag) {
-          const slideRect = slideElement.getBoundingClientRect()
-          const localX = (e.clientX - slideRect.left) / scaleRef.current / SLIDE_WIDTH
-          const localY = (e.clientY - slideRect.top) / scaleRef.current / SLIDE_HEIGHT
-          const currentEndpoints = resolveLinearGradientEndpoints(bgGradientDrag.originalFill)
-          const endpoints =
-            bgGradientDrag.target === 'start'
-              ? { ...currentEndpoints, x1: localX, y1: localY }
-              : { ...currentEndpoints, x2: localX, y2: localY }
-          updateSlideBackgroundFillRef.current(
-            bgGradientDrag.slideId,
-            setLinearGradientEndpoints(bgGradientDrag.originalFill, endpoints)
-          )
-          setPreviewPatchRef.current(null)
-          backgroundGradientDragRef.current = null
-        }
+      if (commitGradientPreview(e)) {
+        return
       }
     }
 
@@ -418,7 +318,14 @@ export function SlideCanvas(): React.JSX.Element {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
     }
-  }, [])
+  }, [
+    commitElementTransform,
+    commitGhostDrag,
+    commitGradientPreview,
+    updateElementTransformPreview,
+    updateGhostDragPreview,
+    updateGradientPreview
+  ])
 
   const handleElementContextMenu = useCallback(
     (masterId: string, appearanceId: string, e: React.MouseEvent) => {
@@ -494,45 +401,6 @@ export function SlideCanvas(): React.JSX.Element {
       setContextMenu(null)
     },
     [selectAnimation]
-  )
-
-  const handleBackgroundGradientMouseDown = useCallback(
-    (slideId: string, fill: LinearGradientFill, target: 'start' | 'end', e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      backgroundGradientDragRef.current = {
-        slideId,
-        target,
-        originalFill: { ...fill, stops: fill.stops.map((stop) => ({ ...stop })) }
-      }
-    },
-    []
-  )
-
-  const handleGradientOverlayMouseDown = useCallback(
-    (
-      masterId: string,
-      fill: LinearGradientFill,
-      left: number,
-      top: number,
-      width: number,
-      height: number,
-      target: 'start' | 'end',
-      e: React.MouseEvent
-    ) => {
-      e.preventDefault()
-      e.stopPropagation()
-      gradientDragRef.current = {
-        masterId,
-        left,
-        top,
-        width,
-        height,
-        target,
-        originalFill: { ...fill, stops: fill.stops.map((stop) => ({ ...stop })) }
-      }
-    },
-    []
   )
 
   const slide = selectedSlideId != null ? patchedPresentation?.slidesById[selectedSlideId] : null
