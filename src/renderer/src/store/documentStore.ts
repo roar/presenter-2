@@ -41,11 +41,9 @@ interface UiState {
 
 // ── Preview patch ─────────────────────────────────────────────────────────────
 
-export interface PreviewPatch {
-  masterId: string
-  transform?: Transform
-  fill?: Fill | undefined
-}
+export type PreviewPatch =
+  | { masterId: string; transform?: Transform; fill?: Fill | undefined }
+  | { slideId: string; backgroundFill: Fill | undefined }
 
 // ── History entry for undo/redo ───────────────────────────────────────────────
 
@@ -154,9 +152,6 @@ export function selectPatchedPresentation(state: DocumentState): Presentation | 
   const { document, previewPatch } = state
   if (!document) return null
   if (!previewPatch) return document
-  const master = document.mastersById[previewPatch.masterId]
-  if (!master) return document
-  if (previewPatch.transform == null && previewPatch.fill === undefined) return document
 
   if (
     patchedPresentationCache.document === document &&
@@ -165,23 +160,43 @@ export function selectPatchedPresentation(state: DocumentState): Presentation | 
     return patchedPresentationCache.result
   }
 
-  const result = {
-    ...document,
-    mastersById: {
-      ...document.mastersById,
-      [previewPatch.masterId]: {
-        ...master,
-        transform: previewPatch.transform ?? master.transform,
-        objectStyle:
-          previewPatch.fill === undefined
-            ? master.objectStyle
-            : {
-                ...master.objectStyle,
-                defaultState: {
-                  ...master.objectStyle.defaultState,
-                  fill: previewPatch.fill
+  let result: Presentation
+
+  if ('slideId' in previewPatch) {
+    const slide = document.slidesById[previewPatch.slideId]
+    if (!slide) return document
+    result = {
+      ...document,
+      slidesById: {
+        ...document.slidesById,
+        [previewPatch.slideId]: {
+          ...slide,
+          background: { ...slide.background, fill: previewPatch.backgroundFill }
+        }
+      }
+    }
+  } else {
+    const master = document.mastersById[previewPatch.masterId]
+    if (!master) return document
+    if (previewPatch.transform == null && previewPatch.fill === undefined) return document
+    result = {
+      ...document,
+      mastersById: {
+        ...document.mastersById,
+        [previewPatch.masterId]: {
+          ...master,
+          transform: previewPatch.transform ?? master.transform,
+          objectStyle:
+            previewPatch.fill === undefined
+              ? master.objectStyle
+              : {
+                  ...master.objectStyle,
+                  defaultState: {
+                    ...master.objectStyle.defaultState,
+                    fill: previewPatch.fill
+                  }
                 }
-              }
+        }
       }
     }
   }
