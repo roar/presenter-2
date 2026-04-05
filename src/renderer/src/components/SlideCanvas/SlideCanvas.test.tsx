@@ -1342,6 +1342,55 @@ describe('SlideCanvas', () => {
     expect(pointsAfter[1]).toHaveAttribute('cy', '310')
   })
 
+  it('moves the selected curved path endpoint with the dragged ghost preview', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            {
+              id: 'curve',
+              position: { x: 30, y: 20 },
+              type: 'smooth',
+              inHandle: { x: 20, y: 10 },
+              outHandle: { x: 35, y: 30 }
+            },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    const { container } = render(<SlideCanvas />)
+
+    const pointsBefore = container.querySelectorAll('[data-testid="animation-path-point"]')
+    expect(pointsBefore[2]).toHaveAttribute('cx', '290')
+    expect(pointsBefore[2]).toHaveAttribute('cy', '280')
+
+    fireEvent.mouseDown(screen.getByTestId('animation-ghost'), { clientX: 140, clientY: 180 })
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 210 })
+
+    const pointsAfter = container.querySelectorAll('[data-testid="animation-path-point"]')
+    expect(pointsAfter[2]).toHaveAttribute('cx', '310')
+    expect(pointsAfter[2]).toHaveAttribute('cy', '310')
+  })
+
   it('previews and commits an active path anchor drag through move path updates', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
@@ -2145,6 +2194,55 @@ describe('SlideCanvas', () => {
     expect(updatedGhosts[0]).toHaveStyle({ left: '140px', top: '180px' })
     expect(updatedGhosts[1]).toHaveStyle({ left: '170px', top: '190px' })
     expect(updatedGhosts[2]).toHaveStyle({ left: '135px', top: '190px' })
+  })
+
+  it('keeps a downstream path-backed segment connected to the next ghost during ghost drag preview', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 10, y: -20 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            { id: 'curve', position: { x: 10, y: -30 }, type: 'smooth' },
+            { id: 'end', position: { x: 10, y: -20 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    const { container } = render(<SlideCanvas />)
+
+    fireEvent.mouseDown(screen.getAllByTestId('animation-ghost')[0], { clientX: 140, clientY: 180 })
+    fireEvent.mouseMove(window, { clientX: 160, clientY: 210 })
+
+    const renderedPaths = container.querySelectorAll('[data-testid="animation-path"]')
+    const downstreamPath = renderedPaths[0]
+    expect(downstreamPath?.getAttribute('d')).toContain('300 260')
   })
 
   it('updates the dragged move delta and compensates the following move step on mouse up', () => {

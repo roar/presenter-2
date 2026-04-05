@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import { resolveBackgroundStyle, resolveSlideBackground } from '@shared/model/background'
 import type { Position } from '@shared/model/types'
-import { getMovePathEndpoint } from '@shared/model/movePath'
+import { getMovePathEndpoint, withMovePathEndpoint } from '@shared/model/movePath'
 import {
   computeMsoExitStateChains,
   renderAllSlideEntryStates
@@ -425,14 +425,56 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
 
   const moveChainSteps =
     selectedAnimationGroup?.slideId === annotationSlideId
-      ? selectedAnimationGroup.moveSteps.map((step) => ({
-          animationId: step.animationId,
-          delta:
-            pathPreview?.animationId === step.animationId
-              ? (getMovePathEndpoint(pathPreview.path) ?? step.delta)
-              : step.delta,
-          path: pathPreview?.animationId === step.animationId ? pathPreview.path : step.path
-        }))
+      ? selectedAnimationGroup.moveSteps.map((step, index, steps) => {
+          const selectedPreviewStepIndex =
+            ghostPreview != null
+              ? steps.findIndex((candidate) => candidate.animationId === ghostPreview.animationId)
+              : -1
+          const previewDeltaOffset =
+            ghostPreview != null && selectedPreviewStepIndex >= 0
+              ? {
+                  x: ghostPreview.delta.x - steps[selectedPreviewStepIndex].delta.x,
+                  y: ghostPreview.delta.y - steps[selectedPreviewStepIndex].delta.y
+                }
+              : null
+
+          if (pathPreview?.animationId === step.animationId) {
+            return {
+              animationId: step.animationId,
+              delta: getMovePathEndpoint(pathPreview.path) ?? step.delta,
+              path: pathPreview.path
+            }
+          }
+
+          if (ghostPreview?.animationId === step.animationId) {
+            return {
+              animationId: step.animationId,
+              delta: step.delta,
+              path: withMovePathEndpoint(step.path, ghostPreview.delta)
+            }
+          }
+
+          if (
+            previewDeltaOffset != null &&
+            selectedPreviewStepIndex >= 0 &&
+            index === selectedPreviewStepIndex + 1
+          ) {
+            return {
+              animationId: step.animationId,
+              delta: step.delta,
+              path: withMovePathEndpoint(step.path, {
+                x: step.delta.x - previewDeltaOffset.x,
+                y: step.delta.y - previewDeltaOffset.y
+              })
+            }
+          }
+
+          return {
+            animationId: step.animationId,
+            delta: step.delta,
+            path: step.path
+          }
+        })
       : []
   const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
   const moveCanvasSelection =

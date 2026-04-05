@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { getMoveEffectDelta, syncMoveEffectDelta, syncMoveEffectPath } from './movePath'
+import {
+  getMoveEffectDelta,
+  syncMoveEffectDelta,
+  syncMoveEffectPath,
+  withMovePathEndpoint
+} from './movePath'
 import type { Animation } from './types'
 
 describe('movePath', () => {
@@ -91,6 +96,27 @@ describe('movePath', () => {
         ]
       })
       expect(effect.delta).toEqual({ x: 120, y: 160 })
+    })
+  })
+
+  describe('withMovePathEndpoint', () => {
+    it('returns a cloned path with the last point moved to the provided endpoint', () => {
+      const path = {
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' as const },
+          { id: 'curve', position: { x: 30, y: 20 }, type: 'smooth' as const },
+          { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' as const }
+        ]
+      }
+
+      expect(withMovePathEndpoint(path, { x: 60, y: 110 })).toEqual({
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          { id: 'curve', position: { x: 30, y: 20 }, type: 'smooth' },
+          { id: 'end', position: { x: 60, y: 110 }, type: 'sharp' }
+        ]
+      })
+      expect(path.points[2].position).toEqual({ x: 40, y: 80 })
     })
   })
 })

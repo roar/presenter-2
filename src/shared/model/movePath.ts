@@ -5,6 +5,20 @@ export function getMovePathEndpoint(path: MovePath | undefined): Position | null
   return path.points[path.points.length - 1].position
 }
 
+export function withMovePathEndpoint(
+  path: MovePath | undefined,
+  endpoint: Position
+): MovePath | undefined {
+  if (!path) return undefined
+  if (path.points.length === 0) return { points: [] }
+
+  return {
+    points: path.points.map((point, index, points) =>
+      index === points.length - 1 ? { ...point, position: endpoint } : point
+    )
+  }
+}
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
