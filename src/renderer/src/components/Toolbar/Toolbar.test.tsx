@@ -51,6 +51,11 @@ describe('Toolbar', () => {
     expect(screen.getByRole('button', { name: 'Insert Shape' })).toBeInTheDocument()
   })
 
+  it('renders Insert Text button', () => {
+    render(<Toolbar />)
+    expect(screen.getByRole('button', { name: 'Insert Text' })).toBeInTheDocument()
+  })
+
   it('renders Open button', () => {
     render(<Toolbar />)
     expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument()
@@ -90,6 +95,30 @@ describe('Toolbar', () => {
     expect(insertElementMock).toHaveBeenCalledWith(
       'slide-1',
       expect.objectContaining({ type: 'shape', name: 'Dog' })
+    )
+  })
+
+  it('inserts a text master with default content when Insert Text is clicked', async () => {
+    const user = userEvent.setup()
+    render(<Toolbar />)
+
+    await user.click(screen.getByRole('button', { name: 'Insert Text' }))
+
+    expect(insertElementMock).toHaveBeenCalledWith(
+      'slide-1',
+      expect.objectContaining({
+        type: 'text',
+        content: {
+          type: 'text',
+          value: expect.objectContaining({
+            blocks: [
+              expect.objectContaining({
+                runs: [expect.objectContaining({ text: 'Text' })]
+              })
+            ]
+          })
+        }
+      })
     )
   })
 

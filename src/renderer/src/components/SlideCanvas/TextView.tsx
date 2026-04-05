@@ -1,5 +1,7 @@
 import type { RenderedAppearance } from '@shared/animation/types'
+import { resolveColorValue } from '@shared/model/colors'
 import type { Appearance, MsoMaster } from '@shared/model/types'
+import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 
 interface TextViewProps {
   master: MsoMaster
@@ -10,6 +12,8 @@ interface TextViewProps {
 export function TextView({ master, appearance, rendered }: TextViewProps): React.JSX.Element {
   const { transform: t } = master
   const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
+  const textStyle = master.textStyle?.defaultState ?? {}
+  const content = master.content.type === 'text' ? master.content.value : null
 
   return (
     <div
@@ -21,8 +25,16 @@ export function TextView({ master, appearance, rendered }: TextViewProps): React
         height: t.height,
         transform: rendered?.transform || undefined,
         opacity: rendered?.opacity ?? 1,
-        visibility: visible ? 'visible' : 'hidden'
+        visibility: visible ? 'visible' : 'hidden',
+        fontSize: textStyle.fontSize,
+        fontWeight: textStyle.fontWeight,
+        fontFamily: textStyle.fontFamily,
+        color: resolveColorValue(textStyle.color),
+        whiteSpace: 'normal',
+        overflowWrap: 'anywhere'
       }}
-    />
+    >
+      {content ? <TextContentRenderer content={content} /> : null}
+    </div>
   )
 }

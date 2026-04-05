@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { nullAuthContext } from '../../../../shared/auth/types'
-import { createMsoMaster } from '../../../../shared/model/factories'
+import { createMsoMaster, createTextContent } from '../../../../shared/model/factories'
 import type { ShapeLibraryEntry } from '../../../../shared/shapes/types'
 import type { DocumentMeta } from '../../repository/DocumentRepository'
 import { JsonFileRepository } from '../../repository/JsonFileRepository'
@@ -63,6 +63,31 @@ export function Toolbar(): React.JSX.Element {
     insertElement(selectedSlideId, master)
   }
 
+  function handleInsertText(): void {
+    if (!selectedSlideId) return
+
+    const master = createMsoMaster('text')
+    master.name = 'Text'
+    master.transform = {
+      x: 120,
+      y: 120,
+      width: 640,
+      height: 180,
+      rotation: 0
+    }
+    master.content = { type: 'text', value: createTextContent('Text') }
+    master.textStyle = {
+      defaultState: {
+        fontSize: 32,
+        fontWeight: 400,
+        color: '#ffffff'
+      },
+      namedStates: {}
+    }
+
+    insertElement(selectedSlideId, master)
+  }
+
   function handleOpenPresentation(id: string): void {
     void loadDocument(repository, id, nullAuthContext)
   }
@@ -100,6 +125,9 @@ export function Toolbar(): React.JSX.Element {
           </Button>
           <Button variant="ghost" onClick={handlePreview}>
             Preview
+          </Button>
+          <Button variant="ghost" onClick={handleInsertText}>
+            Insert Text
           </Button>
           <Button variant="ghost" onClick={() => setShapePickerOpen(true)}>
             Insert Shape
