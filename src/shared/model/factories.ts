@@ -75,6 +75,7 @@ export function createTextContent(plain: string): TextContent {
     blocks: [
       {
         id: crypto.randomUUID(),
+        list: { kind: 'none' },
         runs: [
           {
             id: crypto.randomUUID(),

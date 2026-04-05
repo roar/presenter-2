@@ -223,8 +223,14 @@ export interface TextContent {
   blocks: TextBlock[]
 }
 
+export type TextList =
+  | { kind: 'none' }
+  | { kind: 'bulleted' }
+  | { kind: 'numbered'; start?: number }
+
 export interface TextBlock {
   id: BlockId
+  list: TextList
   runs: TextRun[]
 }
 

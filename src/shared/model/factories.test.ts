@@ -79,6 +79,7 @@ describe('createTextContent', () => {
   it('produces one block with one run and no marks from plain text', () => {
     const content = createTextContent('hello')
     expect(content.blocks).toHaveLength(1)
+    expect(content.blocks[0].list).toEqual({ kind: 'none' })
     expect(content.blocks[0].runs).toHaveLength(1)
     expect(content.blocks[0].runs[0].text).toBe('hello')
     expect(content.blocks[0].runs[0].marks).toEqual([])
