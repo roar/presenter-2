@@ -3,6 +3,7 @@ import { resolveColorValue } from '@shared/model/colors'
 import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 import { extractPlainText, plainTextToTextContent } from '@shared/text/textContentUtils'
+import type { ShapeTextLineTrack } from '@shared/text/shapeTextLineTracks'
 
 interface TextViewProps {
   master: MsoMaster
@@ -12,6 +13,7 @@ interface TextViewProps {
   contentOverride?: TextContent | null
   onEditContentChange?: (content: TextContent) => void
   onCommitEdit?: () => void
+  editingTrackGuides?: ShapeTextLineTrack[]
 }
 
 export function TextView({
@@ -21,7 +23,8 @@ export function TextView({
   isEditing = false,
   contentOverride = null,
   onEditContentChange,
-  onCommitEdit
+  onCommitEdit,
+  editingTrackGuides = []
 }: TextViewProps): React.JSX.Element {
   const { transform: t } = master
   const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
@@ -52,6 +55,24 @@ export function TextView({
         outlineOffset: isEditing ? '4px' : undefined
       }}
     >
+      {isEditing
+        ? editingTrackGuides.map((track, index) => (
+            <div
+              key={`${track.x}-${track.y}-${index}`}
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: track.x,
+                top: track.y,
+                width: track.width,
+                height: track.height,
+                border: '1px dashed rgba(10, 132, 255, 0.35)',
+                boxSizing: 'border-box',
+                pointerEvents: 'none'
+              }}
+            />
+          ))
+        : null}
       {isEditing ? (
         <textarea
           aria-label="Edit text"

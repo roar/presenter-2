@@ -145,4 +145,27 @@ describe('TextView', () => {
 
     expect(onCommitEdit).toHaveBeenCalledTimes(1)
   })
+
+  it('renders geometry-aware editing track guides when provided', () => {
+    const master = makeTextMaster('Guided text')
+    const appearance = createAppearance(master.id, 'slide-1')
+
+    const { container } = render(
+      <TextView
+        master={master}
+        appearance={appearance}
+        isEditing
+        editingTrackGuides={[
+          { x: 10, y: 0, width: 100, height: 24 },
+          { x: 20, y: 24, width: 80, height: 24 }
+        ]}
+      />
+    )
+
+    const guideLines = Array.from(container.querySelectorAll('div[aria-hidden="true"]'))
+    expect(guideLines).toHaveLength(2)
+    expect((guideLines[0] as HTMLDivElement).style.left).toBe('10px')
+    expect((guideLines[0] as HTMLDivElement).style.width).toBe('100px')
+    expect((guideLines[1] as HTMLDivElement).style.top).toBe('24px')
+  })
 })

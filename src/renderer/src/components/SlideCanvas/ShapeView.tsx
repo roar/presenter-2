@@ -7,6 +7,10 @@ import {
   resolveLinearGradientEndpoints
 } from '@shared/model/fill'
 import { getGrainBaseFrequency, resolveGrainEffect } from '@shared/model/grain'
+import { buildShapeTextLineTracks } from '@shared/text/shapeTextLineTracks'
+import { extractPlainText } from '@shared/text/textContentUtils'
+import { buildShapeTextRenderLayout } from '@shared/text/shapeTextRenderLayout'
+import { ShapeTextFlowRenderer } from '@shared/text/ShapeTextFlowRenderer'
 import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextView } from './TextView'
 
@@ -63,6 +67,8 @@ export function ShapeView({
   const gradientStops = isGradientFill(style.fill)
     ? resolveGradientStops(style.fill.stops, colorConstantsById)
     : []
+  const fontSize = master.textStyle?.defaultState.fontSize ?? 20
+  const lineHeight = Math.round(fontSize * 1.2)
 
   const viewBox =
     geometry?.type === 'path' && geometry.baseWidth && geometry.baseHeight
@@ -92,6 +98,35 @@ export function ShapeView({
 
     return null
   }
+
+  function measureTextWidth(text: string, currentFontSize: number): number {
+    return text.length * currentFontSize * 0.5
+  }
+
+  const shapeTextLayout =
+    !isEditing &&
+    master.content.type === 'text' &&
+    (geometry?.type === 'rect' || geometry?.type === 'ellipse')
+      ? buildShapeTextRenderLayout({
+          text: extractPlainText(master.content.value),
+          geometry,
+          frameWidth: t.width,
+          frameHeight: t.height,
+          fontSize,
+          lineHeight,
+          measureTextWidth
+        })
+      : null
+  const editingTrackGuides =
+    isEditing && (geometry?.type === 'rect' || geometry?.type === 'ellipse')
+      ? buildShapeTextLineTracks({
+          geometry,
+          frameWidth: t.width,
+          frameHeight: t.height,
+          fontSize,
+          lineHeight
+        })
+      : []
 
   return (
     <>
@@ -162,7 +197,7 @@ export function ShapeView({
             })
           : null}
       </svg>
-      {master.content.type === 'text' || isEditing ? (
+      {isEditing ? (
         <TextView
           master={master}
           appearance={appearance}
@@ -171,7 +206,38 @@ export function ShapeView({
           contentOverride={contentOverride}
           onEditContentChange={onEditContentChange}
           onCommitEdit={onCommitEdit}
+          editingTrackGuides={editingTrackGuides}
         />
+      ) : master.content.type === 'text' ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: t.x,
+            top: t.y,
+            width: t.width,
+            height: t.height,
+            transform: [baseTransform, rotationTransform].filter(Boolean).join(' ') || undefined,
+            opacity,
+            visibility: visible ? 'visible' : 'hidden',
+            color: resolveColorValue(master.textStyle?.defaultState.color, colorConstantsById),
+            fontSize,
+            fontWeight: master.textStyle?.defaultState.fontWeight,
+            fontFamily: master.textStyle?.defaultState.fontFamily,
+            lineHeight: `${lineHeight}px`
+          }}
+        >
+          {shapeTextLayout ? (
+            <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
+          ) : (
+            <TextView
+              master={master}
+              appearance={appearance}
+              rendered={rendered}
+              isEditing={false}
+              contentOverride={contentOverride}
+            />
+          )}
+        </div>
       ) : null}
     </>
   )

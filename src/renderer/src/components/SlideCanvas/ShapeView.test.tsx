@@ -176,6 +176,39 @@ describe('ShapeView', () => {
     expect(screen.getByText('Shape text')).toBeInTheDocument()
   })
 
+  it('renders rect shape text with geometry-aware line placement when not editing', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'rect' }
+    master.transform.width = 100
+    master.transform.height = 72
+    master.content = { type: 'text', value: createTextContent('HELLO WORLD AGAIN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
+
+    expect(screen.getByText('HELLO')).toHaveStyle({ left: '0px', top: '0px' })
+    expect(screen.getByText('WORLD')).toHaveStyle({ left: '0px', top: '24px' })
+    expect(screen.getByText('AGAIN')).toHaveStyle({ left: '0px', top: '48px' })
+  })
+
+  it('renders ellipse shape text with inset upper line placement when not editing', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'ellipse' }
+    master.content = { type: 'text', value: createTextContent('ONE TWO THREE FOUR FIVE SIX SEVEN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
+
+    expect(screen.getByText('ONE TWO')).toHaveStyle({ top: '0px' })
+    expect(screen.getByText('THREE FOUR FIVE SIX')).toHaveStyle({ top: '24px' })
+  })
+
   it('renders a textbox overlay in edit mode for shape text', async () => {
     const user = userEvent.setup()
     const master = makeMaster()
@@ -197,5 +230,44 @@ describe('ShapeView', () => {
     await user.type(textbox, 'Ny shape tekst')
 
     expect(onEditContentChange).toHaveBeenCalled()
+  })
+
+  it('renders geometry-aware editing guides for rect shapes in edit mode', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'rect' }
+    master.transform.width = 100
+    master.transform.height = 72
+    master.content = { type: 'text', value: createTextContent('Shape text') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} isEditing />
+    )
+
+    const guideLines = Array.from(container.querySelectorAll('div[aria-hidden="true"]'))
+    expect(guideLines).toHaveLength(3)
+    expect((guideLines[0] as HTMLDivElement).style.width).toBe('100px')
+    expect((guideLines[1] as HTMLDivElement).style.top).toBe('24px')
+  })
+
+  it('renders inset editing guides for ellipse shapes in edit mode', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'ellipse' }
+    master.content = { type: 'text', value: createTextContent('Shape text') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} isEditing />
+    )
+
+    const guideLines = Array.from(container.querySelectorAll('div[aria-hidden="true"]'))
+    expect(guideLines.length).toBeGreaterThan(0)
+    expect((guideLines[0] as HTMLDivElement).style.left).not.toBe('0px')
   })
 })
