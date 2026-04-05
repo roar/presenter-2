@@ -88,6 +88,7 @@ interface DocumentState {
   moveElement(masterId: string, x: number, y: number): void
   updateMasterTransform(masterId: string, transform: Partial<Transform>): void
   moveSlide(fromIndex: number, toIndex: number): void
+  moveAnimation(slideId: SlideId, fromIndex: number, toIndex: number): void
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
   addMoveAnimation(appearanceId: AppearanceId, afterAnimationId?: AnimationId): void
@@ -175,6 +176,19 @@ function insertAnimationIdAfter(
   }
 
   animationIds.splice(afterIndex + 1, 0, newAnimationId)
+}
+
+function syncAppearanceAnimationIdsForSlide(document: Presentation, slide: Slide): void {
+  const appearanceIds = new Set(slide.appearanceIds)
+
+  for (const appearanceId of appearanceIds) {
+    const appearance = document.appearancesById[appearanceId]
+    if (!appearance) continue
+    appearance.animationIds = slide.animationOrder.filter((animationId) => {
+      const animation = document.animationsById[animationId]
+      return getAnimationTargetAppearanceId(animation) === appearanceId
+    })
+  }
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -608,6 +622,30 @@ export const useDocumentStore = create<DocumentState>()(
         const order = state.document.slideOrder
         const [id] = order.splice(fromIndex, 1)
         order.splice(toIndex, 0, id)
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    moveAnimation(slideId, fromIndex, toIndex) {
+      set((state) => {
+        if (!state.document) return
+        const slide = state.document.slidesById[slideId]
+        if (!slide) return
+        const order = slide.animationOrder
+        if (
+          fromIndex < 0 ||
+          toIndex < 0 ||
+          fromIndex >= order.length ||
+          toIndex >= order.length ||
+          fromIndex === toIndex
+        ) {
+          return
+        }
+
+        const [animationId] = order.splice(fromIndex, 1)
+        order.splice(toIndex, 0, animationId)
+        syncAppearanceAnimationIdsForSlide(state.document, slide)
         pushHistory(state, state.document)
         state.isDirty = true
       })

@@ -8,7 +8,7 @@ import {
 } from '@shared/animation/computeSlideEntryStates'
 import { resolveFrame } from '@shared/animation/resolveFrame'
 import { useDocumentStore, selectPatchedPresentation } from '../../store/documentStore'
-import { AnimationCard } from '../AnimationCard/AnimationCard'
+import { AnimationCardList } from '../AnimationCard/AnimationCardList'
 import { Button } from '../Button/Button'
 import { ObjectCard } from '../ObjectCard/ObjectCard'
 import { Panel, PanelSection } from '../Panel/Panel'
@@ -165,6 +165,7 @@ export function EditorLayout(): React.JSX.Element {
   const updateAnimationEasing = useDocumentStore((s) => s.updateAnimationEasing)
   const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
+  const moveAnimation = useDocumentStore((s) => s.moveAnimation)
   const updateSlideTransitionTrigger = useDocumentStore((s) => s.updateSlideTransitionTrigger)
   const updateSlideTransitionDuration = useDocumentStore((s) => s.updateSlideTransitionDuration)
   const updateSlideTransitionEasing = useDocumentStore((s) => s.updateSlideTransitionEasing)
@@ -495,21 +496,24 @@ export function EditorLayout(): React.JSX.Element {
                 />
               }
             >
-              {selectedSlideAnimations.map((animation) => (
-                <AnimationCard
-                  key={animation.id}
-                  animation={animation}
-                  objectName={getAnimationObjectName(animation, document)}
-                  isSelected={selectedAnimationId === animation.id}
-                  onClick={() => selectAnimation(animation.id)}
-                  onTriggerChange={(trigger) => updateAnimationTrigger(animation.id, trigger)}
-                  onOffsetChange={(offset) => updateAnimationOffset(animation.id, offset)}
-                  onDurationChange={(duration) => updateAnimationDuration(animation.id, duration)}
-                  onEasingChange={(easing) => updateAnimationEasing(animation.id, easing)}
-                  onNumericToChange={(value) => updateAnimationNumericTo(animation.id, value)}
-                  onMoveDeltaChange={(delta) => updateAnimationMoveDelta(animation.id, delta)}
+              {selectedSlideId ? (
+                <AnimationCardList
+                  slideId={selectedSlideId}
+                  animations={selectedSlideAnimations}
+                  selectedAnimationId={selectedAnimationId}
+                  getObjectName={(animation) => getAnimationObjectName(animation, document)}
+                  onSelect={selectAnimation}
+                  onMoveAnimation={(fromIndex, toIndex) =>
+                    moveAnimation(selectedSlideId, fromIndex, toIndex)
+                  }
+                  onTriggerChange={updateAnimationTrigger}
+                  onOffsetChange={updateAnimationOffset}
+                  onDurationChange={updateAnimationDuration}
+                  onEasingChange={updateAnimationEasing}
+                  onNumericToChange={updateAnimationNumericTo}
+                  onMoveDeltaChange={updateAnimationMoveDelta}
                 />
-              ))}
+              ) : null}
             </LayoutPanel>
           )}
           {collapsedPanels.objects ? (

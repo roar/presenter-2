@@ -66,6 +66,7 @@ const removeSlide = vi.fn()
 const selectSlide = vi.fn()
 const selectElements = vi.fn()
 const selectAnimation = vi.fn()
+const moveAnimation = vi.fn()
 
 function mockStore(document: Presentation | null, selectedSlideId: string | null = null): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
@@ -87,6 +88,7 @@ function mockStore(document: Presentation | null, selectedSlideId: string | null
       updateAnimationEasing: vi.fn(),
       updateAnimationNumericTo: vi.fn(),
       updateAnimationMoveDelta: vi.fn(),
+      moveAnimation,
       updateSlideTransitionTrigger: vi.fn(),
       updateSlideTransitionDuration: vi.fn(),
       updateSlideTransitionEasing: vi.fn(),
@@ -297,6 +299,7 @@ describe('EditorLayout', () => {
         updateAnimationEasing: vi.fn(),
         updateAnimationNumericTo: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        moveAnimation: vi.fn(),
         updateSlideTransitionTrigger: vi.fn(),
         updateSlideTransitionDuration: vi.fn(),
         updateSlideTransitionEasing: vi.fn(),
@@ -323,6 +326,54 @@ describe('EditorLayout', () => {
 
     expect(screen.getAllByText('Move: Airplane')).not.toHaveLength(0)
     expect(screen.getByText('On click')).toBeInTheDocument()
+  })
+
+  it('reorders animation cards for the selected slide', () => {
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.name = 'Airplane'
+    const appearance = createAppearance(master.id, slide.id)
+    const animation1: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+    const animation2: TargetedAnimation = {
+      id: 'anim-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'scale', to: 1.5 },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+
+    slide.appearanceIds = [appearance.id]
+    slide.animationOrder = [animation1.id, animation2.id]
+
+    const document = {
+      ...makePresentation(slide),
+      slideOrder: [slide.id],
+      slidesById: { [slide.id]: slide },
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation1.id]: animation1, [animation2.id]: animation2 }
+    }
+
+    mockStore(document, slide.id)
+    render(<EditorLayout />)
+
+    fireEvent.dragStart(screen.getByTestId('animation-card-item-anim-1'))
+    fireEvent.dragOver(screen.getByTestId('animation-card-item-anim-2'))
+    fireEvent.drop(screen.getByTestId('animation-card-item-anim-2'))
+
+    expect(moveAnimation).toHaveBeenCalledWith(slide.id, 0, 1)
   })
 
   it('shows patched transform values in the properties panel while dragging', () => {
@@ -366,6 +417,7 @@ describe('EditorLayout', () => {
         updateAnimationEasing: vi.fn(),
         updateAnimationNumericTo: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
+        moveAnimation: vi.fn(),
         updateSlideTransitionTrigger: vi.fn(),
         updateSlideTransitionDuration: vi.fn(),
         updateSlideTransitionEasing: vi.fn(),
