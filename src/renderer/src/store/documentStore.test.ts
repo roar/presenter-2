@@ -785,6 +785,117 @@ describe('documentStore', () => {
     })
   })
 
+  describe('text editing state', () => {
+    it('begins text edit from an existing text master', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('text')
+      master.content = { type: 'text', value: createTextContent('Hello') }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+
+      expect(useDocumentStore.getState().ui.editingText).toEqual({
+        masterId: master.id,
+        selection: null,
+        draftContent: master.content.value
+      })
+    })
+
+    it('updates only the draft content while editing', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('text')
+      const originalContent = createTextContent('Hello')
+      master.content = { type: 'text', value: originalContent }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+      const nextContent = createTextContent('Updated')
+      useDocumentStore.getState().updateEditingTextContent(nextContent)
+
+      expect(useDocumentStore.getState().ui.editingText.draftContent).toEqual(nextContent)
+      expect(useDocumentStore.getState().document?.mastersById[master.id].content).toEqual({
+        type: 'text',
+        value: originalContent
+      })
+    })
+
+    it('commits draft content back to the master and clears editing state', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('text')
+      master.content = { type: 'text', value: createTextContent('Hello') }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+      const nextContent = createTextContent('Updated')
+      const historyLengthBefore = useDocumentStore.getState().history.length
+
+      useDocumentStore.getState().updateEditingTextContent(nextContent)
+      useDocumentStore.getState().commitTextEdit()
+
+      expect(useDocumentStore.getState().document?.mastersById[master.id].content).toEqual({
+        type: 'text',
+        value: nextContent
+      })
+      expect(useDocumentStore.getState().ui.editingText).toEqual({
+        masterId: null,
+        selection: null,
+        draftContent: null
+      })
+      expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore + 1)
+      expect(useDocumentStore.getState().isDirty).toBe(true)
+    })
+
+    it('cancels editing without changing persisted content', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('text')
+      const originalContent = createTextContent('Hello')
+      master.content = { type: 'text', value: originalContent }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+      useDocumentStore.getState().updateEditingTextContent(createTextContent('Updated'))
+      useDocumentStore.getState().cancelTextEdit()
+
+      expect(useDocumentStore.getState().document?.mastersById[master.id].content).toEqual({
+        type: 'text',
+        value: originalContent
+      })
+      expect(useDocumentStore.getState().ui.editingText).toEqual({
+        masterId: null,
+        selection: null,
+        draftContent: null
+      })
+    })
+  })
+
   describe('selectSlide', () => {
     it('sets the selected slide and clears element and animation selection', () => {
       useDocumentStore.getState().selectElements(['e-1'])

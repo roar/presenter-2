@@ -135,6 +135,10 @@ interface DocumentState {
   updateTextShadowColor(masterId: string, color: Color | undefined): void
   convertToMultiSlideObject(masterId: string): void
   convertToSingleAppearance(appearanceId: string): void
+  beginTextEdit(masterId: string): void
+  updateEditingTextContent(content: TextContent): void
+  commitTextEdit(): void
+  cancelTextEdit(): void
   undo(): void
   redo(): void
 }
@@ -603,6 +607,54 @@ export const useDocumentStore = create<DocumentState>()(
     setZoom(zoom) {
       set((state) => {
         state.ui.zoom = zoom
+      })
+    },
+
+    beginTextEdit(masterId) {
+      set((state) => {
+        if (!state.document) return
+        const master = state.document.mastersById[masterId]
+        if (!master || master.type !== 'text' || master.content.type !== 'text') return
+
+        state.ui.editingText = {
+          masterId,
+          selection: null,
+          draftContent: JSON.parse(JSON.stringify(master.content.value)) as TextContent
+        }
+        state.ui.selectedElementIds = [masterId]
+        state.ui.selectedAnimationId = null
+      })
+    },
+
+    updateEditingTextContent(content) {
+      set((state) => {
+        if (!state.ui.editingText.masterId) return
+        state.ui.editingText.draftContent = JSON.parse(JSON.stringify(content)) as TextContent
+      })
+    },
+
+    commitTextEdit() {
+      set((state) => {
+        const masterId = state.ui.editingText.masterId
+        const draftContent = state.ui.editingText.draftContent
+        if (!state.document || !masterId || !draftContent) return
+
+        const master = state.document.mastersById[masterId]
+        if (!master || master.type !== 'text' || master.content.type !== 'text') return
+
+        master.content = {
+          type: 'text',
+          value: JSON.parse(JSON.stringify(draftContent)) as TextContent
+        }
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    cancelTextEdit() {
+      set((state) => {
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
       })
     },
 
