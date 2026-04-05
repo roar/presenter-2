@@ -13,6 +13,7 @@ interface AnimationContextMenuState {
   x: number
   y: number
   animationId: string
+  appearanceId: string
 }
 
 interface SlideCanvasContextMenusProps {
@@ -22,6 +23,7 @@ interface SlideCanvasContextMenusProps {
   onCloseElementMenu: () => void
   onCloseAnimationMenu: () => void
   onAddMoveAnimation: () => void
+  onAddScaleAnimation: () => void
   onConvertToSingle: () => void
   onConvertToMso: () => void
   onDeleteAnimation: () => void
@@ -34,6 +36,7 @@ export function SlideCanvasContextMenus({
   onCloseElementMenu,
   onCloseAnimationMenu,
   onAddMoveAnimation,
+  onAddScaleAnimation,
   onConvertToSingle,
   onConvertToMso,
   onDeleteAnimation
@@ -48,7 +51,7 @@ export function SlideCanvasContextMenus({
             submenu={
               <>
                 <ContextMenuItem onClick={onAddMoveAnimation}>Move</ContextMenuItem>
-                <ContextMenuItem disabled>Scale</ContextMenuItem>
+                <ContextMenuItem onClick={onAddScaleAnimation}>Scale</ContextMenuItem>
                 <ContextMenuItem disabled>Rotate</ContextMenuItem>
               </>
             }
@@ -72,6 +75,17 @@ export function SlideCanvasContextMenus({
           y={animationContextMenu.y}
           onClose={onCloseAnimationMenu}
         >
+          <ContextMenuItem
+            submenu={
+              <>
+                <ContextMenuItem onClick={onAddMoveAnimation}>Move</ContextMenuItem>
+                <ContextMenuItem onClick={onAddScaleAnimation}>Scale</ContextMenuItem>
+                <ContextMenuItem disabled>Rotate</ContextMenuItem>
+              </>
+            }
+          >
+            Add animation
+          </ContextMenuItem>
           <ContextMenuItem onClick={onDeleteAnimation}>Delete animation</ContextMenuItem>
         </ContextMenu>
       ) : null}

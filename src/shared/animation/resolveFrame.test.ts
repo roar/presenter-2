@@ -331,6 +331,26 @@ describe('resolveFrame', () => {
     })
   })
 
+  describe('action (scale)', () => {
+    it('interpolates scale during the animation', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'scale', to: 1.5 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('scale(1.25)')
+    })
+
+    it('retains the scale after the animation completes', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'scale', to: 1.5 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].transform).toContain('scale(1.5)')
+    })
+  })
+
   describe('line-draw (build-in)', () => {
     it('strokeDashoffset is null for appearances without a line-draw animation', () => {
       const master = textMaster('m1')

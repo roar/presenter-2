@@ -11,10 +11,12 @@ interface AnimationContextMenuState {
   x: number
   y: number
   animationId: string
+  appearanceId: string
 }
 
 interface UseCanvasContextMenusParams {
-  addMoveAnimation: (appearanceId: string) => void
+  addMoveAnimation: (appearanceId: string, afterAnimationId?: string) => void
+  addScaleAnimation: (appearanceId: string, afterAnimationId?: string) => void
   convertToMultiSlideObject: (masterId: string) => void
   convertToSingleAppearance: (appearanceId: string) => void
   removeAnimation: (animationId: string) => void
@@ -32,15 +34,21 @@ interface UseCanvasContextMenusResult {
     appearanceId: string,
     event: React.MouseEvent
   ) => void
-  handleAnimationContextMenu: (animationId: string, event: React.MouseEvent) => void
+  handleAnimationContextMenu: (
+    animationId: string,
+    appearanceId: string,
+    event: React.MouseEvent
+  ) => void
   handleConvertToMso: () => void
   handleConvertToSingle: () => void
   handleAddMoveAnimation: () => void
+  handleAddScaleAnimation: () => void
   handleDeleteAnimation: () => void
 }
 
 export function useCanvasContextMenus({
   addMoveAnimation,
+  addScaleAnimation,
   convertToMultiSlideObject,
   convertToSingleAppearance,
   removeAnimation,
@@ -73,11 +81,11 @@ export function useCanvasContextMenus({
   )
 
   const handleAnimationContextMenu = useCallback(
-    (animationId: string, event: React.MouseEvent) => {
+    (animationId: string, appearanceId: string, event: React.MouseEvent) => {
       event.preventDefault()
       event.stopPropagation()
       selectAnimation(animationId)
-      setAnimationContextMenu({ x: event.clientX, y: event.clientY, animationId })
+      setAnimationContextMenu({ x: event.clientX, y: event.clientY, animationId, appearanceId })
       setElementContextMenu(null)
     },
     [selectAnimation]
@@ -96,16 +104,26 @@ export function useCanvasContextMenus({
   }, [convertToSingleAppearance, elementContextMenu])
 
   const handleAddMoveAnimation = useCallback(() => {
-    if (!elementContextMenu) return
-    addMoveAnimation(elementContextMenu.appearanceId)
+    const appearanceId = animationContextMenu?.appearanceId ?? elementContextMenu?.appearanceId
+    if (!appearanceId) return
+    addMoveAnimation(appearanceId, animationContextMenu?.animationId)
     setElementContextMenu(null)
-  }, [addMoveAnimation, elementContextMenu])
+    setAnimationContextMenu(null)
+  }, [addMoveAnimation, animationContextMenu, elementContextMenu])
 
   const handleDeleteAnimation = useCallback(() => {
     if (!animationContextMenu) return
     removeAnimation(animationContextMenu.animationId)
     setAnimationContextMenu(null)
   }, [animationContextMenu, removeAnimation])
+
+  const handleAddScaleAnimation = useCallback(() => {
+    const appearanceId = animationContextMenu?.appearanceId ?? elementContextMenu?.appearanceId
+    if (!appearanceId) return
+    addScaleAnimation(appearanceId, animationContextMenu?.animationId)
+    setAnimationContextMenu(null)
+    setElementContextMenu(null)
+  }, [addScaleAnimation, animationContextMenu, elementContextMenu])
 
   return {
     elementContextMenu,
@@ -118,6 +136,7 @@ export function useCanvasContextMenus({
     handleConvertToMso,
     handleConvertToSingle,
     handleAddMoveAnimation,
+    handleAddScaleAnimation,
     handleDeleteAnimation
   }
 }

@@ -33,7 +33,11 @@ import {
   syncMoveEffectDelta,
   syncMoveEffectPath
 } from '../../../shared/model/movePath'
-import { buildMoveCanvasSelection, type MoveCanvasSelectionState } from './animationCanvasModel'
+import {
+  buildMoveCanvasSelection,
+  type MoveCanvasSelectionState,
+  type TransformChainStepInput
+} from './animationCanvasModel'
 
 // ── UI-only state (never persisted) ──────────────────────────────────────────
 
@@ -86,7 +90,8 @@ interface DocumentState {
   moveSlide(fromIndex: number, toIndex: number): void
   copyElement(masterId: string): void
   pasteElement(slideId: SlideId): void
-  addMoveAnimation(appearanceId: AppearanceId): void
+  addMoveAnimation(appearanceId: AppearanceId, afterAnimationId?: AnimationId): void
+  addScaleAnimation(appearanceId: AppearanceId, afterAnimationId?: AnimationId): void
   removeAnimation(animationId: AnimationId): void
   updateAnimationTrigger(animationId: AnimationId, trigger: AnimationTrigger): void
   updateAnimationOffset(animationId: AnimationId, offset: number): void
@@ -151,6 +156,25 @@ function ensureSlideTransition(slide: Slide): SlideTransition {
   }
 
   return slide.transition
+}
+
+function insertAnimationIdAfter(
+  animationIds: string[],
+  newAnimationId: string,
+  afterAnimationId?: string
+): void {
+  if (!afterAnimationId) {
+    animationIds.push(newAnimationId)
+    return
+  }
+
+  const afterIndex = animationIds.indexOf(afterAnimationId)
+  if (afterIndex === -1) {
+    animationIds.push(newAnimationId)
+    return
+  }
+
+  animationIds.splice(afterIndex + 1, 0, newAnimationId)
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -230,6 +254,7 @@ export interface SelectedAnimationGroup {
   animationIds: AnimationId[]
   selectedAnimation: TargetedAnimation
   moveAnimation: TargetedAnimation | null
+  transformSteps: TransformChainStepInput[]
   moveSteps: Array<{
     animationId: AnimationId
     delta: Position
@@ -271,6 +296,25 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
   const moveAnimations = animationIds
     .map((animationId) => document.animationsById[animationId])
     .filter((animation): animation is TargetedAnimation => animation?.effect.type === 'move')
+  const transformSteps = animationIds.reduce<TransformChainStepInput[]>((steps, animationId) => {
+    const animation = document.animationsById[animationId]
+    if (!animation) return steps
+    if (animation.effect.type === 'move') {
+      steps.push({
+        animationId: animation.id,
+        type: 'move',
+        delta: getMoveEffectDelta(animation.effect),
+        path: animation.effect.path
+      })
+    } else if (animation.effect.type === 'scale') {
+      steps.push({
+        animationId: animation.id,
+        type: 'scale',
+        scale: animation.effect.to
+      })
+    }
+    return steps
+  }, [])
   const moveAnimation = moveAnimations[0] ?? null
   const moveSteps = moveAnimations.reduce<SelectedAnimationGroup['moveSteps']>(
     (steps, animation) => {
@@ -315,6 +359,25 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
       moveCanvasSelection.historySegments.length &&
     selectedAnimationGroupCache.result?.moveCanvasSelection.activePoints.length ===
       moveCanvasSelection.activePoints.length &&
+    selectedAnimationGroupCache.result?.transformSteps.length === transformSteps.length &&
+    selectedAnimationGroupCache.result?.transformSteps.every((step, index) => {
+      const candidate = transformSteps[index]
+      if (
+        !candidate ||
+        step.animationId !== candidate.animationId ||
+        step.type !== candidate.type
+      ) {
+        return false
+      }
+      if (step.type === 'move' && candidate.type === 'move') {
+        return (
+          step.delta.x === candidate.delta.x &&
+          step.delta.y === candidate.delta.y &&
+          step.path === candidate.path
+        )
+      }
+      return step.type === 'scale' && candidate.type === 'scale' && step.scale === candidate.scale
+    }) &&
     selectedAnimationGroupCache.result?.moveSteps.length === moveSteps.length &&
     selectedAnimationGroupCache.result?.moveSteps.every(
       (step, index) =>
@@ -336,6 +399,7 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
     animationIds,
     selectedAnimation,
     moveAnimation,
+    transformSteps,
     moveSteps,
     moveCanvasSelection
   }
@@ -590,7 +654,7 @@ export const useDocumentStore = create<DocumentState>()(
       })
     },
 
-    addMoveAnimation(appearanceId) {
+    addMoveAnimation(appearanceId, afterAnimationId) {
       set((state) => {
         if (!state.document) return
         const appearance = state.document.appearancesById[appearanceId]
@@ -610,8 +674,38 @@ export const useDocumentStore = create<DocumentState>()(
         }
 
         state.document.animationsById[animation.id] = animation
-        appearance.animationIds.push(animation.id)
-        slide.animationOrder.push(animation.id)
+        insertAnimationIdAfter(appearance.animationIds, animation.id, afterAnimationId)
+        insertAnimationIdAfter(slide.animationOrder, animation.id, afterAnimationId)
+        state.ui.selectedAnimationId = animation.id
+        state.ui.selectedElementIds = []
+        state.ui.selectedSlideId = slide.id
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    addScaleAnimation(appearanceId, afterAnimationId) {
+      set((state) => {
+        if (!state.document) return
+        const appearance = state.document.appearancesById[appearanceId]
+        if (!appearance) return
+        const slide = state.document.slidesById[appearance.slideId]
+        if (!slide) return
+
+        const animation: TargetedAnimation = {
+          id: crypto.randomUUID(),
+          trigger: 'on-click',
+          offset: 0,
+          duration: 1,
+          easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+          loop: { kind: 'none' },
+          effect: { kind: 'action', type: 'scale', to: 1.5 },
+          target: { kind: 'appearance', appearanceId }
+        }
+
+        state.document.animationsById[animation.id] = animation
+        insertAnimationIdAfter(appearance.animationIds, animation.id, afterAnimationId)
+        insertAnimationIdAfter(slide.animationOrder, animation.id, afterAnimationId)
         state.ui.selectedAnimationId = animation.id
         state.ui.selectedElementIds = []
         state.ui.selectedSlideId = slide.id

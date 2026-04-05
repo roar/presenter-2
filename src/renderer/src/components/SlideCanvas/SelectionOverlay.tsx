@@ -14,6 +14,7 @@ interface SelectionOverlayProps {
   slideWidth: number
   slideHeight: number
   isDragging: boolean
+  showRotationHandle?: boolean
   onHandleMouseDown: (handle: HandleType, event: React.MouseEvent) => void
 }
 
@@ -46,6 +47,7 @@ export function SelectionOverlay({
   slideWidth,
   slideHeight,
   isDragging,
+  showRotationHandle = true,
   onHandleMouseDown
 }: SelectionOverlayProps): React.JSX.Element {
   const halfWidth = scaledWidth / 2
@@ -93,7 +95,7 @@ export function SelectionOverlay({
           strokeWidth={strokeWidth}
         />
 
-        {!isDragging && (
+        {!isDragging && showRotationHandle && (
           <>
             <line
               x1={cx}
@@ -104,6 +106,7 @@ export function SelectionOverlay({
               strokeWidth={strokeWidth}
             />
             <circle
+              data-testid="selection-handle-rotation"
               cx={cx}
               cy={cy - halfHeight - rotationLine}
               r={rotationRadius}
@@ -120,6 +123,7 @@ export function SelectionOverlay({
           handles.map(({ handle, x, y }) => (
             <rect
               key={handle}
+              data-testid={`selection-handle-${handle}`}
               x={x - handleSize / 2}
               y={y - handleSize / 2}
               width={handleSize}

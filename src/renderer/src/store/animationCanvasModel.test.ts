@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildMoveCanvasSelection, buildMoveChainStates } from './animationCanvasModel'
+import {
+  buildMoveCanvasSelection,
+  buildMoveChainStates,
+  buildScaleChainStates,
+  buildTransformChainStates
+} from './animationCanvasModel'
 
 describe('animationCanvasModel', () => {
   describe('buildMoveChainStates', () => {
@@ -24,6 +29,109 @@ describe('animationCanvasModel', () => {
           delta: { x: -5, y: 40 },
           cumulativeDelta: { x: 5, y: 60 },
           path: undefined
+        }
+      ])
+    })
+  })
+
+  describe('buildTransformChainStates', () => {
+    it('builds ordered cumulative move and scale states', () => {
+      expect(
+        buildTransformChainStates(
+          [
+            { animationId: 'move-1', type: 'move', delta: { x: 10, y: 20 } },
+            { animationId: 'scale-1', type: 'scale', scale: 1.5 },
+            { animationId: 'move-2', type: 'move', delta: { x: -5, y: 15 } }
+          ],
+          null
+        )
+      ).toEqual([
+        {
+          animationId: 'move-1',
+          type: 'move',
+          delta: { x: 10, y: 20 },
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 1,
+          path: undefined
+        },
+        {
+          animationId: 'scale-1',
+          type: 'scale',
+          scale: 1.5,
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 1.5
+        },
+        {
+          animationId: 'move-2',
+          type: 'move',
+          delta: { x: -5, y: 15 },
+          cumulativeDelta: { x: 5, y: 35 },
+          cumulativeScale: 1.5,
+          path: undefined
+        }
+      ])
+    })
+
+    it('recomputes downstream scale states after a scale preview change', () => {
+      expect(
+        buildTransformChainStates(
+          [
+            { animationId: 'move-1', type: 'move', delta: { x: 10, y: 20 } },
+            { animationId: 'scale-1', type: 'scale', scale: 1.5 },
+            { animationId: 'scale-2', type: 'scale', scale: 2 }
+          ],
+          { animationId: 'scale-1', type: 'scale', scale: 2 }
+        )
+      ).toEqual([
+        {
+          animationId: 'move-1',
+          type: 'move',
+          delta: { x: 10, y: 20 },
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 1,
+          path: undefined
+        },
+        {
+          animationId: 'scale-1',
+          type: 'scale',
+          scale: 2,
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 2
+        },
+        {
+          animationId: 'scale-2',
+          type: 'scale',
+          scale: 2,
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 4
+        }
+      ])
+    })
+  })
+
+  describe('buildScaleChainStates', () => {
+    it('derives cumulative scale steps while preserving move offsets', () => {
+      expect(
+        buildScaleChainStates(
+          [
+            { animationId: 'move-1', type: 'move', delta: { x: 30, y: 40 } },
+            { animationId: 'scale-1', type: 'scale', scale: 1.25 },
+            { animationId: 'scale-2', type: 'scale', scale: 0.5 }
+          ],
+          null
+        )
+      ).toEqual([
+        {
+          animationId: 'scale-1',
+          scale: 1.25,
+          cumulativeScale: 1.25,
+          cumulativeDelta: { x: 30, y: 40 }
+        },
+        {
+          animationId: 'scale-2',
+          scale: 0.5,
+          cumulativeScale: 0.625,
+          cumulativeDelta: { x: 30, y: 40 }
         }
       ])
     })
@@ -100,13 +208,27 @@ describe('animationCanvasModel', () => {
           {
             animationId: 'move-1',
             startDelta: { x: 0, y: 0 },
-            endDelta: { x: 10, y: 20 }
+            endDelta: { x: 10, y: 20 },
+            path: undefined
           }
         ],
         activeSegment: {
           animationId: 'move-2',
           startDelta: { x: 10, y: 20 },
-          endDelta: { x: 100, y: 140 }
+          endDelta: { x: 100, y: 140 },
+          path: {
+            points: [
+              { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+              {
+                id: 'mid',
+                position: { x: 40, y: 30 },
+                type: 'bezier',
+                inHandle: { x: 20, y: 10 },
+                outHandle: { x: 55, y: 45 }
+              },
+              { id: 'end', position: { x: 90, y: 120 }, type: 'sharp' }
+            ]
+          }
         },
         downstreamSegments: [],
         activePoints: [
@@ -162,13 +284,20 @@ describe('animationCanvasModel', () => {
           {
             animationId: 'move-1',
             startDelta: { x: 0, y: 0 },
-            endDelta: { x: 10, y: 20 }
+            endDelta: { x: 10, y: 20 },
+            path: undefined
           }
         ],
         activeSegment: {
           animationId: 'move-2',
           startDelta: { x: 10, y: 20 },
-          endDelta: { x: 60, y: 90 }
+          endDelta: { x: 60, y: 90 },
+          path: {
+            points: [
+              { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+              { id: 'end', position: { x: 30, y: 40 }, type: 'sharp' }
+            ]
+          }
         },
         downstreamSegments: [],
         activePoints: [

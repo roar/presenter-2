@@ -307,7 +307,13 @@ describe('documentStore', () => {
         activeSegment: {
           animationId: move.id,
           startDelta: { x: 0, y: 0 },
-          endDelta: { x: 120, y: 160 }
+          endDelta: { x: 120, y: 160 },
+          path: {
+            points: [
+              { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+              { id: 'end', position: { x: 120, y: 160 }, type: 'sharp' }
+            ]
+          }
         },
         downstreamSegments: [],
         activePoints: [
@@ -898,6 +904,177 @@ describe('documentStore', () => {
       expect(state.ui.selectedElementIds).toEqual([])
       expect(state.ui.selectedSlideId).toBe(slide.id)
     })
+
+    it('inserts a new move animation immediately after the given animation', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const existingAnimation = {
+        id: 'anim-1',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: 'linear' as const,
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 10, y: 20 } },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      const laterAnimation = {
+        id: 'anim-2',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: 'linear' as const,
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'scale' as const, to: 1.2 },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [existingAnimation.id, laterAnimation.id]
+      appearance.animationIds = [existingAnimation.id, laterAnimation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: {
+            [existingAnimation.id]: existingAnimation,
+            [laterAnimation.id]: laterAnimation
+          }
+        })
+      )
+
+      useDocumentStore.getState().addMoveAnimation(appearance.id, existingAnimation.id)
+
+      const animationOrder =
+        useDocumentStore.getState().document?.slidesById[slide.id].animationOrder
+      const appearanceOrder =
+        useDocumentStore.getState().document?.appearancesById[appearance.id].animationIds
+
+      expect(animationOrder).toHaveLength(3)
+      expect(animationOrder?.[0]).toBe(existingAnimation.id)
+      expect(animationOrder?.[2]).toBe(laterAnimation.id)
+      expect(animationOrder?.[1]).toBe(useDocumentStore.getState().ui.selectedAnimationId)
+      expect(appearanceOrder).toEqual(animationOrder)
+    })
+  })
+
+  describe('addScaleAnimation', () => {
+    it('creates a scale animation for the selected appearance', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().addScaleAnimation(appearance.id)
+
+      const state = useDocumentStore.getState()
+      const animationId = state.document?.slidesById[slide.id].animationOrder[0]
+      const animation = animationId ? state.document?.animationsById[animationId] : null
+
+      expect(animation).toMatchObject({
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'scale', to: 1.5 },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      })
+      expect(state.document?.appearancesById[appearance.id].animationIds).toEqual([animationId])
+    })
+
+    it('selects the new scale animation and clears element selection', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().selectElements([master.id])
+      useDocumentStore.getState().addScaleAnimation(appearance.id)
+
+      const state = useDocumentStore.getState()
+      expect(state.ui.selectedAnimationId).toBe(
+        state.document?.slidesById[slide.id].animationOrder[0]
+      )
+      expect(state.ui.selectedElementIds).toEqual([])
+      expect(state.ui.selectedSlideId).toBe(slide.id)
+    })
+
+    it('inserts a new scale animation immediately after the given animation', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const existingAnimation = {
+        id: 'anim-1',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: 'linear' as const,
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 10, y: 20 } },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      const laterAnimation = {
+        id: 'anim-2',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: 'linear' as const,
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 30, y: 40 } },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [existingAnimation.id, laterAnimation.id]
+      appearance.animationIds = [existingAnimation.id, laterAnimation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: {
+            [existingAnimation.id]: existingAnimation,
+            [laterAnimation.id]: laterAnimation
+          }
+        })
+      )
+
+      useDocumentStore.getState().addScaleAnimation(appearance.id, existingAnimation.id)
+
+      const animationOrder =
+        useDocumentStore.getState().document?.slidesById[slide.id].animationOrder
+      const appearanceOrder =
+        useDocumentStore.getState().document?.appearancesById[appearance.id].animationIds
+
+      expect(animationOrder).toHaveLength(3)
+      expect(animationOrder?.[0]).toBe(existingAnimation.id)
+      expect(animationOrder?.[2]).toBe(laterAnimation.id)
+      expect(animationOrder?.[1]).toBe(useDocumentStore.getState().ui.selectedAnimationId)
+      expect(appearanceOrder).toEqual(animationOrder)
+    })
   })
 
   describe('selectSelectedAnimationGroup', () => {
@@ -939,6 +1116,14 @@ describe('documentStore', () => {
         animationIds: [animation.id],
         selectedAnimation: animation,
         moveAnimation: animation,
+        transformSteps: [
+          {
+            animationId: animation.id,
+            type: 'move',
+            delta: { x: 24, y: 48 },
+            path: undefined
+          }
+        ],
         moveSteps: [
           {
             animationId: animation.id,
@@ -1031,6 +1216,20 @@ describe('documentStore', () => {
         animationIds: [move2.id, fade.id, move1.id],
         selectedAnimation: move1,
         moveAnimation: move2,
+        transformSteps: [
+          {
+            animationId: move2.id,
+            type: 'move',
+            delta: { x: -5, y: 40 },
+            path: undefined
+          },
+          {
+            animationId: move1.id,
+            type: 'move',
+            delta: { x: 10, y: 20 },
+            path: undefined
+          }
+        ],
         moveSteps: [
           {
             animationId: move2.id,
@@ -1132,6 +1331,14 @@ describe('documentStore', () => {
         animationIds: [move.id],
         selectedAnimation: move,
         moveAnimation: move,
+        transformSteps: [
+          {
+            animationId: move.id,
+            type: 'move',
+            delta: { x: 90, y: 120 },
+            path: move.effect.path
+          }
+        ],
         moveSteps: [
           {
             animationId: move.id,
@@ -1145,7 +1352,8 @@ describe('documentStore', () => {
           activeSegment: {
             animationId: move.id,
             startDelta: { x: 0, y: 0 },
-            endDelta: { x: 90, y: 120 }
+            endDelta: { x: 90, y: 120 },
+            path: move.effect.path
           },
           downstreamSegments: [],
           activePoints: [
@@ -1174,6 +1382,84 @@ describe('documentStore', () => {
               isEndpoint: true
             }
           ]
+        }
+      })
+    })
+
+    it('derives ordered transform steps for mixed move and scale animations', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const move: Presentation['animationsById'][string] = {
+        id: 'move-1',
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'move', delta: { x: 24, y: 48 } },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+      const scale: Presentation['animationsById'][string] = {
+        id: 'scale-1',
+        trigger: 'after-previous',
+        offset: 0,
+        duration: 1,
+        easing: 'linear',
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'scale', to: 1.5 },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      }
+
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [move.id, scale.id]
+      appearance.animationIds = [move.id, scale.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [move.id]: move, [scale.id]: scale }
+        })
+      )
+
+      useDocumentStore.getState().selectAnimation(scale.id)
+
+      expect(selectSelectedAnimationGroup(useDocumentStore.getState())).toEqual({
+        slideId: slide.id,
+        appearanceId: appearance.id,
+        masterId: master.id,
+        animationIds: [move.id, scale.id],
+        selectedAnimation: scale,
+        moveAnimation: move,
+        transformSteps: [
+          {
+            animationId: move.id,
+            type: 'move',
+            delta: { x: 24, y: 48 },
+            path: undefined
+          },
+          {
+            animationId: scale.id,
+            type: 'scale',
+            scale: 1.5
+          }
+        ],
+        moveSteps: [
+          {
+            animationId: move.id,
+            delta: { x: 24, y: 48 },
+            path: undefined,
+            cumulativeDelta: { x: 24, y: 48 }
+          }
+        ],
+        moveCanvasSelection: {
+          historySegments: [],
+          activeSegment: null,
+          downstreamSegments: [],
+          activePoints: []
         }
       })
     })

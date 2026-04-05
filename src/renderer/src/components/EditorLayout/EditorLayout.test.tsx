@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDocumentStore } from '../../store/documentStore'
@@ -784,5 +784,64 @@ describe('EditorLayout', () => {
     fireEvent.mouseMove(timelineRoot, { clientX: 340, clientY: 40 })
 
     expect(screen.getByTestId('canvas')).toHaveTextContent(':transition')
+  })
+
+  it('returns the canvas preview to the start state when timeline play finishes', async () => {
+    const user = userEvent.setup()
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.name = 'Airplane'
+    const appearance = createAppearance(master.id, slide.id)
+    const animation: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+
+    slide.appearanceIds = [appearance.id]
+    slide.animationOrder = [animation.id]
+
+    const document = {
+      ...makePresentation(slide),
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation.id]: animation }
+    }
+
+    const rafCallbacks: FrameRequestCallback[] = []
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback: FrameRequestCallback) => {
+        rafCallbacks.push(callback)
+        return rafCallbacks.length
+      })
+    )
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+
+    mockStore(document, slide.id)
+    render(<EditorLayout />)
+
+    await user.click(screen.getByRole('button', { name: 'Play timeline' }))
+
+    expect(rafCallbacks).toHaveLength(1)
+
+    await act(async () => {
+      rafCallbacks[0]?.(0)
+    })
+
+    expect(screen.getByTestId('canvas')).not.toHaveTextContent('static')
+    expect(rafCallbacks).toHaveLength(2)
+
+    await act(async () => {
+      rafCallbacks[1]?.(10000)
+    })
+
+    expect(screen.getByTestId('canvas')).toHaveTextContent('static')
+    expect(screen.getByRole('button', { name: 'Play timeline' })).toBeInTheDocument()
   })
 })

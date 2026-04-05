@@ -288,6 +288,10 @@ function resolveAppearanceState(
           translateX = fromX + delta.x
           translateY = fromY + delta.y
         }
+      } else if (effect.type === 'scale') {
+        const fromScale = scale ?? 1
+        scale = lerp(fromScale, effect.to, progress)
+        if (completed) scale = effect.to
       } else if (effect.type === 'text-shadow') {
         const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
         textShadow = {

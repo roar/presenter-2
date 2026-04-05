@@ -16,7 +16,11 @@ import {
 import { AnimationCanvasOverlay } from './AnimationCanvasOverlay'
 import { AnimationPathContextMenu } from './AnimationPathContextMenu'
 import { AnimationPathOverlay } from './AnimationPathOverlay'
-import { buildMoveCanvasSelection, buildMoveChainStates } from '../../store/animationCanvasModel'
+import {
+  buildMoveCanvasSelection,
+  buildTransformChainStates,
+  type TransformChainPreview
+} from '../../store/animationCanvasModel'
 import { getAnimationOverlayMetrics } from './animationOverlayMetrics'
 import { SlideCanvasPreviewLayer } from './SlideCanvasPreviewLayer'
 import { SlideCanvasContextMenus } from './SlideCanvasContextMenus'
@@ -26,6 +30,7 @@ import { useAnimationPathContextMenu } from './useAnimationPathContextMenu'
 import { useAnimationPathInteraction } from './useAnimationPathInteraction'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
+import { useScaleGhostResize } from './useScaleGhostResize'
 import styles from './SlideCanvas.module.css'
 
 interface SlideCanvasProps {
@@ -47,6 +52,8 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const moveElement = useDocumentStore((s) => s.moveElement)
   const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
+  const addScaleAnimation = useDocumentStore((s) => s.addScaleAnimation)
+  const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
   const updateAnimationMovePath = useDocumentStore((s) => s.updateAnimationMovePath)
   const removeAnimation = useDocumentStore((s) => s.removeAnimation)
@@ -115,6 +122,13 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
     selectedAnimationGroup,
     updateAnimationMovePath
   })
+  const { scalePreview, handleScaleHandleMouseDown, updateScalePreview, commitScalePreview } =
+    useScaleGhostResize({
+      isSpaceDownRef,
+      scaleRef,
+      slideRef,
+      updateAnimationNumericTo: updateAnimationNumericTo
+    })
   const {
     contextMenu: pathPointContextMenu,
     closeContextMenu: closePathPointContextMenu,
@@ -224,9 +238,11 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
     handleConvertToMso,
     handleConvertToSingle,
     handleAddMoveAnimation,
+    handleAddScaleAnimation,
     handleDeleteAnimation
   } = useCanvasContextMenus({
     addMoveAnimation,
+    addScaleAnimation,
     convertToMultiSlideObject,
     convertToSingleAppearance,
     removeAnimation,
@@ -265,6 +281,10 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
         return
       }
 
+      if (updateScalePreview(e)) {
+        return
+      }
+
       if (updatePathDragPreview(e)) {
         return
       }
@@ -289,6 +309,10 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
         return
       }
 
+      if (commitScalePreview(e)) {
+        return
+      }
+
       if (commitPathDrag(e)) {
         return
       }
@@ -309,10 +333,12 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
     commitGhostDrag,
     commitPathDrag,
     commitGradientPreview,
+    commitScalePreview,
     updateElementTransformPreview,
     updateGhostDragPreview,
     updatePathDragPreview,
-    updateGradientPreview
+    updateGradientPreview,
+    updateScalePreview
   ])
 
   const handleOuterMouseDown = useCallback((e: React.MouseEvent) => {
@@ -335,6 +361,14 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       handleAnimationGhostMouseDown(animationId, delta, e)
     },
     [closeAllMenus, handleAnimationGhostMouseDown]
+  )
+
+  const handleAnimationContextMenuWithAppearance = useCallback(
+    (animationId: string, event: React.MouseEvent) => {
+      if (!selectedAnimationGroup) return
+      handleAnimationContextMenu(animationId, selectedAnimationGroup.appearanceId, event)
+    },
+    [handleAnimationContextMenu, selectedAnimationGroup]
   )
 
   const handleAnimationSelect = useCallback(
@@ -406,8 +440,8 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
 
   const selectedGroupMoveAnimation =
     selectedAnimationGroup?.slideId === annotationSlideId &&
-    selectedAnimationGroup.moveAnimation?.effect.type === 'move'
-      ? selectedAnimationGroup.moveAnimation
+    selectedAnimationGroup.selectedAnimation.effect.type === 'move'
+      ? selectedAnimationGroup.selectedAnimation
       : null
 
   const selectedGroupOverlayAppearance =
@@ -476,7 +510,28 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
           }
         })
       : []
-  const moveChainStates = buildMoveChainStates(moveChainSteps, ghostPreview)
+  const transformPreview: TransformChainPreview | null = scalePreview
+    ? { animationId: scalePreview.animationId, type: 'scale', scale: scalePreview.scale }
+    : ghostPreview
+      ? { animationId: ghostPreview.animationId, type: 'move', delta: ghostPreview.delta }
+      : null
+  const transformChainSteps =
+    selectedAnimationGroup?.slideId === annotationSlideId
+      ? selectedAnimationGroup.transformSteps.map((step) => {
+          if (step.type !== 'move') return step
+
+          const moveStep = moveChainSteps.find(
+            (candidate) => candidate.animationId === step.animationId
+          )
+          return {
+            animationId: step.animationId,
+            type: 'move' as const,
+            delta: moveStep?.delta ?? step.delta,
+            path: moveStep?.path ?? step.path
+          }
+        })
+      : []
+  const transformChainStates = buildTransformChainStates(transformChainSteps, transformPreview)
   const moveCanvasSelection =
     selectedAnimationGroup?.slideId === annotationSlideId
       ? buildMoveCanvasSelection(moveChainSteps, selectedAnimationId, ghostPreview)
@@ -530,31 +585,44 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
               onGradientOverlayMouseDown={handleGradientOverlayMouseDown}
               onHandleMouseDown={handleHandleMouseDown}
             />
-            {selectedGroupMoveAnimation && selectedGroupOverlayAppearance && selectedGroupMaster ? (
+            {selectedAnimationGroup?.slideId === annotationSlideId &&
+            transformChainStates.length > 0 &&
+            selectedGroupOverlayAppearance &&
+            selectedGroupMaster ? (
               <>
                 {selectedGroupOverlayMetrics ? (
-                  <AnimationPathOverlay
-                    baseLeft={selectedGroupOverlayMetrics.baseLeft}
-                    baseTop={selectedGroupOverlayMetrics.baseTop}
-                    ghostWidth={selectedGroupOverlayMetrics.ghostWidth}
-                    ghostHeight={selectedGroupOverlayMetrics.ghostHeight}
-                    moveCanvasSelection={moveCanvasSelection}
-                    onSelect={handleAnimationSelect}
-                    onContextMenu={handleAnimationContextMenu}
-                    onPointMouseDown={handlePathPointMouseDown}
-                    onPointContextMenu={openPointContextMenu}
-                    onHandleMouseDown={handlePathHandleMouseDown}
-                    onInsertPointMouseDown={handleInsertPointMouseDown}
-                  />
+                  selectedGroupMoveAnimation ? (
+                    <AnimationPathOverlay
+                      baseLeft={selectedGroupOverlayMetrics.baseLeft}
+                      baseTop={selectedGroupOverlayMetrics.baseTop}
+                      ghostWidth={selectedGroupOverlayMetrics.ghostWidth}
+                      ghostHeight={selectedGroupOverlayMetrics.ghostHeight}
+                      moveCanvasSelection={moveCanvasSelection}
+                      onSelect={handleAnimationSelect}
+                      onContextMenu={handleAnimationContextMenuWithAppearance}
+                      onPointMouseDown={handlePathPointMouseDown}
+                      onPointContextMenu={openPointContextMenu}
+                      onHandleMouseDown={handlePathHandleMouseDown}
+                      onInsertPointMouseDown={handleInsertPointMouseDown}
+                    />
+                  ) : null
                 ) : null}
                 <AnimationCanvasOverlay
                   master={selectedGroupMaster}
                   renderedAppearance={selectedGroupOverlayAppearance}
-                  moveChainStates={moveChainStates}
+                  transformChainStates={transformChainStates}
                   selectedAnimationId={selectedAnimationId}
+                  canvasScale={scale}
                   onSelect={handleAnimationSelect}
-                  onContextMenu={handleAnimationContextMenu}
-                  onGhostMouseDown={handleAnimationGhostMouseDownWithMenus}
+                  onContextMenu={handleAnimationContextMenuWithAppearance}
+                  onGhostMouseDown={(animationId, state, event) => {
+                    if (state.type === 'move') {
+                      handleAnimationGhostMouseDownWithMenus(animationId, state.delta, event)
+                      return
+                    }
+                    handleAnimationSelect(animationId, event)
+                  }}
+                  onScaleHandleMouseDown={handleScaleHandleMouseDown}
                 />
               </>
             ) : null}
@@ -572,6 +640,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
         onCloseElementMenu={closeElementMenu}
         onCloseAnimationMenu={closeAnimationMenu}
         onAddMoveAnimation={handleAddMoveAnimation}
+        onAddScaleAnimation={handleAddScaleAnimation}
         onConvertToSingle={handleConvertToSingle}
         onConvertToMso={handleConvertToMso}
         onDeleteAnimation={handleDeleteAnimation}

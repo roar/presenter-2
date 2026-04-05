@@ -122,6 +122,8 @@ function computeAppearanceExitState(
         const delta = getMoveEffectDelta(effect)
         state.translateX += delta.x
         state.translateY += delta.y
+      } else if (effect.type === 'scale') {
+        state.scale = effect.to
       } else if (effect.type === 'text-shadow') {
         state.textShadow = effect.to
       } else if (effect.type === 'line-draw') {

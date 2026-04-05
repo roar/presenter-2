@@ -68,6 +68,8 @@ function mockStore(
       updateSlideBackgroundFill: vi.fn(),
       updateMasterTransform: vi.fn(),
       addMoveAnimation: vi.fn(),
+      addScaleAnimation: vi.fn(),
+      updateAnimationNumericTo: vi.fn(),
       updateAnimationMoveDelta: vi.fn(),
       updateAnimationMovePath: vi.fn(),
       removeAnimation: vi.fn(),
@@ -202,7 +204,7 @@ describe('SlideCanvas', () => {
     await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
 
     expect(screen.getByRole('menuitem', { name: 'Move' })).not.toBeDisabled()
-    expect(screen.getByRole('menuitem', { name: 'Scale' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Scale' })).not.toBeDisabled()
     expect(screen.getByRole('menuitem', { name: 'Rotate' })).toBeDisabled()
   })
 
@@ -224,6 +226,8 @@ describe('SlideCanvas', () => {
         updateSlideBackgroundFill: vi.fn(),
         updateMasterTransform: vi.fn(),
         addMoveAnimation,
+        addScaleAnimation: vi.fn(),
+        updateAnimationNumericTo: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
         updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
@@ -239,7 +243,45 @@ describe('SlideCanvas', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
 
     const appearanceId = pres.slidesById[slideId].appearanceIds[0]
-    expect(addMoveAnimation).toHaveBeenCalledWith(appearanceId)
+    expect(addMoveAnimation).toHaveBeenCalledWith(appearanceId, undefined)
+  })
+
+  it('adds a scale animation from the context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const addScaleAnimation = vi.fn()
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: null },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        addScaleAnimation,
+        updateAnimationNumericTo: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByTestId('element-hitbox') })
+    await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Scale' }))
+
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    expect(addScaleAnimation).toHaveBeenCalledWith(appearanceId, undefined)
   })
 
   it('shows selection indicator when element is selected', () => {
@@ -294,6 +336,8 @@ describe('SlideCanvas', () => {
         updateSlideBackgroundFill: vi.fn(),
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
+        addScaleAnimation: vi.fn(),
+        updateAnimationNumericTo: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
         updateAnimationMovePath: vi.fn(),
         removeAnimation: vi.fn(),
@@ -898,6 +942,99 @@ describe('SlideCanvas', () => {
     expect(paths).toHaveLength(2)
     expect(ghosts[0]).toHaveStyle({ left: '140px', top: '180px' })
     expect(ghosts[1]).toHaveStyle({ left: '150px', top: '160px' })
+  })
+
+  it('renders cumulative scale ghosts for ordered scale steps', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['scale-1', 'scale-2']
+    pres.appearancesById[appearanceId].animationIds = ['scale-1', 'scale-2']
+    pres.animationsById['scale-1'] = {
+      id: 'scale-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'scale', to: 1.5 },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['scale-2'] = {
+      id: 'scale-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'scale', to: 0.5 },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'scale-2')
+    render(<SlideCanvas />)
+
+    const ghosts = screen.getAllByTestId('animation-ghost')
+    expect(ghosts).toHaveLength(2)
+    expect(ghosts[0]).toHaveStyle({ left: '25px', top: '50px', width: '450px', height: '300px' })
+    expect(ghosts[1]).toHaveStyle({
+      left: '137.5px',
+      top: '125px',
+      width: '225px',
+      height: '150px'
+    })
+    expect(screen.getByTestId('selection-indicator')).toBeInTheDocument()
+  })
+
+  it('commits selected scale ghost resize through updateAnimationNumericTo', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationNumericTo = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['scale-1']
+    pres.appearancesById[appearanceId].animationIds = ['scale-1']
+    pres.animationsById['scale-1'] = {
+      id: 'scale-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'scale', to: 1.5 },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'scale-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationNumericTo,
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseDown(screen.getByTestId('selection-handle-br'), { clientX: 475, clientY: 350 })
+    fireEvent.mouseMove(window, { clientX: 550, clientY: 400 })
+    fireEvent.mouseUp(window, { clientX: 550, clientY: 400 })
+
+    expect(updateAnimationNumericTo).toHaveBeenCalled()
+    expect(updateAnimationNumericTo.mock.calls.at(-1)?.[0]).toBe('scale-1')
+    expect(updateAnimationNumericTo.mock.calls.at(-1)?.[1]).toBeGreaterThan(1.5)
   })
 
   it('renders downstream path segments after the selected step as dashed continuation', () => {
@@ -2392,6 +2529,8 @@ describe('SlideCanvas', () => {
         updateSlideBackgroundFill: vi.fn(),
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
+        addScaleAnimation: vi.fn(),
+        updateAnimationNumericTo: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
         removeAnimation,
         convertToMultiSlideObject: vi.fn(),
@@ -2405,6 +2544,106 @@ describe('SlideCanvas', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Delete animation' }))
 
     expect(removeAnimation).toHaveBeenCalledWith('move-1')
+  })
+
+  it('adds a scale animation from the ghost context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const addScaleAnimation = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        addScaleAnimation,
+        updateAnimationNumericTo: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByTestId('animation-ghost') })
+    await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Scale' }))
+
+    expect(addScaleAnimation).toHaveBeenCalledWith(appearanceId, 'move-1')
+  })
+
+  it('adds a move animation after the current step from the ghost context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const addMoveAnimation = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation,
+        addScaleAnimation: vi.fn(),
+        updateAnimationNumericTo: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByTestId('animation-ghost') })
+    await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
+
+    expect(addMoveAnimation).toHaveBeenCalledWith(appearanceId, 'move-1')
   })
 
   it('renders MSO appearances at their propagated entry position on downstream slides', () => {

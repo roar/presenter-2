@@ -322,9 +322,10 @@ export function EditorLayout(): React.JSX.Element {
       }))
 
       if (nextTime >= timelineViewModel.totalDuration) {
+        timelineTimeRef.current = 0
         setTimelineState({
           key: timelineKey,
-          time: nextTime,
+          time: 0,
           isPlaying: false
         })
         return
