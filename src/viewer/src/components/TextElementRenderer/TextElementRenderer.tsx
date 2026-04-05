@@ -7,7 +7,7 @@ interface TextElementRendererProps {
 }
 
 export function TextElementRenderer({ rendered }: TextElementRendererProps): React.JSX.Element {
-  const { master, visible, opacity, transform, textShadow } = rendered
+  const { master, visible, opacity, transform, textShadow, textDecorations } = rendered
   const { transform: t, textStyle } = master
   const style = textStyle?.defaultState ?? {}
   const colorConstantsById = rendered.colorConstantsById
@@ -41,7 +41,11 @@ export function TextElementRenderer({ rendered }: TextElementRendererProps): Rea
       }}
     >
       {content ? (
-        <TextContentRenderer content={content} colorConstantsById={colorConstantsById} />
+        <TextContentRenderer
+          content={content}
+          colorConstantsById={colorConstantsById}
+          decorations={textDecorations}
+        />
       ) : null}
     </div>
   )

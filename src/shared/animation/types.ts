@@ -11,7 +11,8 @@ import type {
   TextShadow,
   AnimationId,
   ColorConstant,
-  ColorConstantId
+  ColorConstantId,
+  TextDecoration
 } from '../model/types'
 
 export interface PresentationTimeline {
@@ -52,6 +53,7 @@ export interface RenderedAppearance {
   appearance: Appearance
   master: MsoMaster
   colorConstantsById?: Record<ColorConstantId, ColorConstant>
+  textDecorations?: TextDecoration[]
   visible: boolean
   opacity: number // 0–1
   transform: string // CSS transform string (translate, scale, etc.)

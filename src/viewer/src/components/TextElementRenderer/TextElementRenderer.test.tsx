@@ -26,6 +26,7 @@ function makeRendered(overrides: Partial<RenderedAppearance> = {}): RenderedAppe
   return {
     master,
     appearance,
+    textDecorations: undefined,
     visible: true,
     opacity: 1,
     transform: 'translate(0px, 0px)',
@@ -64,6 +65,45 @@ describe('TextElementRenderer', () => {
     expect(container.querySelector('p')?.textContent).toBe('• Bold item')
     expect(screen.getByText('Bold').style.fontWeight).toBe('700')
     expect(screen.getByText(/item/).style.color).toBe('rgb(0, 255, 0)')
+  })
+
+  it('renders persisted text decorations through the shared text renderer', () => {
+    const master = makeMaster()
+    master.content = {
+      type: 'text',
+      value: {
+        blocks: [
+          {
+            id: 'b1',
+            list: { kind: 'none' },
+            runs: [
+              { id: 'r1', text: 'Hello ', marks: [] },
+              { id: 'r2', text: 'world', marks: [] }
+            ]
+          }
+        ]
+      }
+    }
+
+    render(
+      <TextElementRenderer
+        rendered={makeRendered({
+          master,
+          textDecorations: [
+            {
+              id: 'd1',
+              kind: 'highlight',
+              range: {
+                start: { blockId: 'b1', runId: 'r2', offset: 0 },
+                end: { blockId: 'b1', runId: 'r2', offset: 5 }
+              }
+            }
+          ]
+        })}
+      />
+    )
+
+    expect(screen.getByText('world').style.backgroundColor).toBe('rgba(255, 230, 0, 0.45)')
   })
 
   it('is hidden when visible is false', () => {

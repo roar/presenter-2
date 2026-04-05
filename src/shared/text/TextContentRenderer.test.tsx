@@ -81,4 +81,37 @@ describe('TextContentRenderer', () => {
     expect(paragraphs[0]?.textContent).toBe('3. First')
     expect(paragraphs[1]?.textContent).toBe('4. Second')
   })
+
+  it('renders persisted decorations from text ranges', () => {
+    const { container } = render(
+      <TextContentRenderer
+        content={{
+          blocks: [
+            {
+              id: 'b1',
+              list: { kind: 'none' },
+              runs: [
+                { id: 'r1', text: 'Hello ', marks: [] },
+                { id: 'r2', text: 'world', marks: [] }
+              ]
+            }
+          ]
+        }}
+        decorations={[
+          {
+            id: 'd1',
+            kind: 'highlight',
+            range: {
+              start: { blockId: 'b1', runId: 'r2', offset: 0 },
+              end: { blockId: 'b1', runId: 'r2', offset: 5 }
+            }
+          }
+        ]}
+      />
+    )
+
+    const highlighted = screen.getByText('world')
+    expect(highlighted.style.backgroundColor).toBe('rgba(255, 230, 0, 0.45)')
+    expect(container.querySelector('p')?.textContent).toBe('Hello world')
+  })
 })
