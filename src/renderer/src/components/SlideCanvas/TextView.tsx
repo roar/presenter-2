@@ -2,6 +2,7 @@ import type { RenderedAppearance } from '@shared/animation/types'
 import { resolveColorValue } from '@shared/model/colors'
 import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
+import { extractPlainText, plainTextToTextContent } from '@shared/text/textContentUtils'
 
 interface TextViewProps {
   master: MsoMaster
@@ -9,6 +10,8 @@ interface TextViewProps {
   rendered?: RenderedAppearance
   isEditing?: boolean
   contentOverride?: TextContent | null
+  onEditContentChange?: (content: TextContent) => void
+  onCommitEdit?: () => void
 }
 
 export function TextView({
@@ -16,12 +19,15 @@ export function TextView({
   appearance,
   rendered,
   isEditing = false,
-  contentOverride = null
+  contentOverride = null,
+  onEditContentChange,
+  onCommitEdit
 }: TextViewProps): React.JSX.Element {
   const { transform: t } = master
   const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
   const textStyle = master.textStyle?.defaultState ?? {}
   const content = contentOverride ?? (master.content.type === 'text' ? master.content.value : null)
+  const plainText = content ? extractPlainText(content) : ''
 
   return (
     <div
@@ -46,7 +52,32 @@ export function TextView({
         outlineOffset: isEditing ? '4px' : undefined
       }}
     >
-      {content ? <TextContentRenderer content={content} /> : null}
+      {isEditing ? (
+        <textarea
+          aria-label="Edit text"
+          autoFocus
+          defaultValue={plainText}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            padding: 0,
+            border: 'none',
+            background: 'transparent',
+            color: 'inherit',
+            font: 'inherit',
+            resize: 'none',
+            outline: 'none'
+          }}
+          onChange={(event) => onEditContentChange?.(plainTextToTextContent(event.target.value))}
+          onBlur={() => onCommitEdit?.()}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        />
+      ) : null}
+      {!isEditing && content ? <TextContentRenderer content={content} /> : null}
     </div>
   )
 }

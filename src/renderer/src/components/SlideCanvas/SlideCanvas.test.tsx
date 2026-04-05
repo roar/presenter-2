@@ -20,6 +20,8 @@ vi.mock('../../store/documentStore', async () => {
 
 const beginTextEditMock = vi.fn()
 const cancelTextEditMock = vi.fn()
+const commitTextEditMock = vi.fn()
+const updateEditingTextContentMock = vi.fn()
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -78,6 +80,8 @@ function mockStore(
       moveElement: vi.fn(),
       beginTextEdit: beginTextEditMock,
       cancelTextEdit: cancelTextEditMock,
+      commitTextEdit: commitTextEditMock,
+      updateEditingTextContent: updateEditingTextContentMock,
       selectElements: vi.fn(),
       selectAnimation: vi.fn(),
       setPreviewPatch: vi.fn(),
@@ -101,6 +105,8 @@ describe('SlideCanvas', () => {
   beforeEach(() => {
     beginTextEditMock.mockReset()
     cancelTextEditMock.mockReset()
+    commitTextEditMock.mockReset()
+    updateEditingTextContentMock.mockReset()
     mockStore(null, null)
   })
 
@@ -273,6 +279,55 @@ describe('SlideCanvas', () => {
 
     expect(screen.getByText('Draft text')).toBeInTheDocument()
     expect(screen.queryByText('Persisted text')).not.toBeInTheDocument()
+  })
+
+  it('updates draft text content from the canvas editing overlay', async () => {
+    const user = userEvent.setup()
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Persisted text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [], null, master.id, createTextContent('Draft text'))
+    render(<SlideCanvas />)
+
+    const textbox = screen.getByRole('textbox', { name: 'Edit text' })
+    await user.clear(textbox)
+    await user.type(textbox, 'Ny tekst')
+
+    expect(updateEditingTextContentMock).toHaveBeenCalled()
+  })
+
+  it('commits text edit when the canvas editing overlay loses focus', async () => {
+    const user = userEvent.setup()
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Persisted text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [], null, master.id, createTextContent('Draft text'))
+    render(<SlideCanvas />)
+
+    await user.click(screen.getByRole('textbox', { name: 'Edit text' }))
+    await user.click(screen.getByTestId('slide'))
+
+    expect(commitTextEditMock).toHaveBeenCalled()
   })
 
   it('shows context menu when right-clicking an element', async () => {

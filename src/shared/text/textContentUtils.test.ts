@@ -4,6 +4,7 @@ import {
   blockPlainText,
   charOffsetToRunPosition,
   extractPlainText,
+  plainTextToTextContent,
   normalizeTextContent
 } from './textContentUtils'
 
@@ -118,6 +119,19 @@ describe('textContentUtils', () => {
           }
         ]
       })
+    })
+  })
+
+  describe('plainTextToTextContent', () => {
+    it('creates one block per line while preserving blank lines', () => {
+      const content = plainTextToTextContent('Første linje\n\nTredje linje')
+
+      expect(extractPlainText(content)).toBe('Første linje\n\nTredje linje')
+      expect(content.blocks).toHaveLength(3)
+      expect(content.blocks[0].runs[0].text).toBe('Første linje')
+      expect(content.blocks[1].runs[0].text).toBe('')
+      expect(content.blocks[2].runs[0].text).toBe('Tredje linje')
+      expect(content.blocks.every((block) => block.list.kind === 'none')).toBe(true)
     })
   })
 })

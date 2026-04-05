@@ -18,6 +18,8 @@ interface SlideCanvasObjectProps {
   isDragging: boolean
   isEditingText: boolean
   editingTextDraftContent: TextContent | null
+  onCommitTextEdit: () => void
+  onEditTextContentChange: (content: TextContent) => void
   onElementDoubleClick: (masterId: string) => void
   onElementMouseDown: (masterId: string, event: React.MouseEvent) => void
   onElementContextMenu: (masterId: string, appearanceId: string, event: React.MouseEvent) => void
@@ -72,6 +74,8 @@ export function SlideCanvasObject({
   isDragging,
   isEditingText,
   editingTextDraftContent,
+  onCommitTextEdit,
+  onEditTextContentChange,
   onElementDoubleClick,
   onElementMouseDown,
   onElementContextMenu,
@@ -103,6 +107,8 @@ export function SlideCanvasObject({
           rendered={renderedAppearance}
           isEditing={isEditingText}
           contentOverride={isEditingText ? editingTextDraftContent : null}
+          onEditContentChange={onEditTextContentChange}
+          onCommitEdit={onCommitTextEdit}
         />
       )}
       {master.type === 'image' && (

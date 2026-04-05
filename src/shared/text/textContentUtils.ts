@@ -80,6 +80,22 @@ export function extractPlainText(content: TextContent): string {
   return content.blocks.map(blockPlainText).join('\n')
 }
 
+export function plainTextToTextContent(plainText: string): TextContent {
+  return {
+    blocks: plainText.split('\n').map((line) => ({
+      id: crypto.randomUUID(),
+      list: { kind: 'none' },
+      runs: [
+        {
+          id: crypto.randomUUID(),
+          text: line,
+          marks: []
+        }
+      ]
+    }))
+  }
+}
+
 export function charOffsetToRunPosition(block: TextBlock, offset: number): RunPosition {
   const plainTextLength = blockPlainText(block).length
   const clampedOffset = Math.max(0, Math.min(offset, plainTextLength))

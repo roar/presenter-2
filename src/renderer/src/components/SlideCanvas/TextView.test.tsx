@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { createAppearance, createMsoMaster, createTextContent } from '@shared/model/factories'
 import { TextView } from './TextView'
 
@@ -74,5 +75,58 @@ describe('TextView', () => {
 
     expect(screen.getByText('Draft text')).toBeInTheDocument()
     expect(screen.queryByText('Persisted text')).not.toBeInTheDocument()
+  })
+
+  it('renders a textbox overlay in edit mode and updates draft content on input', async () => {
+    const user = userEvent.setup()
+    const master = makeTextMaster('Persisted text')
+    const appearance = createAppearance(master.id, 'slide-1')
+    const onEditContentChange = vi.fn()
+
+    render(
+      <TextView
+        master={master}
+        appearance={appearance}
+        isEditing
+        contentOverride={createTextContent('Draft text')}
+        onEditContentChange={onEditContentChange}
+      />
+    )
+
+    const textbox = screen.getByRole('textbox', { name: 'Edit text' })
+    await user.clear(textbox)
+    await user.type(textbox, 'Ny tekst{enter}Neste linje')
+
+    expect(onEditContentChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        blocks: [
+          expect.objectContaining({
+            runs: [expect.objectContaining({ text: 'Ny tekst' })]
+          }),
+          expect.objectContaining({
+            runs: [expect.objectContaining({ text: 'Neste linje' })]
+          })
+        ]
+      })
+    )
+  })
+
+  it('commits editing on blur', async () => {
+    const user = userEvent.setup()
+    const master = makeTextMaster('Persisted text')
+    const appearance = createAppearance(master.id, 'slide-1')
+    const onCommitEdit = vi.fn()
+
+    render(
+      <>
+        <TextView master={master} appearance={appearance} isEditing onCommitEdit={onCommitEdit} />
+        <button type="button">Outside</button>
+      </>
+    )
+
+    await user.click(screen.getByRole('textbox', { name: 'Edit text' }))
+    await user.click(screen.getByRole('button', { name: 'Outside' }))
+
+    expect(onCommitEdit).toHaveBeenCalledTimes(1)
   })
 })

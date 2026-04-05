@@ -49,6 +49,8 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const editingTextDraftContent = useDocumentStore((s) => s.ui.editingText?.draftContent ?? null)
   const beginTextEdit = useDocumentStore((s) => s.beginTextEdit)
   const cancelTextEdit = useDocumentStore((s) => s.cancelTextEdit)
+  const commitTextEdit = useDocumentStore((s) => s.commitTextEdit)
+  const updateEditingTextContent = useDocumentStore((s) => s.updateEditingTextContent)
   const selectElements = useDocumentStore((s) => s.selectElements)
   const selectAnimation = useDocumentStore((s) => s.selectAnimation)
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
@@ -625,6 +627,8 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
               selectedElementIds={selectedElementIds}
               slide={slide}
               onBackgroundGradientMouseDown={handleBackgroundGradientMouseDown}
+              onCommitTextEdit={commitTextEdit}
+              onEditTextContentChange={updateEditingTextContent}
               onElementContextMenu={handleElementContextMenu}
               onElementDoubleClick={beginTextEdit}
               onElementMouseDown={handleElementMouseDown}
