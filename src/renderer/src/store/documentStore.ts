@@ -627,6 +627,8 @@ export const useDocumentStore = create<DocumentState>()(
         state.document.mastersById[master.id] = master
         state.document.appearancesById[appearance.id] = appearance
         slide.appearanceIds.push(appearance.id)
+        state.ui.selectedElementIds = [master.id]
+        state.ui.selectedAnimationId = null
         ensurePresentationColorConstants(state.document)
         pushHistory(state, state.document)
         state.isDirty = true

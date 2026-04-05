@@ -687,6 +687,18 @@ describe('documentStore', () => {
       expect(state.isDirty).toBe(true)
       expect(state.history.length).toBe(historyLengthBefore + 1)
     })
+
+    it('selects the inserted master', () => {
+      const slide = makeSlide('s-1')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ slideOrder: ['s-1'], slidesById: { 's-1': slide } }))
+
+      const master = createMsoMaster('text')
+      useDocumentStore.getState().insertElement('s-1', master)
+
+      expect(useDocumentStore.getState().ui.selectedElementIds).toEqual([master.id])
+    })
   })
 
   describe('newPresentation', () => {
