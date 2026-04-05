@@ -156,6 +156,34 @@ describe('TextView', () => {
     )
   })
 
+  it('moves focus to the next track editor on Enter', async () => {
+    const user = userEvent.setup()
+    const master = makeTextMaster('Alpha Beta Gamma Delta')
+    master.textStyle = {
+      defaultState: { fontSize: 16, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+    const appearance = createAppearance(master.id, 'slide-1')
+
+    render(
+      <TextView
+        master={master}
+        appearance={appearance}
+        isEditing
+        editingTrackGuides={[
+          { x: 10, y: 0, width: 100, height: 24 },
+          { x: 20, y: 24, width: 100, height: 24 }
+        ]}
+      />
+    )
+
+    const textboxes = screen.getAllByRole('textbox', { name: 'Edit text line' })
+    await user.click(textboxes[0] as HTMLTextAreaElement)
+    await user.keyboard('{Enter}')
+
+    expect(textboxes[1]).toHaveFocus()
+  })
+
   it('commits editing on blur', async () => {
     const user = userEvent.setup()
     const master = makeTextMaster('Persisted text')

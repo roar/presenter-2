@@ -266,6 +266,22 @@ describe('ShapeView', () => {
     expect((guideLines[1] as HTMLDivElement).style.top).toBe('24px')
   })
 
+  it('renders one text editor per geometry-aware track for rect shapes in edit mode', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'rect' }
+    master.transform.width = 100
+    master.transform.height = 72
+    master.content = { type: 'text', value: createTextContent('HELLO WORLD AGAIN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} isEditing />)
+
+    expect(screen.getAllByRole('textbox', { name: 'Edit text line' })).toHaveLength(3)
+  })
+
   it('renders inset editing guides for ellipse shapes in edit mode', () => {
     const master = makeMaster()
     master.geometry = { type: 'ellipse' }

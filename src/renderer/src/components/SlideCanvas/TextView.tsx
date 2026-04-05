@@ -40,6 +40,7 @@ export function TextView({
     ? layoutTrackEditorLines(plainText, editingTrackGuides, fontSize)
     : []
   const [trackDraftLines, setTrackDraftLines] = React.useState<string[]>([])
+  const trackEditorRefs = React.useRef<Array<HTMLTextAreaElement | null>>([])
 
   React.useEffect(() => {
     if (!useTrackEditors) {
@@ -105,6 +106,9 @@ export function TextView({
               key={`${line.x}-${line.y}-${index}`}
               aria-label="Edit text line"
               autoFocus={index === 0}
+              ref={(element) => {
+                trackEditorRefs.current[index] = element
+              }}
               value={trackDraftLines[index] ?? line.text}
               style={{
                 position: 'absolute',
@@ -127,6 +131,12 @@ export function TextView({
                 if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
                   event.preventDefault()
                   onCommitEdit?.()
+                  return
+                }
+
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  trackEditorRefs.current[index + 1]?.focus()
                 }
               }}
               onBlur={() => onCommitEdit?.()}
