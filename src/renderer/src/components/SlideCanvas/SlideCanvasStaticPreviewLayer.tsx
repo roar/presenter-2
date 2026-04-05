@@ -26,6 +26,7 @@ interface SlideCanvasStaticPreviewLayerProps {
     event: React.MouseEvent
   ) => void
   onElementContextMenu: (masterId: string, appearanceId: string, event: React.MouseEvent) => void
+  onElementDoubleClick: (masterId: string) => void
   onElementMouseDown: (masterId: string, event: React.MouseEvent) => void
   onGradientOverlayMouseDown: (
     masterId: string,
@@ -70,6 +71,7 @@ export function SlideCanvasStaticPreviewLayer({
   slide,
   onBackgroundGradientMouseDown,
   onElementContextMenu,
+  onElementDoubleClick,
   onElementMouseDown,
   onGradientOverlayMouseDown,
   onHandleMouseDown
@@ -131,6 +133,7 @@ export function SlideCanvasStaticPreviewLayer({
           isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
           isDragging={draggingMasterId === renderedAppearance.master.id}
           isEditingText={editingTextMasterId === renderedAppearance.master.id}
+          onElementDoubleClick={onElementDoubleClick}
           onElementMouseDown={onElementMouseDown}
           onElementContextMenu={onElementContextMenu}
           onHandleMouseDown={onHandleMouseDown}

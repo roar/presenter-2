@@ -17,6 +17,7 @@ interface SlideCanvasObjectProps {
   isSelected: boolean
   isDragging: boolean
   isEditingText: boolean
+  onElementDoubleClick: (masterId: string) => void
   onElementMouseDown: (masterId: string, event: React.MouseEvent) => void
   onElementContextMenu: (masterId: string, appearanceId: string, event: React.MouseEvent) => void
   onHandleMouseDown: (handle: HandleType, masterId: string, event: React.MouseEvent) => void
@@ -69,6 +70,7 @@ export function SlideCanvasObject({
   isSelected,
   isDragging,
   isEditingText,
+  onElementDoubleClick,
   onElementMouseDown,
   onElementContextMenu,
   onHandleMouseDown,
@@ -196,6 +198,11 @@ export function SlideCanvasObject({
         }}
         onMouseDown={(event) => onElementMouseDown(master.id, event)}
         onClick={(event) => event.stopPropagation()}
+        onDoubleClick={() => {
+          if (master.type === 'text') {
+            onElementDoubleClick(master.id)
+          }
+        }}
         onContextMenu={(event) => onElementContextMenu(master.id, appearance.id, event)}
       />
     </>

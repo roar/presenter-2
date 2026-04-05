@@ -18,6 +18,8 @@ vi.mock('../../store/documentStore', async () => {
   return { ...actual, useDocumentStore: vi.fn() }
 })
 
+const beginTextEditMock = vi.fn()
+
 beforeAll(() => {
   global.ResizeObserver = class {
     observe() {}
@@ -68,6 +70,7 @@ function mockStore(
         editingText: { masterId: editingTextMasterId, selection: null, draftContent: null }
       },
       moveElement: vi.fn(),
+      beginTextEdit: beginTextEditMock,
       selectElements: vi.fn(),
       selectAnimation: vi.fn(),
       setPreviewPatch: vi.fn(),
@@ -89,6 +92,7 @@ function mockStore(
 
 describe('SlideCanvas', () => {
   beforeEach(() => {
+    beginTextEditMock.mockReset()
     mockStore(null, null)
   })
 
@@ -196,6 +200,28 @@ describe('SlideCanvas', () => {
     render(<SlideCanvas />)
 
     expect(screen.getByTestId('text-view')).toHaveAttribute('data-text-editing', 'true')
+  })
+
+  it('begins text edit when double-clicking a text object hitbox', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Hello text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres)
+    render(<SlideCanvas />)
+
+    fireEvent.doubleClick(screen.getByTestId('element-hitbox'))
+
+    expect(beginTextEditMock).toHaveBeenCalledWith(master.id)
   })
 
   it('shows context menu when right-clicking an element', async () => {

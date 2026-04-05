@@ -22,6 +22,7 @@ interface SlideCanvasPreviewLayerProps {
     event: React.MouseEvent
   ) => void
   onElementContextMenu: (masterId: string, appearanceId: string, event: React.MouseEvent) => void
+  onElementDoubleClick: (masterId: string) => void
   onElementMouseDown: (masterId: string, event: React.MouseEvent) => void
   onGradientOverlayMouseDown: (
     masterId: string,
@@ -47,6 +48,7 @@ export function SlideCanvasPreviewLayer({
   slide,
   onBackgroundGradientMouseDown,
   onElementContextMenu,
+  onElementDoubleClick,
   onElementMouseDown,
   onGradientOverlayMouseDown,
   onHandleMouseDown
@@ -66,6 +68,7 @@ export function SlideCanvasPreviewLayer({
       slide={slide}
       onBackgroundGradientMouseDown={onBackgroundGradientMouseDown}
       onElementContextMenu={onElementContextMenu}
+      onElementDoubleClick={onElementDoubleClick}
       onElementMouseDown={onElementMouseDown}
       onGradientOverlayMouseDown={onGradientOverlayMouseDown}
       onHandleMouseDown={onHandleMouseDown}
