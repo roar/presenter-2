@@ -1,5 +1,6 @@
 import type { RenderedAppearance } from '@shared/animation/types'
 import { resolveColorValue } from '@shared/model/colors'
+import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 
 interface TextElementRendererProps {
   rendered: RenderedAppearance
@@ -39,11 +40,9 @@ export function TextElementRenderer({ rendered }: TextElementRendererProps): Rea
           : undefined
       }}
     >
-      {content?.blocks.map((block) => (
-        <p key={block.id} style={{ margin: 0 }}>
-          {block.runs.map((run) => run.text).join('')}
-        </p>
-      ))}
+      {content ? (
+        <TextContentRenderer content={content} colorConstantsById={colorConstantsById} />
+      ) : null}
     </div>
   )
 }
