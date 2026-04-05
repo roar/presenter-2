@@ -71,6 +71,12 @@ export function TextView({
             outline: 'none'
           }}
           onChange={(event) => onEditContentChange?.(plainTextToTextContent(event.target.value))}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault()
+              onCommitEdit?.()
+            }
+          }}
           onBlur={() => onCommitEdit?.()}
           onClick={(event) => event.stopPropagation()}
           onDoubleClick={(event) => event.stopPropagation()}

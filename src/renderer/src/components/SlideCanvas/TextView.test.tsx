@@ -129,4 +129,20 @@ describe('TextView', () => {
 
     expect(onCommitEdit).toHaveBeenCalledTimes(1)
   })
+
+  it('commits editing on Ctrl+Enter', async () => {
+    const user = userEvent.setup()
+    const master = makeTextMaster('Persisted text')
+    const appearance = createAppearance(master.id, 'slide-1')
+    const onCommitEdit = vi.fn()
+
+    render(
+      <TextView master={master} appearance={appearance} isEditing onCommitEdit={onCommitEdit} />
+    )
+
+    await user.click(screen.getByRole('textbox', { name: 'Edit text' }))
+    await user.keyboard('{Control>}{Enter}{/Control}')
+
+    expect(onCommitEdit).toHaveBeenCalledTimes(1)
+  })
 })
