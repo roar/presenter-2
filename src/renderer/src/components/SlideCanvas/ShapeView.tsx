@@ -135,7 +135,11 @@ export function ShapeView({
 
   return (
     <>
-      <svg style={svgStyle} viewBox={viewBox}>
+      <svg
+        style={svgStyle}
+        viewBox={viewBox}
+        preserveAspectRatio={geometry?.type === 'path' ? 'none' : undefined}
+      >
         {showGrain || isGradientFill(style.fill) ? (
           <defs>
             {isGradientFill(style.fill) ? (

@@ -39,6 +39,16 @@ describe('ShapeView', () => {
     expect((path as SVGPathElement).getAttribute('d')).toBe('M 0 0 L 200 0 L 200 100 L 0 100 Z')
   })
 
+  it('stretches path geometry to fill the current transform bounds', () => {
+    const master = makeMaster()
+    const { container } = render(
+      <ShapeView master={master} appearance={makeAppearance(master.id)} />
+    )
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg?.getAttribute('preserveAspectRatio')).toBe('none')
+  })
+
   it('renders a rect for rect geometry', () => {
     const master = makeMaster({ geometry: { type: 'rect' } })
     const { container } = render(
@@ -191,9 +201,9 @@ describe('ShapeView', () => {
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('HELLO').parentElement).toHaveStyle({ left: '0px', top: '0px' })
-    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '0px', top: '24px' })
-    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '0px', top: '48px' })
+    expect(screen.getByText('HELLO').parentElement).toHaveStyle({ left: '10px', top: '0px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '10px', top: '24px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '10px', top: '48px' })
   })
 
   it('renders ellipse shape text with inset upper line placement when not editing', () => {
@@ -208,7 +218,7 @@ describe('ShapeView', () => {
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
     expect(screen.getByText('TWO').parentElement).toHaveStyle({ top: '0px' })
-    expect(screen.getByText('SIX').parentElement).toHaveStyle({ top: '24px' })
+    expect(screen.getByText('SIX').parentElement).toHaveStyle({ top: '48px' })
   })
 
   it('does not render unsupported path shape text without an explicit text region', () => {
@@ -243,8 +253,8 @@ describe('ShapeView', () => {
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '40px', top: '0px' })
-    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '40px', top: '24px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '10px', top: '24px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '10px', top: '24px' })
   })
 
   it('renders list prefixes and decorations inside supported path text regions', () => {
@@ -324,7 +334,7 @@ describe('ShapeView', () => {
       />
     )
 
-    const textbox = screen.getByRole('textbox', { name: 'Edit text' })
+    const textbox = screen.getByRole('textbox', { name: 'Edit text line' })
     await user.clear(textbox)
     await user.type(textbox, 'Ny shape tekst')
 
@@ -348,7 +358,7 @@ describe('ShapeView', () => {
 
     const guideLines = Array.from(container.querySelectorAll('div[aria-hidden="true"]'))
     expect(guideLines).toHaveLength(3)
-    expect((guideLines[0] as HTMLDivElement).style.width).toBe('100px')
+    expect((guideLines[0] as HTMLDivElement).style.width).toBe('80px')
     expect((guideLines[1] as HTMLDivElement).style.top).toBe('24px')
   })
 
@@ -407,6 +417,6 @@ describe('ShapeView', () => {
 
     const textboxes = screen.getAllByRole('textbox', { name: 'Edit text line' })
     expect(textboxes).toHaveLength(1)
-    expect(textboxes[0]).toHaveStyle({ left: '0px', width: '120px' })
+    expect(textboxes[0]).toHaveStyle({ left: '0px', width: '180px' })
   })
 })

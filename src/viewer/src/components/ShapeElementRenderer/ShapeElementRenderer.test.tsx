@@ -56,6 +56,13 @@ describe('ShapeElementRenderer', () => {
     expect(svg.getAttribute('viewBox')).toBe('0 0 200 100')
   })
 
+  it('stretches path geometry to fill the shape bounds instead of preserving aspect ratio', () => {
+    const { container } = render(<ShapeElementRenderer rendered={makeRendered()} />)
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg?.getAttribute('preserveAspectRatio')).toBe('none')
+  })
+
   it('is hidden when visible is false', () => {
     const { container } = render(
       <ShapeElementRenderer rendered={makeRendered({ visible: false })} />
@@ -200,9 +207,9 @@ describe('ShapeElementRenderer', () => {
 
     render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    expect(screen.getByText('HELLO').parentElement).toHaveStyle({ left: '0px', top: '0px' })
-    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '0px', top: '24px' })
-    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '0px', top: '48px' })
+    expect(screen.getByText('HELLO').parentElement).toHaveStyle({ left: '10px', top: '0px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '10px', top: '24px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '10px', top: '48px' })
   })
 
   it('renders ellipse shape text with inset upper line placement', () => {
@@ -217,7 +224,7 @@ describe('ShapeElementRenderer', () => {
     render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
     expect(screen.getByText('TWO').parentElement).toHaveStyle({ top: '0px' })
-    expect(screen.getByText('SIX').parentElement).toHaveStyle({ top: '24px' })
+    expect(screen.getByText('SIX').parentElement).toHaveStyle({ top: '48px' })
   })
 
   it('does not render unsupported path shape text without an explicit text region', () => {
@@ -251,8 +258,8 @@ describe('ShapeElementRenderer', () => {
 
     render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '40px', top: '0px' })
-    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '40px', top: '24px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '10px', top: '24px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '10px', top: '24px' })
   })
 
   it('renders list prefixes and persisted decorations in supported shape text regions', () => {

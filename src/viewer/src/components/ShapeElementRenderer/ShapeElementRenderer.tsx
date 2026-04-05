@@ -102,6 +102,7 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
           visibility: visible ? 'visible' : 'hidden'
         }}
         viewBox={viewBox}
+        preserveAspectRatio={geometry?.type === 'path' ? 'none' : undefined}
       >
         {showGrain || isGradientFill(style.fill) ? (
           <defs>
