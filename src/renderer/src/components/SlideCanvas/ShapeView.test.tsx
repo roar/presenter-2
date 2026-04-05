@@ -209,6 +209,19 @@ describe('ShapeView', () => {
     expect(screen.getByText('THREE FOUR FIVE SIX')).toHaveStyle({ top: '24px' })
   })
 
+  it('renders path shape text in normal mode via the non-geometry fallback', () => {
+    const master = makeMaster()
+    master.content = { type: 'text', value: createTextContent('Path shape text') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
+
+    expect(screen.getByText('Path shape text')).toBeInTheDocument()
+  })
+
   it('renders a textbox overlay in edit mode for shape text', async () => {
     const user = userEvent.setup()
     const master = makeMaster()

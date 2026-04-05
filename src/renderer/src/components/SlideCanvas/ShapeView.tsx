@@ -11,6 +11,7 @@ import { buildShapeTextLineTracks } from '@shared/text/shapeTextLineTracks'
 import { extractPlainText } from '@shared/text/textContentUtils'
 import { buildShapeTextRenderLayout } from '@shared/text/shapeTextRenderLayout'
 import { ShapeTextFlowRenderer } from '@shared/text/ShapeTextFlowRenderer'
+import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextView } from './TextView'
 
@@ -229,12 +230,9 @@ export function ShapeView({
           {shapeTextLayout ? (
             <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
           ) : (
-            <TextView
-              master={master}
-              appearance={appearance}
-              rendered={rendered}
-              isEditing={false}
-              contentOverride={contentOverride}
+            <TextContentRenderer
+              content={master.content.value}
+              colorConstantsById={colorConstantsById}
             />
           )}
         </div>

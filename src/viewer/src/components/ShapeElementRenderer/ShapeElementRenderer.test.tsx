@@ -216,4 +216,17 @@ describe('ShapeElementRenderer', () => {
     expect(getByText('ONE TWO')).toHaveStyle({ top: '0px' })
     expect(getByText('THREE FOUR FIVE SIX')).toHaveStyle({ top: '24px' })
   })
+
+  it('renders path shape text in normal mode via the non-geometry fallback', () => {
+    const master = makeMaster()
+    master.content = { type: 'text', value: createTextContent('Viewer path shape text') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+
+    expect(getByText('Viewer path shape text')).toBeInTheDocument()
+  })
 })
