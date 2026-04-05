@@ -245,7 +245,34 @@ export interface TextMark {
   value?: Color // used for 'color' mark
 }
 
-export interface TextRangeAnchor {
+export interface TextPosition {
+  blockId: BlockId
+  runId: RunId
+  offset: number
+}
+
+export interface TextRange {
+  start: TextPosition
+  end: TextPosition
+}
+
+export type TextRangeAnchor = TextRange
+
+export interface TextStyleBinding {
+  id: string
+  range: TextRange
+  styleId: string
+  activeState?: string
+}
+
+export interface TextStyleDefinition {
+  id: string
+  name: string
+  defaultState: TextStyleProperties
+  namedStates: Record<string, Partial<TextStyleProperties>>
+}
+
+export interface DeprecatedBlockTextRangeAnchor {
   blockId: BlockId
   startOffset: number // character offset within block
   endOffset: number
@@ -255,7 +282,8 @@ export interface TextRangeAnchor {
 export interface TextDecoration {
   id: TextDecorationId
   kind: 'underline' | 'highlight' | 'outline'
-  anchor: TextRangeAnchor
+  range: TextRange
+  degraded?: boolean
 }
 
 // ─── Easing ───────────────────────────────────────────────────────────────────
@@ -338,7 +366,7 @@ export type AnimationTrigger = 'on-click' | 'after-previous' | 'with-previous'
 export type AnimationTarget =
   | { kind: 'appearance'; appearanceId: AppearanceId }
   | { kind: 'group-child'; appearanceId: AppearanceId; path: string[] }
-  | { kind: 'text-range'; appearanceId: AppearanceId; anchor: TextRangeAnchor }
+  | { kind: 'text-range'; appearanceId: AppearanceId; range: TextRange }
   | { kind: 'text-decoration'; decorationId: TextDecorationId }
 
 // Pure animation spec — no target; reusable in group templates
