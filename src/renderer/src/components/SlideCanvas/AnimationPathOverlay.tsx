@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { MovePath, Position } from '@shared/model/types'
+import { BezierEditorOverlay } from './BezierEditorOverlay'
 import type {
   MoveCanvasPointState,
   MoveCanvasSelectionState
@@ -135,76 +136,6 @@ function buildPathDataFromMovePath(
   return commands.join(' ')
 }
 
-function getSegmentMidpoint(start: Position, end: Position): Position {
-  return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
-}
-
-function interpolateCubic(a: number, b: number, c: number, d: number, t: number): number {
-  const mt = 1 - t
-  return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d
-}
-
-function getCubicPoint(
-  start: Position,
-  control1: Position,
-  control2: Position,
-  end: Position,
-  t: number
-): Position {
-  return {
-    x: interpolateCubic(start.x, control1.x, control2.x, end.x, t),
-    y: interpolateCubic(start.y, control1.y, control2.y, end.y, t)
-  }
-}
-
-function getArcLengthMidpoint(
-  start: Position,
-  control1: Position,
-  control2: Position,
-  end: Position
-): Position {
-  const samples = 40
-  let previousPoint = getCubicPoint(start, control1, control2, end, 0)
-  const sampledPoints = [{ point: previousPoint, length: 0 }]
-  let totalLength = 0
-
-  for (let index = 1; index <= samples; index += 1) {
-    const point = getCubicPoint(start, control1, control2, end, index / samples)
-    totalLength += Math.hypot(point.x - previousPoint.x, point.y - previousPoint.y)
-    sampledPoints.push({ point, length: totalLength })
-    previousPoint = point
-  }
-
-  const halfLength = totalLength / 2
-  for (let index = 1; index < sampledPoints.length; index += 1) {
-    const previousSample = sampledPoints[index - 1]
-    const currentSample = sampledPoints[index]
-    if (currentSample.length < halfLength) continue
-
-    const segmentLength = currentSample.length - previousSample.length || 1
-    const ratio = (halfLength - previousSample.length) / segmentLength
-    return {
-      x: previousSample.point.x + (currentSample.point.x - previousSample.point.x) * ratio,
-      y: previousSample.point.y + (currentSample.point.y - previousSample.point.y) * ratio
-    }
-  }
-
-  return sampledPoints[sampledPoints.length - 1].point
-}
-
-function getSegmentInsertPoint(
-  previous: Position & { outHandle?: Position },
-  current: Position & { inHandle?: Position }
-): Position {
-  if (previous.outHandle || current.inHandle) {
-    const control1 = previous.outHandle ?? previous
-    const control2 = current.inHandle ?? current
-    return getArcLengthMidpoint(previous, control1, control2, current)
-  }
-
-  return getSegmentMidpoint(previous, current)
-}
-
 export function AnimationPathOverlay({
   baseLeft,
   baseTop,
@@ -218,8 +149,6 @@ export function AnimationPathOverlay({
   onHandleMouseDown,
   onInsertPointMouseDown
 }: AnimationPathOverlayProps): React.JSX.Element | null {
-  const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState<number | null>(null)
-
   if (
     moveCanvasSelection.historySegments.length === 0 &&
     moveCanvasSelection.activeSegment == null &&
@@ -336,121 +265,45 @@ export function AnimationPathOverlay({
         )
       })}
       {moveCanvasSelection.activeSegment && activePathData ? (
-        <path
-          data-testid="animation-path"
-          aria-label="Move animation path"
-          className={`${styles.animationPath} ${styles.animationPathSelected}`}
-          d={activePathData}
-          fill="none"
+        <g
           onClick={(event) => onSelect(moveCanvasSelection.activeSegment.animationId, event)}
           onContextMenu={(event) =>
             onContextMenu(moveCanvasSelection.activeSegment.animationId, event)
           }
-        />
-      ) : null}
-      {moveCanvasSelection.activePoints.slice(0, -1).map((point, index) => {
-        const nextPoint = moveCanvasSelection.activePoints[index + 1]
-        const midpoint = getSegmentInsertPoint(
-          {
-            ...point.position,
-            outHandle: point.outHandle
-          },
-          {
-            ...nextPoint.position,
-            inHandle: nextPoint.inHandle
-          }
-        )
-        const absoluteMidpoint = toAbsolutePoint(
-          baseLeft,
-          baseTop,
-          ghostWidth,
-          ghostHeight,
-          midpoint
-        )
-        return (
-          <React.Fragment key={`insert-${point.id}-${nextPoint.id}`}>
-            <circle
-              data-testid="animation-path-insert-hit-area"
-              className={styles.animationPathInsertHitArea}
-              cx={absoluteMidpoint.x}
-              cy={absoluteMidpoint.y}
-              r={18}
-              onMouseEnter={() => setHoveredSegmentIndex(index)}
-              onMouseLeave={() =>
-                setHoveredSegmentIndex((current) => (current === index ? null : current))
-              }
-            />
-            {hoveredSegmentIndex === index ? (
-              <circle
-                data-testid="animation-path-insert-point"
-                className={styles.animationPathInsertPoint}
-                cx={absoluteMidpoint.x}
-                cy={absoluteMidpoint.y}
-                r={10}
-                onMouseDown={(event) => {
-                  event.stopPropagation()
-                  onInsertPointMouseDown(index, midpoint, event)
-                }}
-              />
-            ) : null}
-          </React.Fragment>
-        )
-      })}
-      {moveCanvasSelection.activePoints.map((point) => (
-        <React.Fragment key={point.id}>
-          {point.inHandle ? (
-            <>
-              <line
-                data-testid="animation-path-handle-line"
-                className={styles.animationPathHandleLine}
-                x1={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).x}
-                y1={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).y}
-                x2={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle).x}
-                y2={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle).y}
-              />
-              <circle
-                data-testid="animation-path-handle"
-                className={styles.animationPathHandle}
-                cx={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle).x}
-                cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle).y}
-                r={4}
-                onMouseDown={(event) => onHandleMouseDown(point.id, 'in', event)}
-              />
-            </>
-          ) : null}
-          {point.outHandle ? (
-            <>
-              <line
-                data-testid="animation-path-handle-line"
-                className={styles.animationPathHandleLine}
-                x1={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).x}
-                y1={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).y}
-                x2={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle).x}
-                y2={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle).y}
-              />
-              <circle
-                data-testid="animation-path-handle"
-                className={styles.animationPathHandle}
-                cx={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle).x}
-                cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle).y}
-                r={4}
-                onMouseDown={(event) => onHandleMouseDown(point.id, 'out', event)}
-              />
-            </>
-          ) : null}
-          <circle
-            data-testid="animation-path-point"
-            className={`${styles.animationPathPoint} ${
-              point.isEndpoint ? styles.animationPathPointEndpoint : ''
-            }`}
-            cx={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).x}
-            cy={toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position).y}
-            r={point.isEndpoint ? 5 : 4}
-            onMouseDown={(event) => onPointMouseDown(point.id, event)}
-            onContextMenu={(event) => onPointContextMenu(point, event)}
+        >
+          <BezierEditorOverlay
+            points={moveCanvasSelection.activePoints.map((point) => ({
+              id: point.id,
+              position: toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position),
+              inHandle: point.inHandle
+                ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle)
+                : undefined,
+              outHandle: point.outHandle
+                ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle)
+                : undefined,
+              isEndpoint: point.isEndpoint
+            }))}
+            onPointMouseDown={onPointMouseDown}
+            onPointContextMenu={(pointId, event) => {
+              const point = moveCanvasSelection.activePoints.find(
+                (candidate) => candidate.id === pointId
+              )
+              if (point) onPointContextMenu(point, event)
+            }}
+            onHandleMouseDown={onHandleMouseDown}
+            onInsertPointMouseDown={(segmentIndex, position, event) =>
+              onInsertPointMouseDown(
+                segmentIndex,
+                {
+                  x: position.x - baseLeft - ghostWidth / 2,
+                  y: position.y - baseTop - ghostHeight / 2
+                },
+                event
+              )
+            }
           />
-        </React.Fragment>
-      ))}
+        </g>
+      ) : null}
     </svg>
   )
 }
