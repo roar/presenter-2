@@ -81,7 +81,7 @@ export function SelectionOverlay({
         pointerEvents: 'none',
         opacity,
         visibility: visible ? 'visible' : 'hidden',
-        zIndex: 3
+        zIndex: 7
       }}
     >
       <g transform={`rotate(${rotation} ${cx} ${cy})`}>

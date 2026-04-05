@@ -986,6 +986,43 @@ describe('SlideCanvas', () => {
     expect(screen.getByTestId('selection-indicator')).toBeInTheDocument()
   })
 
+  it('stacks move ghosts above overlapping scale ghosts', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1', 'scale-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'scale-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 30 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['scale-1'] = {
+      id: 'scale-1',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'scale', to: 1.5 },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'scale-1')
+    render(<SlideCanvas />)
+
+    const ghosts = screen.getAllByTestId('animation-ghost')
+
+    expect(ghosts[0]).toHaveStyle({ zIndex: '5' })
+    expect(ghosts[1]).toHaveStyle({ zIndex: '4' })
+    expect(screen.getByTestId('selection-indicator')).toHaveStyle({ zIndex: '7' })
+  })
+
   it('commits selected scale ghost resize through updateAnimationNumericTo', () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]

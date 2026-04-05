@@ -72,6 +72,12 @@ function renderAnimationGhostObject(
   return null
 }
 
+function getGhostZIndex(stepType: TransformChainStepState['type']): number {
+  // Move ghosts must stay above scale ghosts so earlier move steps remain hittable
+  // even when a later scale step expands over the same area.
+  return stepType === 'move' ? 5 : 4
+}
+
 export function AnimationCanvasOverlay({
   master,
   renderedAppearance,
@@ -119,7 +125,7 @@ export function AnimationCanvasOverlay({
                 width: scaledGhostWidth,
                 height: scaledGhostHeight,
                 transform: `rotate(${rotation}deg)`,
-                zIndex: 5
+                zIndex: getGhostZIndex(step.type)
               }}
               onMouseDown={(event) =>
                 onGhostMouseDown(
