@@ -15,7 +15,9 @@ import type {
   AnimationTrigger,
   Easing,
   Position,
-  SlideTransition
+  SlideTransition,
+  TextContent,
+  TextRange
 } from '../../../shared/model/types'
 import type { ColorConstantId } from '../../../shared/model/types'
 import { DEFAULT_GRAIN_EFFECT } from '../../../shared/model/types'
@@ -47,6 +49,11 @@ interface UiState {
   selectedAnimationId: AnimationId | null
   zoom: number
   clipboard: MsoMaster | null
+  editingText: {
+    masterId: string | null
+    selection: TextRange | null
+    draftContent: TextContent | null
+  }
 }
 
 // ── Preview patch ─────────────────────────────────────────────────────────────
@@ -496,7 +503,12 @@ export const useDocumentStore = create<DocumentState>()(
       selectedElementIds: [],
       selectedAnimationId: null,
       zoom: 1,
-      clipboard: null
+      clipboard: null,
+      editingText: {
+        masterId: null,
+        selection: null,
+        draftContent: null
+      }
     },
     history: [],
     historyIndex: -1,
@@ -522,6 +534,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.ui.selectedSlideId = slide.id
         state.ui.selectedElementIds = []
         state.ui.selectedAnimationId = null
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
       })
     },
 
@@ -535,6 +548,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.isDirty = false
         state.ui.selectedSlideId = presentation.slideOrder[0] ?? null
         state.ui.selectedAnimationId = null
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
       })
     },
 
@@ -555,6 +569,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.document = doc
         pushHistory(state, doc)
         state.isDirty = true
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
       })
     },
 
@@ -563,6 +578,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.ui.selectedSlideId = id
         state.ui.selectedElementIds = []
         state.ui.selectedAnimationId = null
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
       })
     },
 
@@ -570,6 +586,9 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         state.ui.selectedElementIds = ids
         state.ui.selectedAnimationId = null
+        if (ids.length !== 1) {
+          state.ui.editingText = { masterId: null, selection: null, draftContent: null }
+        }
       })
     },
 
@@ -577,6 +596,7 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         state.ui.selectedAnimationId = id
         state.ui.selectedElementIds = []
+        state.ui.editingText = { masterId: null, selection: null, draftContent: null }
       })
     },
 
@@ -629,6 +649,14 @@ export const useDocumentStore = create<DocumentState>()(
         slide.appearanceIds.push(appearance.id)
         state.ui.selectedElementIds = [master.id]
         state.ui.selectedAnimationId = null
+        state.ui.editingText =
+          master.type === 'text' && master.content.type === 'text'
+            ? {
+                masterId: master.id,
+                selection: null,
+                draftContent: JSON.parse(JSON.stringify(master.content.value)) as TextContent
+              }
+            : { masterId: null, selection: null, draftContent: null }
         ensurePresentationColorConstants(state.document)
         pushHistory(state, state.document)
         state.isDirty = true

@@ -4,7 +4,11 @@ import {
   selectPatchedPresentation,
   selectSelectedAnimationGroup
 } from './documentStore'
-import { createAppearance, createMsoMaster } from '../../../shared/model/factories'
+import {
+  createAppearance,
+  createMsoMaster,
+  createTextContent
+} from '../../../shared/model/factories'
 import type { Presentation, Slide } from '../../../shared/model/types'
 
 function makePresentation(overrides?: Partial<Presentation>): Presentation {
@@ -40,7 +44,12 @@ beforeEach(() => {
       selectedElementIds: [],
       selectedAnimationId: null,
       zoom: 1,
-      clipboard: null
+      clipboard: null,
+      editingText: {
+        masterId: null,
+        selection: null,
+        draftContent: null
+      }
     },
     history: [],
     historyIndex: -1,
@@ -698,6 +707,39 @@ describe('documentStore', () => {
       useDocumentStore.getState().insertElement('s-1', master)
 
       expect(useDocumentStore.getState().ui.selectedElementIds).toEqual([master.id])
+    })
+
+    it('starts editing state for inserted text masters', () => {
+      const slide = makeSlide('s-1')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ slideOrder: ['s-1'], slidesById: { 's-1': slide } }))
+
+      const master = createMsoMaster('text')
+      master.content = { type: 'text', value: createTextContent('Text') }
+
+      useDocumentStore.getState().insertElement('s-1', master)
+
+      expect(useDocumentStore.getState().ui.editingText).toEqual({
+        masterId: master.id,
+        selection: null,
+        draftContent: master.content.value
+      })
+    })
+
+    it('does not start editing state for inserted non-text masters', () => {
+      const slide = makeSlide('s-1')
+      useDocumentStore
+        .getState()
+        .setDocument(makePresentation({ slideOrder: ['s-1'], slidesById: { 's-1': slide } }))
+
+      useDocumentStore.getState().insertElement('s-1', createMsoMaster('shape'))
+
+      expect(useDocumentStore.getState().ui.editingText).toEqual({
+        masterId: null,
+        selection: null,
+        draftContent: null
+      })
     })
   })
 
