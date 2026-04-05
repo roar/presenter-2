@@ -5,6 +5,7 @@ import { resolveBackgroundGrain, resolveSlideBackground } from '@shared/model/ba
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { RenderedAppearance } from '@shared/animation/types'
 import type { Background, LinearGradientFill, Slide } from '@shared/model/types'
+import { ObjectAnnotationLayer } from './ObjectAnnotationLayer'
 import { SlideCanvasObject } from './SlideCanvasObject'
 import styles from './SlideCanvas.module.css'
 
@@ -133,6 +134,7 @@ export function SlideCanvasStaticPreviewLayer({
           onGradientOverlayMouseDown={onGradientOverlayMouseDown}
         />
       ))}
+      <ObjectAnnotationLayer renderedAppearances={renderedAppearances} />
     </>
   )
 }

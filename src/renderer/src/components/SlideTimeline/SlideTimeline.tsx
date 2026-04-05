@@ -85,6 +85,10 @@ export function SlideTimeline({
         if (!isScrubMode) return
         scrubToPointer(event.clientX)
       }}
+      onMouseLeave={() => {
+        if (!isScrubMode) return
+        onTimeChange(0)
+      }}
     >
       <div className={styles.controls}>
         <div className={styles.controlButtons}>

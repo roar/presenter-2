@@ -4,7 +4,6 @@ import type { RenderedAppearance } from '@shared/animation/types'
 import type { LinearGradientFill } from '@shared/model/types'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import { ImageView } from './ImageView'
-import { MsoIndicator } from './MsoIndicator'
 import { SelectionOverlay } from './SelectionOverlay'
 import { ShapeView } from './ShapeView'
 import { TextView } from './TextView'
@@ -89,7 +88,6 @@ export function SlideCanvasObject({
       {master.type === 'image' && (
         <ImageView master={master} appearance={appearance} rendered={renderedAppearance} />
       )}
-      {master.isMultiSlideObject && <MsoIndicator x={left} y={top} width={scaledWidth} />}
       {isSelected ? (
         <SelectionOverlay
           rotation={master.transform.rotation}

@@ -6,6 +6,7 @@ import { ImageElementRenderer } from '@viewer/components/ImageElementRenderer/Im
 import { ShapeElementRenderer } from '@viewer/components/ShapeElementRenderer/ShapeElementRenderer'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { FrameState } from '@shared/animation/types'
+import { ObjectAnnotationLayer } from './ObjectAnnotationLayer'
 import styles from './SlideCanvas.module.css'
 
 interface SlideCanvasTransitionLayerProps {
@@ -20,18 +21,33 @@ export function SlideCanvasTransitionLayer({
   return (
     <>
       {previewFrame.behind ? (
-        <SlideLayer
-          renderedSlide={previewFrame.behind}
-          style={{ opacity: transitionLayerStyles.behindOpacity }}
-        />
+        <>
+          <SlideLayer
+            renderedSlide={previewFrame.behind}
+            style={{ opacity: transitionLayerStyles.behindOpacity }}
+          />
+          <ObjectAnnotationLayer
+            renderedAppearances={previewFrame.behind.appearances}
+            style={{ opacity: transitionLayerStyles.behindOpacity }}
+          />
+        </>
       ) : null}
-      <SlideLayer
-        renderedSlide={previewFrame.front}
-        style={{
-          opacity: transitionLayerStyles.frontOpacity,
-          transform: `translateX(${transitionLayerStyles.frontTranslateX})`
-        }}
-      />
+      <>
+        <SlideLayer
+          renderedSlide={previewFrame.front}
+          style={{
+            opacity: transitionLayerStyles.frontOpacity,
+            transform: `translateX(${transitionLayerStyles.frontTranslateX})`
+          }}
+        />
+        <ObjectAnnotationLayer
+          renderedAppearances={previewFrame.front.appearances}
+          style={{
+            opacity: transitionLayerStyles.frontOpacity,
+            transform: `translateX(${transitionLayerStyles.frontTranslateX})`
+          }}
+        />
+      </>
       <div
         className={styles.transitionMsoLayer}
         style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT }}
@@ -64,6 +80,7 @@ export function SlideCanvasTransitionLayer({
           }
           return null
         })}
+        <ObjectAnnotationLayer renderedAppearances={previewFrame.msoAppearances} />
       </div>
     </>
   )

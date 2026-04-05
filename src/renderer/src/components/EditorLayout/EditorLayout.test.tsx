@@ -617,6 +617,61 @@ describe('EditorLayout', () => {
     )
   })
 
+  it('returns the slide editor preview to the start state when leaving the timeline in scrub mode', async () => {
+    const user = userEvent.setup()
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.name = 'Airplane'
+    const appearance = createAppearance(master.id, slide.id)
+    const animation: TargetedAnimation = {
+      id: 'anim-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 100, y: 0 } },
+      target: { kind: 'appearance', appearanceId: appearance.id }
+    }
+
+    slide.appearanceIds = [appearance.id]
+    slide.animationOrder = [animation.id]
+
+    const document = {
+      ...makePresentation(slide),
+      mastersById: { [master.id]: master },
+      appearancesById: { [appearance.id]: appearance },
+      animationsById: { [animation.id]: animation }
+    }
+
+    mockStore(document, slide.id)
+    render(<EditorLayout />)
+
+    const timelineRoot = screen.getByTestId('timeline-root')
+    Object.defineProperty(timelineRoot, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: 100,
+        y: 0,
+        width: 300,
+        height: 80,
+        top: 0,
+        left: 100,
+        right: 400,
+        bottom: 80,
+        toJSON: () => ({})
+      })
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    fireEvent.mouseMove(timelineRoot, { clientX: 400, clientY: 40 })
+    expect(screen.getByTestId('canvas')).not.toHaveTextContent('static')
+
+    fireEvent.mouseLeave(timelineRoot)
+
+    expect(screen.getByTestId('canvas')).toHaveTextContent('static')
+  })
+
   it('previews the active slide when scrubbing the all-slides timeline', async () => {
     const user = userEvent.setup()
     const slide1 = createSlide()

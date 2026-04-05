@@ -194,6 +194,29 @@ describe('SlideTimeline', () => {
     expect(onPlayToggle).toHaveBeenCalledWith(true)
   })
 
+  it('resets scrub preview to the start when the pointer leaves the timeline', async () => {
+    const user = userEvent.setup()
+    const onTimeChange = vi.fn()
+
+    render(
+      <SlideTimeline
+        timeline={makeTimeline()}
+        currentTime={1.5}
+        isPlaying={false}
+        onTimeChange={onTimeChange}
+        onPlayToggle={vi.fn()}
+        scope="selected-slide"
+        onScopeToggle={vi.fn()}
+      />
+    )
+
+    const panel = screen.getByTestId('timeline-root')
+    await user.click(screen.getByRole('button', { name: 'Enable scrub mode' }))
+    fireEvent.mouseLeave(panel)
+
+    expect(onTimeChange).toHaveBeenCalledWith(0)
+  })
+
   it('does not scrub on mouse movement when scrub mode is disabled', () => {
     const onTimeChange = vi.fn()
 

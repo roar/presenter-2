@@ -750,6 +750,90 @@ describe('SlideCanvas', () => {
     const { container } = render(<SlideCanvas previewFrame={previewFrame} />)
     expect(container.querySelectorAll('[data-testid="element-hitbox"]')).toHaveLength(0)
     expect(container.querySelectorAll('path').length).toBeGreaterThanOrEqual(3)
+    expect(screen.getByTitle('Multi Slide Object')).toBeInTheDocument()
+  })
+
+  it('applies the same transition styling to object annotation layers as to their objects', () => {
+    const pres = createPresentation()
+    const slide1 = createSlide()
+    slide1.id = 'slide-1'
+    const slide2 = createSlide()
+    slide2.id = 'slide-2'
+
+    const behindMaster = createMsoMaster('shape')
+    behindMaster.isMultiSlideObject = true
+    behindMaster.transform = { x: 50, y: 60, width: 120, height: 90, rotation: 0 }
+    behindMaster.objectStyle = {
+      defaultState: { fill: '#ff0000', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    behindMaster.geometry = { type: 'path', pathData: 'M 0 0 L 120 0 L 120 90 L 0 90 Z' }
+    const behindAppearance = createAppearance(behindMaster.id, slide1.id)
+    slide1.appearanceIds = [behindAppearance.id]
+
+    const frontMaster = createMsoMaster('shape')
+    frontMaster.isMultiSlideObject = true
+    frontMaster.transform = { x: 220, y: 80, width: 120, height: 90, rotation: 0 }
+    frontMaster.objectStyle = {
+      defaultState: { fill: '#0000ff', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    frontMaster.geometry = { type: 'path', pathData: 'M 0 0 L 120 0 L 120 90 L 0 90 Z' }
+    const frontAppearance = createAppearance(frontMaster.id, slide2.id)
+    slide2.appearanceIds = [frontAppearance.id]
+
+    pres.slideOrder = [slide1.id, slide2.id]
+    pres.slidesById[slide1.id] = slide1
+    pres.slidesById[slide2.id] = slide2
+    pres.mastersById[behindMaster.id] = behindMaster
+    pres.mastersById[frontMaster.id] = frontMaster
+    pres.appearancesById[behindAppearance.id] = behindAppearance
+    pres.appearancesById[frontAppearance.id] = frontAppearance
+
+    mockStore(slide2.id, pres)
+
+    const previewFrame: FrameState = {
+      front: {
+        slide: slide2,
+        appearances: [
+          {
+            appearance: frontAppearance,
+            master: frontMaster,
+            visible: true,
+            opacity: 1,
+            transform: 'translate(0px, 0px)',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      behind: {
+        slide: slide1,
+        appearances: [
+          {
+            appearance: behindAppearance,
+            master: behindMaster,
+            visible: true,
+            opacity: 1,
+            transform: 'translate(0px, 0px)',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      transition: { kind: 'dissolve', progress: 0.5 },
+      msoAppearances: []
+    }
+
+    render(<SlideCanvas previewFrame={previewFrame} />)
+
+    const annotationLayers = screen.getAllByTestId('object-annotation-layer')
+    expect(annotationLayers[0]).toHaveStyle({ opacity: '0.5' })
+    expect(annotationLayers[1]).toHaveStyle({ opacity: '0.5', transform: 'translateX(0)' })
   })
 
   it('renders the ghost using the original object geometry', () => {
