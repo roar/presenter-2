@@ -64,6 +64,7 @@ type PropagatedState = {
   translateX: number
   translateY: number
   scale: number | null
+  rotation: number
   textShadow: TextShadow | null
   strokeDashoffset: number | null
 }
@@ -95,6 +96,7 @@ function defaultPropagatedState(
     translateX: 0,
     translateY: 0,
     scale: null,
+    rotation: 0,
     textShadow: null,
     strokeDashoffset: hasLineDraw ? 1 : null
   }
@@ -138,6 +140,8 @@ function applyCompletedAnimation(
       next.translateY = 0
     } else if (effect.type === 'scale') {
       next.scale = effect.to
+    } else if (effect.type === 'rotate') {
+      next.rotation = effect.to
     } else if (effect.type === 'line-draw') {
       next.opacity = 1
       next.strokeDashoffset = 0
@@ -152,6 +156,8 @@ function applyCompletedAnimation(
       const delta = getMoveEffectDelta(effect)
       next.translateX += delta.x
       next.translateY += delta.y
+    } else if (effect.type === 'rotate') {
+      next.rotation += effect.to
     } else if (effect.type === 'text-shadow') {
       next.textShadow = effect.to
     } else if (effect.type === 'line-draw') {
@@ -234,6 +240,7 @@ function resolveAppearanceState(
   let translateX = initialState.translateX
   let translateY = initialState.translateY
   let scale: number | null = initialState.scale
+  let rotation = initialState.rotation
   let textShadow: TextShadow | null = initialState.textShadow
   let strokeDashoffset: number | null = initialState.strokeDashoffset
 
@@ -263,6 +270,9 @@ function resolveAppearanceState(
       } else if (effect.type === 'scale') {
         scale = lerp(scale ?? 0, effect.to, progress)
         if (completed) scale = effect.to
+      } else if (effect.type === 'rotate') {
+        rotation = lerp(rotation, 0, progress)
+        if (completed) rotation = 0
       } else if (effect.type === 'line-draw') {
         opacity = 1
         strokeDashoffset = lerp(1, 0, progress)
@@ -292,6 +302,10 @@ function resolveAppearanceState(
         const fromScale = scale ?? 1
         scale = lerp(fromScale, effect.to, progress)
         if (completed) scale = effect.to
+      } else if (effect.type === 'rotate') {
+        const fromRotation = rotation
+        rotation = lerp(fromRotation, fromRotation + effect.to, progress)
+        if (completed) rotation = fromRotation + effect.to
       } else if (effect.type === 'text-shadow') {
         const from = textShadow ?? { offsetX: 0, offsetY: 0, blur: 0, color: 'rgba(0,0,0,0)' }
         textShadow = {
@@ -313,7 +327,9 @@ function resolveAppearanceState(
   }
 
   const translatePart = `translate(${translateX}px, ${translateY}px)`
-  const transform = scale !== null ? `${translatePart} scale(${scale})` : translatePart
+  const scalePart = scale !== null ? ` scale(${scale})` : ''
+  const rotationPart = rotation !== 0 ? ` rotate(${rotation}deg)` : ''
+  const transform = `${translatePart}${scalePart}${rotationPart}`
 
   return {
     appearance,

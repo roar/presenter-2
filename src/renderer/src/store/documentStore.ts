@@ -93,6 +93,7 @@ interface DocumentState {
   pasteElement(slideId: SlideId): void
   addMoveAnimation(appearanceId: AppearanceId, afterAnimationId?: AnimationId): void
   addScaleAnimation(appearanceId: AppearanceId, afterAnimationId?: AnimationId): void
+  addRotateAnimation(appearanceId: AppearanceId, afterAnimationId?: AnimationId): void
   removeAnimation(animationId: AnimationId): void
   updateAnimationTrigger(animationId: AnimationId, trigger: AnimationTrigger): void
   updateAnimationOffset(animationId: AnimationId, offset: number): void
@@ -136,6 +137,32 @@ interface DocumentState {
 function snapshot(doc: Presentation): HistoryEntry {
   // JSON round-trip works on both plain objects and immer drafts (Proxy objects)
   return { document: JSON.parse(JSON.stringify(doc)) as Presentation }
+}
+
+function cloneEasing(easing: Easing): Easing {
+  return JSON.parse(JSON.stringify(easing)) as Easing
+}
+
+function defaultAnimationEasing(): Easing {
+  return { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 }
+}
+
+function resolveInheritedAnimationEasing(
+  animationsById: Presentation['animationsById'],
+  animationIds: AnimationId[],
+  afterAnimationId?: AnimationId
+): Easing {
+  const sourceAnimationId = afterAnimationId ?? animationIds[animationIds.length - 1]
+  if (!sourceAnimationId) {
+    return defaultAnimationEasing()
+  }
+
+  const sourceAnimation = animationsById[sourceAnimationId]
+  if (!sourceAnimation) {
+    return defaultAnimationEasing()
+  }
+
+  return cloneEasing(sourceAnimation.easing)
 }
 
 function pushHistory(state: DocumentState, doc: Presentation): void {
@@ -326,6 +353,12 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
         type: 'scale',
         scale: animation.effect.to
       })
+    } else if (animation.effect.type === 'rotate') {
+      steps.push({
+        animationId: animation.id,
+        type: 'rotate',
+        rotation: animation.effect.to
+      })
     }
     return steps
   }, [])
@@ -390,7 +423,14 @@ export function selectSelectedAnimationGroup(state: DocumentState): SelectedAnim
           step.path === candidate.path
         )
       }
-      return step.type === 'scale' && candidate.type === 'scale' && step.scale === candidate.scale
+      if (step.type === 'scale' && candidate.type === 'scale') {
+        return step.scale === candidate.scale
+      }
+      return (
+        step.type === 'rotate' &&
+        candidate.type === 'rotate' &&
+        step.rotation === candidate.rotation
+      )
     }) &&
     selectedAnimationGroupCache.result?.moveSteps.length === moveSteps.length &&
     selectedAnimationGroupCache.result?.moveSteps.every(
@@ -699,13 +739,18 @@ export const useDocumentStore = create<DocumentState>()(
         if (!appearance) return
         const slide = state.document.slidesById[appearance.slideId]
         if (!slide) return
+        const easing = resolveInheritedAnimationEasing(
+          state.document.animationsById,
+          appearance.animationIds,
+          afterAnimationId
+        )
 
         const animation: TargetedAnimation = {
           id: crypto.randomUUID(),
           trigger: 'on-click',
           offset: 0,
           duration: 1,
-          easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+          easing,
           loop: { kind: 'none' },
           effect: { kind: 'action', type: 'move', delta: { x: 0, y: 100 } },
           target: { kind: 'appearance', appearanceId }
@@ -729,15 +774,55 @@ export const useDocumentStore = create<DocumentState>()(
         if (!appearance) return
         const slide = state.document.slidesById[appearance.slideId]
         if (!slide) return
+        const easing = resolveInheritedAnimationEasing(
+          state.document.animationsById,
+          appearance.animationIds,
+          afterAnimationId
+        )
 
         const animation: TargetedAnimation = {
           id: crypto.randomUUID(),
           trigger: 'on-click',
           offset: 0,
           duration: 1,
-          easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+          easing,
           loop: { kind: 'none' },
           effect: { kind: 'action', type: 'scale', to: 1.5 },
+          target: { kind: 'appearance', appearanceId }
+        }
+
+        state.document.animationsById[animation.id] = animation
+        insertAnimationIdAfter(appearance.animationIds, animation.id, afterAnimationId)
+        insertAnimationIdAfter(slide.animationOrder, animation.id, afterAnimationId)
+        state.ui.selectedAnimationId = animation.id
+        state.ui.selectedElementIds = []
+        state.ui.selectedSlideId = slide.id
+        pushHistory(state, state.document)
+        state.isDirty = true
+      })
+    },
+
+    addRotateAnimation(appearanceId, afterAnimationId) {
+      set((state) => {
+        if (!state.document) return
+        const appearance = state.document.appearancesById[appearanceId]
+        if (!appearance) return
+        const slide = state.document.slidesById[appearance.slideId]
+        if (!slide) return
+        const easing = resolveInheritedAnimationEasing(
+          state.document.animationsById,
+          appearance.animationIds,
+          afterAnimationId
+        )
+
+        const animation: TargetedAnimation = {
+          id: crypto.randomUUID(),
+          trigger: 'on-click',
+          offset: 0,
+          duration: 1,
+          easing,
+          loop: { kind: 'none' },
+          effect: { kind: 'action', type: 'rotate', to: 45 },
           target: { kind: 'appearance', appearanceId }
         }
 
@@ -834,7 +919,13 @@ export const useDocumentStore = create<DocumentState>()(
         if (!state.document) return
         const animation = state.document.animationsById[animationId]
         if (!animation) return
-        if (animation.effect.type !== 'fade' && animation.effect.type !== 'scale') return
+        if (
+          animation.effect.type !== 'fade' &&
+          animation.effect.type !== 'scale' &&
+          animation.effect.type !== 'rotate'
+        ) {
+          return
+        }
         animation.effect.to = value
         pushHistory(state, state.document)
         state.isDirty = true

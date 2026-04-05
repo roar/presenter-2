@@ -13,7 +13,16 @@ export interface TransformChainScaleStepInput {
   scale: number
 }
 
-export type TransformChainStepInput = TransformChainMoveStepInput | TransformChainScaleStepInput
+export interface TransformChainRotateStepInput {
+  animationId: string
+  type: 'rotate'
+  rotation: number
+}
+
+export type TransformChainStepInput =
+  | TransformChainMoveStepInput
+  | TransformChainScaleStepInput
+  | TransformChainRotateStepInput
 
 export interface TransformChainMovePreview {
   animationId: string
@@ -27,7 +36,16 @@ export interface TransformChainScalePreview {
   scale: number
 }
 
-export type TransformChainPreview = TransformChainMovePreview | TransformChainScalePreview
+export interface TransformChainRotatePreview {
+  animationId: string
+  type: 'rotate'
+  rotation: number
+}
+
+export type TransformChainPreview =
+  | TransformChainMovePreview
+  | TransformChainScalePreview
+  | TransformChainRotatePreview
 
 export interface MoveChainStepInput {
   animationId: string
@@ -49,11 +67,13 @@ export interface MoveChainPreview {
 
 export interface TransformChainStepState {
   animationId: string
-  type: 'move' | 'scale'
+  type: 'move' | 'scale' | 'rotate'
   delta?: Position
   scale?: number
+  rotation?: number
   cumulativeDelta: Position
   cumulativeScale: number
+  cumulativeRotation: number
   path?: MovePath
 }
 
@@ -92,6 +112,7 @@ export function buildTransformChainStates(
     const previous = states[states.length - 1]
     const previousDelta = previous?.cumulativeDelta ?? { x: 0, y: 0 }
     const previousScale = previous?.cumulativeScale ?? 1
+    const previousRotation = previous?.cumulativeRotation ?? 0
 
     if (step.type === 'move') {
       states.push({
@@ -103,15 +124,26 @@ export function buildTransformChainStates(
           y: previousDelta.y + step.delta.y
         },
         cumulativeScale: previousScale,
+        cumulativeRotation: previousRotation,
         path: step.path
       })
-    } else {
+    } else if (step.type === 'scale') {
       states.push({
         animationId: step.animationId,
         type: 'scale',
         scale: step.scale,
         cumulativeDelta: previousDelta,
-        cumulativeScale: previousScale * step.scale
+        cumulativeScale: previousScale * step.scale,
+        cumulativeRotation: previousRotation
+      })
+    } else {
+      states.push({
+        animationId: step.animationId,
+        type: 'rotate',
+        rotation: step.rotation,
+        cumulativeDelta: previousDelta,
+        cumulativeScale: previousScale,
+        cumulativeRotation: previousRotation + step.rotation
       })
     }
     return states
@@ -137,6 +169,7 @@ export function buildTransformChainStates(
           y: step.cumulativeDelta.y + (preview.delta.y - (step.delta?.y ?? 0))
         },
         cumulativeScale: step.cumulativeScale,
+        cumulativeRotation: step.cumulativeRotation,
         path: step.path
       }
     })
@@ -146,7 +179,8 @@ export function buildTransformChainStates(
     const previous = states[states.length - 1]
     const previousDelta = previous?.cumulativeDelta ?? { x: 0, y: 0 }
     const previousScale = previous?.cumulativeScale ?? 1
-    const stepPreview = index === previewIndex && preview.type === 'scale' ? preview : null
+    const previousRotation = previous?.cumulativeRotation ?? 0
+    const stepPreview = index === previewIndex ? preview : null
 
     if (step.type === 'move') {
       const delta = stepPreview?.type === 'move' ? stepPreview.delta : step.delta
@@ -159,16 +193,28 @@ export function buildTransformChainStates(
           y: previousDelta.y + delta.y
         },
         cumulativeScale: previousScale,
+        cumulativeRotation: previousRotation,
         path: step.path
       })
-    } else {
+    } else if (step.type === 'scale') {
       const scale = stepPreview?.type === 'scale' ? stepPreview.scale : step.scale
       states.push({
         animationId: step.animationId,
         type: 'scale',
         scale,
         cumulativeDelta: previousDelta,
-        cumulativeScale: previousScale * scale
+        cumulativeScale: previousScale * scale,
+        cumulativeRotation: previousRotation
+      })
+    } else {
+      const rotation = stepPreview?.type === 'rotate' ? stepPreview.rotation : step.rotation
+      states.push({
+        animationId: step.animationId,
+        type: 'rotate',
+        rotation,
+        cumulativeDelta: previousDelta,
+        cumulativeScale: previousScale,
+        cumulativeRotation: previousRotation + rotation
       })
     }
 

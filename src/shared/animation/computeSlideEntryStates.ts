@@ -14,6 +14,7 @@ export type PropagatedState = {
   translateX: number // animation-induced offset (from move animations)
   translateY: number
   scale: number | null
+  rotation: number
   textShadow: TextShadow | null
   strokeDashoffset: number | null
 }
@@ -48,6 +49,7 @@ function defaultPropagatedState(
     translateX: 0,
     translateY: 0,
     scale: null,
+    rotation: 0,
     textShadow: null,
     strokeDashoffset: hasLineDraw ? 1 : null
   }
@@ -108,6 +110,8 @@ function computeAppearanceExitState(
         state.translateY = 0
       } else if (effect.type === 'scale') {
         state.scale = effect.to
+      } else if (effect.type === 'rotate') {
+        state.rotation = effect.to
       } else if (effect.type === 'line-draw') {
         state.opacity = 1
         state.strokeDashoffset = 0
@@ -124,6 +128,8 @@ function computeAppearanceExitState(
         state.translateY += delta.y
       } else if (effect.type === 'scale') {
         state.scale = effect.to
+      } else if (effect.type === 'rotate') {
+        state.rotation += effect.to
       } else if (effect.type === 'text-shadow') {
         state.textShadow = effect.to
       } else if (effect.type === 'line-draw') {

@@ -139,6 +139,33 @@ describe('documentStore', () => {
       }
       expect(animation.effect.to).toBe(0.75)
     })
+
+    it('updates a rotate animation target value', () => {
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          animationsById: {
+            'anim-1': {
+              id: 'anim-1',
+              trigger: 'on-click',
+              offset: 0,
+              duration: 1,
+              easing: 'linear',
+              loop: { kind: 'none' },
+              effect: { kind: 'action', type: 'rotate', to: 15 },
+              target: { kind: 'appearance', appearanceId: 'appearance-1' }
+            }
+          }
+        })
+      )
+
+      useDocumentStore.getState().updateAnimationNumericTo('anim-1', 45)
+
+      const animation = useDocumentStore.getState().document?.animationsById['anim-1']
+      if (!animation || animation.effect.type !== 'rotate') {
+        throw new Error('Expected rotate animation')
+      }
+      expect(animation.effect.to).toBe(45)
+    })
   })
 
   describe('updateAnimationMoveDelta', () => {
@@ -959,6 +986,45 @@ describe('documentStore', () => {
       expect(animationOrder?.[1]).toBe(useDocumentStore.getState().ui.selectedAnimationId)
       expect(appearanceOrder).toEqual(animationOrder)
     })
+
+    it('inherits easing from the previous animation when appending to a chain', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const existingAnimation = {
+        id: 'anim-1',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: { kind: 'cubic-bezier' as const, x1: 0.1, y1: 0.2, x2: 0.3, y2: 0.4 },
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 10, y: 20 } },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [existingAnimation.id]
+      appearance.animationIds = [existingAnimation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [existingAnimation.id]: existingAnimation }
+        })
+      )
+
+      useDocumentStore.getState().addMoveAnimation(appearance.id)
+
+      const animationId = useDocumentStore.getState().ui.selectedAnimationId
+      const animation = animationId
+        ? useDocumentStore.getState().document?.animationsById[animationId]
+        : null
+
+      expect(animation?.easing).toEqual(existingAnimation.easing)
+      expect(animation?.easing).not.toBe(existingAnimation.easing)
+    })
   })
 
   describe('addScaleAnimation', () => {
@@ -1074,6 +1140,139 @@ describe('documentStore', () => {
       expect(animationOrder?.[2]).toBe(laterAnimation.id)
       expect(animationOrder?.[1]).toBe(useDocumentStore.getState().ui.selectedAnimationId)
       expect(appearanceOrder).toEqual(animationOrder)
+    })
+
+    it('inherits easing from the animation it is inserted after', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const existingAnimation = {
+        id: 'anim-1',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: {
+          kind: 'curve' as const,
+          points: [
+            { x: 0, y: 0, type: 'corner' as const },
+            { x: 0.3, y: 0.2, out: { x: 0.4, y: 0.5 }, type: 'smooth' as const },
+            { x: 1, y: 1, type: 'corner' as const }
+          ]
+        },
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 10, y: 20 } },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      const laterAnimation = {
+        id: 'anim-2',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: 'linear' as const,
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'move' as const, delta: { x: 30, y: 40 } },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [existingAnimation.id, laterAnimation.id]
+      appearance.animationIds = [existingAnimation.id, laterAnimation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: {
+            [existingAnimation.id]: existingAnimation,
+            [laterAnimation.id]: laterAnimation
+          }
+        })
+      )
+
+      useDocumentStore.getState().addScaleAnimation(appearance.id, existingAnimation.id)
+
+      const animationId = useDocumentStore.getState().ui.selectedAnimationId
+      const animation = animationId
+        ? useDocumentStore.getState().document?.animationsById[animationId]
+        : null
+
+      expect(animation?.easing).toEqual(existingAnimation.easing)
+      expect(animation?.easing).not.toBe(existingAnimation.easing)
+    })
+  })
+
+  describe('addRotateAnimation', () => {
+    it('creates a rotate animation for the selected appearance', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      slide.appearanceIds = [appearance.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance }
+        })
+      )
+
+      useDocumentStore.getState().addRotateAnimation(appearance.id)
+
+      const state = useDocumentStore.getState()
+      const animationId = state.document?.slidesById[slide.id].animationOrder[0]
+      const animation = animationId ? state.document?.animationsById[animationId] : null
+
+      expect(animation).toMatchObject({
+        trigger: 'on-click',
+        offset: 0,
+        duration: 1,
+        easing: { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 },
+        loop: { kind: 'none' },
+        effect: { kind: 'action', type: 'rotate', to: 45 },
+        target: { kind: 'appearance', appearanceId: appearance.id }
+      })
+      expect(state.document?.appearancesById[appearance.id].animationIds).toEqual([animationId])
+    })
+
+    it('inherits easing from the previous animation in the chain', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      const appearance = createAppearance(master.id, slide.id)
+      const existingAnimation = {
+        id: 'anim-1',
+        trigger: 'on-click' as const,
+        offset: 0,
+        duration: 1,
+        easing: { kind: 'cubic-bezier' as const, x1: 0.25, y1: 0.1, x2: 0.25, y2: 1 },
+        loop: { kind: 'none' as const },
+        effect: { kind: 'action' as const, type: 'scale' as const, to: 1.5 },
+        target: { kind: 'appearance' as const, appearanceId: appearance.id }
+      }
+      slide.appearanceIds = [appearance.id]
+      slide.animationOrder = [existingAnimation.id]
+      appearance.animationIds = [existingAnimation.id]
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master },
+          appearancesById: { [appearance.id]: appearance },
+          animationsById: { [existingAnimation.id]: existingAnimation }
+        })
+      )
+
+      useDocumentStore.getState().addRotateAnimation(appearance.id)
+
+      const animationId = useDocumentStore.getState().ui.selectedAnimationId
+      const animation = animationId
+        ? useDocumentStore.getState().document?.animationsById[animationId]
+        : null
+
+      expect(animation?.easing).toEqual(existingAnimation.easing)
+      expect(animation?.easing).not.toBe(existingAnimation.easing)
     })
   })
 

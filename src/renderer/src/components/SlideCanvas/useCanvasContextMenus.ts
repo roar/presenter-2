@@ -17,6 +17,7 @@ interface AnimationContextMenuState {
 interface UseCanvasContextMenusParams {
   addMoveAnimation: (appearanceId: string, afterAnimationId?: string) => void
   addScaleAnimation: (appearanceId: string, afterAnimationId?: string) => void
+  addRotateAnimation: (appearanceId: string, afterAnimationId?: string) => void
   convertToMultiSlideObject: (masterId: string) => void
   convertToSingleAppearance: (appearanceId: string) => void
   removeAnimation: (animationId: string) => void
@@ -43,12 +44,14 @@ interface UseCanvasContextMenusResult {
   handleConvertToSingle: () => void
   handleAddMoveAnimation: () => void
   handleAddScaleAnimation: () => void
+  handleAddRotateAnimation: () => void
   handleDeleteAnimation: () => void
 }
 
 export function useCanvasContextMenus({
   addMoveAnimation,
   addScaleAnimation,
+  addRotateAnimation,
   convertToMultiSlideObject,
   convertToSingleAppearance,
   removeAnimation,
@@ -125,6 +128,14 @@ export function useCanvasContextMenus({
     setElementContextMenu(null)
   }, [addScaleAnimation, animationContextMenu, elementContextMenu])
 
+  const handleAddRotateAnimation = useCallback(() => {
+    const appearanceId = animationContextMenu?.appearanceId ?? elementContextMenu?.appearanceId
+    if (!appearanceId) return
+    addRotateAnimation(appearanceId, animationContextMenu?.animationId)
+    setAnimationContextMenu(null)
+    setElementContextMenu(null)
+  }, [addRotateAnimation, animationContextMenu, elementContextMenu])
+
   return {
     elementContextMenu,
     animationContextMenu,
@@ -137,6 +148,7 @@ export function useCanvasContextMenus({
     handleConvertToSingle,
     handleAddMoveAnimation,
     handleAddScaleAnimation,
+    handleAddRotateAnimation,
     handleDeleteAnimation
   }
 }

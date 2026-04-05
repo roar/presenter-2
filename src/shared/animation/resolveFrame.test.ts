@@ -245,6 +245,26 @@ describe('resolveFrame', () => {
     })
   })
 
+  describe('action (rotate)', () => {
+    it('interpolates rotation mid-animation', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'rotate', to: 90 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 0.5)
+      expect(frame.front.appearances[0].transform).toContain('rotate(45deg)')
+    })
+
+    it('retains the completed rotation after the animation finishes', () => {
+      const master = textMaster('m1')
+      const app = makeAppearance(master.id, 'slide')
+      const anim = makeAnim('a1', app.id, 'on-click', { kind: 'action', type: 'rotate', to: 90 }, 1)
+      const pres = singleSlidePresentation(app, master, [anim])
+      const frame = resolveFrame(timeline(pres, { a1: 0 }), 2)
+      expect(frame.front.appearances[0].transform).toContain('rotate(90deg)')
+    })
+  })
+
   describe('action (move)', () => {
     it('interpolates toward the stored delta during the animation', () => {
       const master = textMaster('m1')

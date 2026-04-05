@@ -358,6 +358,7 @@ export type Animation =
   // action move animations interpolate from the current offset to current + delta.
   | { kind: AnimationKind; type: 'move'; delta: Position; path?: MovePath }
   | { kind: AnimationKind; type: 'scale'; to: number }
+  | { kind: AnimationKind; type: 'rotate'; to: number }
   | { kind: AnimationKind; type: 'text-shadow'; to: TextShadow }
   | { kind: AnimationKind; type: 'line-draw' }
 

@@ -30,6 +30,7 @@ import { useAnimationPathContextMenu } from './useAnimationPathContextMenu'
 import { useAnimationPathInteraction } from './useAnimationPathInteraction'
 import { useElementTransformInteraction } from './useElementTransformInteraction'
 import { useGradientOverlayInteraction } from './useGradientOverlayInteraction'
+import { useRotateGhostRotate } from './useRotateGhostRotate'
 import { useScaleGhostResize } from './useScaleGhostResize'
 import styles from './SlideCanvas.module.css'
 
@@ -53,6 +54,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const updateMasterTransform = useDocumentStore((s) => s.updateMasterTransform)
   const addMoveAnimation = useDocumentStore((s) => s.addMoveAnimation)
   const addScaleAnimation = useDocumentStore((s) => s.addScaleAnimation)
+  const addRotateAnimation = useDocumentStore((s) => s.addRotateAnimation)
   const updateAnimationNumericTo = useDocumentStore((s) => s.updateAnimationNumericTo)
   const updateAnimationMoveDelta = useDocumentStore((s) => s.updateAnimationMoveDelta)
   const updateAnimationMovePath = useDocumentStore((s) => s.updateAnimationMovePath)
@@ -128,6 +130,13 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       scaleRef,
       slideRef,
       updateAnimationNumericTo: updateAnimationNumericTo
+    })
+  const { rotatePreview, handleRotateHandleMouseDown, updateRotatePreview, commitRotatePreview } =
+    useRotateGhostRotate({
+      isSpaceDownRef,
+      scaleRef,
+      slideRef,
+      updateAnimationNumericTo
     })
   const {
     contextMenu: pathPointContextMenu,
@@ -239,10 +248,12 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
     handleConvertToSingle,
     handleAddMoveAnimation,
     handleAddScaleAnimation,
+    handleAddRotateAnimation,
     handleDeleteAnimation
   } = useCanvasContextMenus({
     addMoveAnimation,
     addScaleAnimation,
+    addRotateAnimation,
     convertToMultiSlideObject,
     convertToSingleAppearance,
     removeAnimation,
@@ -285,6 +296,10 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
         return
       }
 
+      if (updateRotatePreview(e)) {
+        return
+      }
+
       if (updatePathDragPreview(e)) {
         return
       }
@@ -313,6 +328,10 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
         return
       }
 
+      if (commitRotatePreview(e)) {
+        return
+      }
+
       if (commitPathDrag(e)) {
         return
       }
@@ -334,11 +353,13 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
     commitPathDrag,
     commitGradientPreview,
     commitScalePreview,
+    commitRotatePreview,
     updateElementTransformPreview,
     updateGhostDragPreview,
     updatePathDragPreview,
     updateGradientPreview,
-    updateScalePreview
+    updateScalePreview,
+    updateRotatePreview
   ])
 
   const handleOuterMouseDown = useCallback((e: React.MouseEvent) => {
@@ -512,9 +533,15 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       : []
   const transformPreview: TransformChainPreview | null = scalePreview
     ? { animationId: scalePreview.animationId, type: 'scale', scale: scalePreview.scale }
-    : ghostPreview
-      ? { animationId: ghostPreview.animationId, type: 'move', delta: ghostPreview.delta }
-      : null
+    : rotatePreview
+      ? {
+          animationId: rotatePreview.animationId,
+          type: 'rotate',
+          rotation: rotatePreview.rotation
+        }
+      : ghostPreview
+        ? { animationId: ghostPreview.animationId, type: 'move', delta: ghostPreview.delta }
+        : null
   const transformChainSteps =
     selectedAnimationGroup?.slideId === annotationSlideId
       ? selectedAnimationGroup.transformSteps.map((step) => {
@@ -623,6 +650,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
                     handleAnimationSelect(animationId, event)
                   }}
                   onScaleHandleMouseDown={handleScaleHandleMouseDown}
+                  onRotateHandleMouseDown={handleRotateHandleMouseDown}
                 />
               </>
             ) : null}
@@ -641,6 +669,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
         onCloseAnimationMenu={closeAnimationMenu}
         onAddMoveAnimation={handleAddMoveAnimation}
         onAddScaleAnimation={handleAddScaleAnimation}
+        onAddRotateAnimation={handleAddRotateAnimation}
         onConvertToSingle={handleConvertToSingle}
         onConvertToMso={handleConvertToMso}
         onDeleteAnimation={handleDeleteAnimation}

@@ -39,6 +39,8 @@ function formatAnimationToValue(animation: TargetedAnimation): string {
       return `X: ${getMoveDelta(effect).x}, Y: ${getMoveDelta(effect).y}`
     case 'scale':
       return `Scale: ${effect.to}`
+    case 'rotate':
+      return `Rotation: ${effect.to}`
     case 'text-shadow':
       return `X: ${effect.to.offsetX}, Y: ${effect.to.offsetY}, Blur: ${effect.to.blur}`
     case 'line-draw':
@@ -84,7 +86,9 @@ export function AnimationCard({
   const moveDelta = animation.effect.type === 'move' ? getMoveDelta(animation.effect) : null
 
   const toField =
-    animation.effect.type === 'fade' || animation.effect.type === 'scale' ? (
+    animation.effect.type === 'fade' ||
+    animation.effect.type === 'scale' ||
+    animation.effect.type === 'rotate' ? (
       <NumberInput
         aria-label="To value"
         value={animation.effect.to}

@@ -58,6 +58,18 @@ describe('AnimationCard', () => {
     expect(screen.getByRole('textbox', { name: 'To value' })).toHaveValue('1.50')
   })
 
+  it('renders the animation-specific To value for rotate effects', () => {
+    render(
+      <AnimationCard
+        animation={makeAnimation({ effect: { kind: 'action', type: 'rotate', to: 45 } })}
+        objectName="Airplane"
+        isSelected={false}
+      />
+    )
+
+    expect(screen.getByRole('textbox', { name: 'To value' })).toHaveValue('45.00')
+  })
+
   it('renders a number input for numeric To values and reports changes on blur', async () => {
     const user = userEvent.setup()
     const onNumericToChange = vi.fn()

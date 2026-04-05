@@ -69,6 +69,7 @@ function mockStore(
       updateMasterTransform: vi.fn(),
       addMoveAnimation: vi.fn(),
       addScaleAnimation: vi.fn(),
+      addRotateAnimation: vi.fn(),
       updateAnimationNumericTo: vi.fn(),
       updateAnimationMoveDelta: vi.fn(),
       updateAnimationMovePath: vi.fn(),
@@ -205,7 +206,7 @@ describe('SlideCanvas', () => {
 
     expect(screen.getByRole('menuitem', { name: 'Move' })).not.toBeDisabled()
     expect(screen.getByRole('menuitem', { name: 'Scale' })).not.toBeDisabled()
-    expect(screen.getByRole('menuitem', { name: 'Rotate' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Rotate' })).not.toBeDisabled()
   })
 
   it('adds a move animation from the context menu', async () => {
@@ -265,6 +266,7 @@ describe('SlideCanvas', () => {
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
         addScaleAnimation,
+        addRotateAnimation: vi.fn(),
         updateAnimationNumericTo: vi.fn(),
         updateAnimationMoveDelta: vi.fn(),
         updateAnimationMovePath: vi.fn(),
@@ -282,6 +284,45 @@ describe('SlideCanvas', () => {
 
     const appearanceId = pres.slidesById[slideId].appearanceIds[0]
     expect(addScaleAnimation).toHaveBeenCalledWith(appearanceId, undefined)
+  })
+
+  it('adds a rotate animation from the context menu', async () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const addRotateAnimation = vi.fn()
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: null },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        addScaleAnimation: vi.fn(),
+        addRotateAnimation,
+        updateAnimationNumericTo: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByTestId('element-hitbox') })
+    await userEvent.hover(screen.getByRole('menuitem', { name: 'Add animation' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Rotate' }))
+
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    expect(addRotateAnimation).toHaveBeenCalledWith(appearanceId, undefined)
   })
 
   it('shows selection indicator when element is selected', () => {
@@ -1054,6 +1095,8 @@ describe('SlideCanvas', () => {
         updateSlideBackgroundFill: vi.fn(),
         updateMasterTransform: vi.fn(),
         addMoveAnimation: vi.fn(),
+        addScaleAnimation: vi.fn(),
+        addRotateAnimation: vi.fn(),
         updateAnimationNumericTo,
         updateAnimationMoveDelta: vi.fn(),
         updateAnimationMovePath: vi.fn(),
@@ -1072,6 +1115,61 @@ describe('SlideCanvas', () => {
     expect(updateAnimationNumericTo).toHaveBeenCalled()
     expect(updateAnimationNumericTo.mock.calls.at(-1)?.[0]).toBe('scale-1')
     expect(updateAnimationNumericTo.mock.calls.at(-1)?.[1]).toBeGreaterThan(1.5)
+  })
+
+  it('commits selected rotate ghost handle changes through updateAnimationNumericTo', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationNumericTo = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['rotate-1']
+    pres.appearancesById[appearanceId].animationIds = ['rotate-1']
+    pres.animationsById['rotate-1'] = {
+      id: 'rotate-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'rotate', to: 45 },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'rotate-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        addScaleAnimation: vi.fn(),
+        addRotateAnimation: vi.fn(),
+        updateAnimationNumericTo,
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath: vi.fn(),
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseDown(screen.getByTestId('selection-handle-rotation'), {
+      clientX: 250,
+      clientY: 118
+    })
+    fireEvent.mouseMove(window, { clientX: 350, clientY: 200 })
+    fireEvent.mouseUp(window, { clientX: 350, clientY: 200 })
+
+    expect(updateAnimationNumericTo).toHaveBeenCalled()
+    expect(updateAnimationNumericTo.mock.calls.at(-1)?.[0]).toBe('rotate-1')
   })
 
   it('renders downstream path segments after the selected step as dashed continuation', () => {

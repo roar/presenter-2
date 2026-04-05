@@ -15,6 +15,7 @@ interface SelectionOverlayProps {
   slideHeight: number
   isDragging: boolean
   showRotationHandle?: boolean
+  showResizeHandles?: boolean
   onHandleMouseDown: (handle: HandleType, event: React.MouseEvent) => void
 }
 
@@ -48,6 +49,7 @@ export function SelectionOverlay({
   slideHeight,
   isDragging,
   showRotationHandle = true,
+  showResizeHandles = true,
   onHandleMouseDown
 }: SelectionOverlayProps): React.JSX.Element {
   const halfWidth = scaledWidth / 2
@@ -120,6 +122,7 @@ export function SelectionOverlay({
         )}
 
         {!isDragging &&
+          showResizeHandles &&
           handles.map(({ handle, x, y }) => (
             <rect
               key={handle}

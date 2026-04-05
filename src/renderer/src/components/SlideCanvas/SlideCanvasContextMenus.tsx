@@ -24,6 +24,7 @@ interface SlideCanvasContextMenusProps {
   onCloseAnimationMenu: () => void
   onAddMoveAnimation: () => void
   onAddScaleAnimation: () => void
+  onAddRotateAnimation: () => void
   onConvertToSingle: () => void
   onConvertToMso: () => void
   onDeleteAnimation: () => void
@@ -37,6 +38,7 @@ export function SlideCanvasContextMenus({
   onCloseAnimationMenu,
   onAddMoveAnimation,
   onAddScaleAnimation,
+  onAddRotateAnimation,
   onConvertToSingle,
   onConvertToMso,
   onDeleteAnimation
@@ -52,7 +54,7 @@ export function SlideCanvasContextMenus({
               <>
                 <ContextMenuItem onClick={onAddMoveAnimation}>Move</ContextMenuItem>
                 <ContextMenuItem onClick={onAddScaleAnimation}>Scale</ContextMenuItem>
-                <ContextMenuItem disabled>Rotate</ContextMenuItem>
+                <ContextMenuItem onClick={onAddRotateAnimation}>Rotate</ContextMenuItem>
               </>
             }
           >
@@ -80,7 +82,7 @@ export function SlideCanvasContextMenus({
               <>
                 <ContextMenuItem onClick={onAddMoveAnimation}>Move</ContextMenuItem>
                 <ContextMenuItem onClick={onAddScaleAnimation}>Scale</ContextMenuItem>
-                <ContextMenuItem disabled>Rotate</ContextMenuItem>
+                <ContextMenuItem onClick={onAddRotateAnimation}>Rotate</ContextMenuItem>
               </>
             }
           >

@@ -35,13 +35,16 @@ function parseRenderedTransform(transform: string): {
   translateX: number
   translateY: number
   scale: number
+  rotation: number
 } {
   const translateMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/)
   const scaleMatch = transform.match(/scale\(([-\d.]+)\)/)
+  const rotateMatch = transform.match(/rotate\(([-\d.]+)deg\)/)
   return {
     translateX: translateMatch ? Number(translateMatch[1]) : 0,
     translateY: translateMatch ? Number(translateMatch[2]) : 0,
-    scale: scaleMatch ? Number(scaleMatch[1]) : 1
+    scale: scaleMatch ? Number(scaleMatch[1]) : 1,
+    rotation: rotateMatch ? Number(rotateMatch[1]) : 0
   }
 }
 
@@ -71,7 +74,12 @@ export function SlideCanvasObject({
 }: SlideCanvasObjectProps): React.JSX.Element {
   const { appearance, master, visible, opacity, transform } = renderedAppearance
   const { x, y, width, height } = master.transform
-  const { translateX, translateY, scale: renderedScale } = parseRenderedTransform(transform)
+  const {
+    translateX,
+    translateY,
+    scale: renderedScale,
+    rotation: renderedRotation
+  } = parseRenderedTransform(transform)
   const left = x + translateX
   const top = y + translateY
   const scaledWidth = width * renderedScale
@@ -90,7 +98,7 @@ export function SlideCanvasObject({
       )}
       {isSelected ? (
         <SelectionOverlay
-          rotation={master.transform.rotation}
+          rotation={master.transform.rotation + renderedRotation}
           cx={x + width / 2 + translateX}
           cy={y + height / 2 + translateY}
           scaledWidth={scaledWidth}

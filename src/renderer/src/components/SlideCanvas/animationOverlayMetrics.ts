@@ -16,15 +16,17 @@ export function getAnimationOverlayMetrics(
   const transform = renderedAppearance.transform
   const translateMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/)
   const scaleMatch = transform.match(/scale\(([-\d.]+)\)/)
+  const rotateMatch = transform.match(/rotate\(([-\d.]+)deg\)/)
   const translateX = translateMatch ? Number(translateMatch[1]) : 0
   const translateY = translateMatch ? Number(translateMatch[2]) : 0
   const renderedScale = scaleMatch ? Number(scaleMatch[1]) : 1
+  const renderedRotation = rotateMatch ? Number(rotateMatch[1]) : 0
 
   return {
     baseLeft: master.transform.x + translateX,
     baseTop: master.transform.y + translateY,
     ghostWidth: master.transform.width * renderedScale,
     ghostHeight: master.transform.height * renderedScale,
-    rotation: master.transform.rotation
+    rotation: master.transform.rotation + renderedRotation
   }
 }

@@ -52,6 +52,7 @@ describe('animationCanvasModel', () => {
           delta: { x: 10, y: 20 },
           cumulativeDelta: { x: 10, y: 20 },
           cumulativeScale: 1,
+          cumulativeRotation: 0,
           path: undefined
         },
         {
@@ -59,7 +60,8 @@ describe('animationCanvasModel', () => {
           type: 'scale',
           scale: 1.5,
           cumulativeDelta: { x: 10, y: 20 },
-          cumulativeScale: 1.5
+          cumulativeScale: 1.5,
+          cumulativeRotation: 0
         },
         {
           animationId: 'move-2',
@@ -67,6 +69,7 @@ describe('animationCanvasModel', () => {
           delta: { x: -5, y: 15 },
           cumulativeDelta: { x: 5, y: 35 },
           cumulativeScale: 1.5,
+          cumulativeRotation: 0,
           path: undefined
         }
       ])
@@ -89,6 +92,7 @@ describe('animationCanvasModel', () => {
           delta: { x: 10, y: 20 },
           cumulativeDelta: { x: 10, y: 20 },
           cumulativeScale: 1,
+          cumulativeRotation: 0,
           path: undefined
         },
         {
@@ -96,14 +100,55 @@ describe('animationCanvasModel', () => {
           type: 'scale',
           scale: 2,
           cumulativeDelta: { x: 10, y: 20 },
-          cumulativeScale: 2
+          cumulativeScale: 2,
+          cumulativeRotation: 0
         },
         {
           animationId: 'scale-2',
           type: 'scale',
           scale: 2,
           cumulativeDelta: { x: 10, y: 20 },
-          cumulativeScale: 4
+          cumulativeScale: 4,
+          cumulativeRotation: 0
+        }
+      ])
+    })
+
+    it('builds ordered cumulative rotation states', () => {
+      expect(
+        buildTransformChainStates(
+          [
+            { animationId: 'move-1', type: 'move', delta: { x: 10, y: 20 } },
+            { animationId: 'rotate-1', type: 'rotate', rotation: 30 },
+            { animationId: 'rotate-2', type: 'rotate', rotation: -15 }
+          ],
+          null
+        )
+      ).toEqual([
+        {
+          animationId: 'move-1',
+          type: 'move',
+          delta: { x: 10, y: 20 },
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 1,
+          cumulativeRotation: 0,
+          path: undefined
+        },
+        {
+          animationId: 'rotate-1',
+          type: 'rotate',
+          rotation: 30,
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 1,
+          cumulativeRotation: 30
+        },
+        {
+          animationId: 'rotate-2',
+          type: 'rotate',
+          rotation: -15,
+          cumulativeDelta: { x: 10, y: 20 },
+          cumulativeScale: 1,
+          cumulativeRotation: 15
         }
       ])
     })
