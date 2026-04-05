@@ -45,6 +45,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const selectedSlideId = useDocumentStore((s) => s.ui.selectedSlideId)
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const selectedAnimationId = useDocumentStore((s) => s.ui.selectedAnimationId)
+  const editingTextMasterId = useDocumentStore((s) => s.ui.editingText?.masterId ?? null)
   const selectElements = useDocumentStore((s) => s.selectElements)
   const selectAnimation = useDocumentStore((s) => s.selectAnimation)
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
@@ -608,6 +609,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
             <SlideCanvasPreviewLayer
               defaultBackground={patchedPresentation.defaultBackground}
               draggingMasterId={draggingMasterId}
+              editingTextMasterId={editingTextMasterId}
               previewFrame={previewFrame}
               renderedAppearances={renderedAppearances}
               scale={scale}

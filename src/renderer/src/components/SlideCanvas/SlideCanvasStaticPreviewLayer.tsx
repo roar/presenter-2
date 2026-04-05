@@ -14,6 +14,7 @@ type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotat
 interface SlideCanvasStaticPreviewLayerProps {
   defaultBackground?: Background
   draggingMasterId: string | null
+  editingTextMasterId: string | null
   renderedAppearances: RenderedAppearance[]
   scale: number
   selectedElementIds: string[]
@@ -62,6 +63,7 @@ function getOverlayEndpoints(
 export function SlideCanvasStaticPreviewLayer({
   defaultBackground,
   draggingMasterId,
+  editingTextMasterId,
   renderedAppearances,
   scale,
   selectedElementIds,
@@ -128,6 +130,7 @@ export function SlideCanvasStaticPreviewLayer({
           scale={scale}
           isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
           isDragging={draggingMasterId === renderedAppearance.master.id}
+          isEditingText={editingTextMasterId === renderedAppearance.master.id}
           onElementMouseDown={onElementMouseDown}
           onElementContextMenu={onElementContextMenu}
           onHandleMouseDown={onHandleMouseDown}

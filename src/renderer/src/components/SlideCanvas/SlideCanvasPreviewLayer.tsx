@@ -9,6 +9,7 @@ type HandleType = 'tl' | 'tc' | 'tr' | 'ml' | 'mr' | 'bl' | 'bc' | 'br' | 'rotat
 interface SlideCanvasPreviewLayerProps {
   defaultBackground?: Background
   draggingMasterId: string | null
+  editingTextMasterId: string | null
   previewFrame?: FrameState | null
   renderedAppearances: RenderedAppearance[]
   scale: number
@@ -38,6 +39,7 @@ interface SlideCanvasPreviewLayerProps {
 export function SlideCanvasPreviewLayer({
   defaultBackground,
   draggingMasterId,
+  editingTextMasterId,
   previewFrame = null,
   renderedAppearances,
   scale,
@@ -57,6 +59,7 @@ export function SlideCanvasPreviewLayer({
     <SlideCanvasStaticPreviewLayer
       defaultBackground={defaultBackground}
       draggingMasterId={draggingMasterId}
+      editingTextMasterId={editingTextMasterId}
       renderedAppearances={renderedAppearances}
       scale={scale}
       selectedElementIds={selectedElementIds}

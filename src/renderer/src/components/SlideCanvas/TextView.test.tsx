@@ -45,4 +45,13 @@ describe('TextView', () => {
     expect((paragraph?.parentElement as HTMLDivElement).style.fontSize).toBe('32px')
     expect((paragraph?.parentElement as HTMLDivElement).style.color).toBe('rgb(255, 255, 255)')
   })
+
+  it('marks the text view when it is in text editing mode', () => {
+    const master = makeTextMaster('Editing text')
+    const appearance = createAppearance(master.id, 'slide-1')
+
+    render(<TextView master={master} appearance={appearance} isEditing />)
+
+    expect(screen.getByTestId('text-view')).toHaveAttribute('data-text-editing', 'true')
+  })
 })

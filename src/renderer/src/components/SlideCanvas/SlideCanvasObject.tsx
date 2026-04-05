@@ -16,6 +16,7 @@ interface SlideCanvasObjectProps {
   scale: number
   isSelected: boolean
   isDragging: boolean
+  isEditingText: boolean
   onElementMouseDown: (masterId: string, event: React.MouseEvent) => void
   onElementContextMenu: (masterId: string, appearanceId: string, event: React.MouseEvent) => void
   onHandleMouseDown: (handle: HandleType, masterId: string, event: React.MouseEvent) => void
@@ -67,6 +68,7 @@ export function SlideCanvasObject({
   scale,
   isSelected,
   isDragging,
+  isEditingText,
   onElementMouseDown,
   onElementContextMenu,
   onHandleMouseDown,
@@ -91,7 +93,12 @@ export function SlideCanvasObject({
         <ShapeView master={master} appearance={appearance} rendered={renderedAppearance} />
       )}
       {master.type === 'text' && (
-        <TextView master={master} appearance={appearance} rendered={renderedAppearance} />
+        <TextView
+          master={master}
+          appearance={appearance}
+          rendered={renderedAppearance}
+          isEditing={isEditingText}
+        />
       )}
       {master.type === 'image' && (
         <ImageView master={master} appearance={appearance} rendered={renderedAppearance} />

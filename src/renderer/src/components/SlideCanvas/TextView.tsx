@@ -7,9 +7,15 @@ interface TextViewProps {
   master: MsoMaster
   appearance: Appearance
   rendered?: RenderedAppearance
+  isEditing?: boolean
 }
 
-export function TextView({ master, appearance, rendered }: TextViewProps): React.JSX.Element {
+export function TextView({
+  master,
+  appearance,
+  rendered,
+  isEditing = false
+}: TextViewProps): React.JSX.Element {
   const { transform: t } = master
   const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
   const textStyle = master.textStyle?.defaultState ?? {}
@@ -17,6 +23,8 @@ export function TextView({ master, appearance, rendered }: TextViewProps): React
 
   return (
     <div
+      data-testid="text-view"
+      data-text-editing={isEditing ? 'true' : 'false'}
       style={{
         position: 'absolute',
         left: t.x,

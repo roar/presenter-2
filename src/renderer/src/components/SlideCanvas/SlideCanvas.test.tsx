@@ -6,7 +6,8 @@ import {
   createAppearance,
   createMsoMaster,
   createPresentation,
-  createSlide
+  createSlide,
+  createTextContent
 } from '@shared/model/factories'
 import type { FrameState } from '@shared/animation/types'
 import type { Presentation } from '@shared/model/types'
@@ -53,13 +54,19 @@ function mockStore(
   selectedSlideId: string | null,
   document: Presentation | null,
   selectedElementIds: string[] = [],
-  selectedAnimationId: string | null = null
+  selectedAnimationId: string | null = null,
+  editingTextMasterId: string | null = null
 ): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
     return selector({
       document,
       previewPatch: null,
-      ui: { selectedSlideId, selectedElementIds, selectedAnimationId },
+      ui: {
+        selectedSlideId,
+        selectedElementIds,
+        selectedAnimationId,
+        editingText: { masterId: editingTextMasterId, selection: null, draftContent: null }
+      },
       moveElement: vi.fn(),
       selectElements: vi.fn(),
       selectAnimation: vi.fn(),
@@ -169,6 +176,26 @@ describe('SlideCanvas', () => {
     mockStore(slideId, pres)
     const { container } = render(<SlideCanvas />)
     expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('marks a text object as editing when the store points to its master id', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Hello text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [], null, master.id)
+    render(<SlideCanvas />)
+
+    expect(screen.getByTestId('text-view')).toHaveAttribute('data-text-editing', 'true')
   })
 
   it('shows context menu when right-clicking an element', async () => {
