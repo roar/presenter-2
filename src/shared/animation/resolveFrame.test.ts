@@ -617,5 +617,78 @@ describe('resolveFrame', () => {
       expect(frame.msoAppearances[0].appearance.id).toBe(app2.id)
       expect(frame.msoAppearances[0].transform).toContain('translate(40px, 80px)')
     })
+
+    it('keeps a shared master out of the transition when it is present on both adjacent slides', () => {
+      const pres = createPresentation()
+      const sharedMaster = shapeMaster('shared-m')
+
+      const app1 = makeAppearance(sharedMaster.id, 's1')
+      const slide1 = createSlide()
+      slide1.id = 's1'
+      app1.slideId = 's1'
+      slide1.appearanceIds = [app1.id]
+      slide1.transitionTriggerId = 'trans-1'
+      slide1.transition = { kind: 'dissolve', duration: 1, easing: 'linear' }
+
+      const app2 = makeAppearance(sharedMaster.id, 's2')
+      const slide2 = createSlide()
+      slide2.id = 's2'
+      app2.slideId = 's2'
+      slide2.appearanceIds = [app2.id]
+
+      pres.slideOrder = [slide1.id, slide2.id]
+      pres.slidesById[slide1.id] = slide1
+      pres.slidesById[slide2.id] = slide2
+      pres.mastersById[sharedMaster.id] = sharedMaster
+      pres.appearancesById[app1.id] = app1
+      pres.appearancesById[app2.id] = app2
+
+      const frame = resolveFrame(buildTimeline(pres, new Map([['trans-1', 0]])), 0.5)
+
+      expect(frame.transition).not.toBeNull()
+      expect(frame.msoAppearances).toHaveLength(1)
+      expect(frame.msoAppearances[0].appearance.id).toBe(app2.id)
+      expect(frame.behind?.appearances).toHaveLength(0)
+      expect(frame.front.appearances).toHaveLength(0)
+    })
+
+    it('lets a shared master participate in the transition when it is missing from one adjacent slide', () => {
+      const pres = createPresentation()
+      const sharedMaster = shapeMaster('shared-m')
+
+      const app1 = makeAppearance(sharedMaster.id, 's1')
+      const slide1 = createSlide()
+      slide1.id = 's1'
+      app1.slideId = 's1'
+      slide1.appearanceIds = [app1.id]
+      slide1.transitionTriggerId = 'trans-1'
+      slide1.transition = { kind: 'dissolve', duration: 1, easing: 'linear' }
+
+      const slide2 = createSlide()
+      slide2.id = 's2'
+      slide2.appearanceIds = []
+
+      const app3 = makeAppearance(sharedMaster.id, 's3')
+      const slide3 = createSlide()
+      slide3.id = 's3'
+      app3.slideId = 's3'
+      slide3.appearanceIds = [app3.id]
+
+      pres.slideOrder = [slide1.id, slide2.id, slide3.id]
+      pres.slidesById[slide1.id] = slide1
+      pres.slidesById[slide2.id] = slide2
+      pres.slidesById[slide3.id] = slide3
+      pres.mastersById[sharedMaster.id] = sharedMaster
+      pres.appearancesById[app1.id] = app1
+      pres.appearancesById[app3.id] = app3
+
+      const frame = resolveFrame(buildTimeline(pres, new Map([['trans-1', 0]])), 0.5)
+
+      expect(frame.transition).not.toBeNull()
+      expect(frame.msoAppearances).toHaveLength(0)
+      expect(frame.behind?.appearances).toHaveLength(1)
+      expect(frame.behind?.appearances[0].appearance.id).toBe(app1.id)
+      expect(frame.front.appearances).toHaveLength(0)
+    })
   })
 })

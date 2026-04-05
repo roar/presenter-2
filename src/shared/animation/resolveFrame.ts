@@ -429,11 +429,39 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
     }
   }
 
+  const getTransitionMsoMasterIds = (
+    frontSlideId: string,
+    behindSlideId: string | null
+  ): Set<string> => {
+    if (!behindSlideId) return msoMasterIds
+
+    const frontMasterIds = new Set(
+      slidesById[frontSlideId].appearanceIds.map(
+        (appearanceId) => presentation.appearancesById[appearanceId]?.masterId
+      )
+    )
+    const behindMasterIds = new Set(
+      slidesById[behindSlideId].appearanceIds.map(
+        (appearanceId) => presentation.appearancesById[appearanceId]?.masterId
+      )
+    )
+
+    return new Set(
+      [...msoMasterIds].filter(
+        (masterId) => frontMasterIds.has(masterId) && behindMasterIds.has(masterId)
+      )
+    )
+  }
+
   const frontSlideId = slideOrder[activeIndex]
+  const behindSlideId = activeIndex > 0 ? slideOrder[activeIndex - 1] : null
+  const activeMsoMasterIds = activeTransition
+    ? getTransitionMsoMasterIds(frontSlideId, behindSlideId)
+    : msoMasterIds
   const { regular: frontRegular, mso: frontMso } = renderSlide(
     frontSlideId,
     timeline,
-    msoMasterIds,
+    activeMsoMasterIds,
     time,
     masterAppearanceIds
   )
@@ -446,12 +474,11 @@ export function resolveFrame(timeline: PresentationTimeline, time: number): Fram
   }
 
   let behind: RenderedSlide | null = null
-  if (activeTransition && activeIndex > 0) {
-    const behindSlideId = slideOrder[activeIndex - 1]
+  if (activeTransition && behindSlideId) {
     const { regular: behindRegular } = renderSlide(
       behindSlideId,
       timeline,
-      msoMasterIds,
+      activeMsoMasterIds,
       time,
       masterAppearanceIds
     )
