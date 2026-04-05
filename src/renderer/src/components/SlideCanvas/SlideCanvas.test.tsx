@@ -2003,7 +2003,7 @@ describe('SlideCanvas', () => {
       keys: '[MouseRight]',
       target: screen.getAllByTestId('animation-path-point')[1]
     })
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Make Bezier Point' }))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Make Free Bezier Point' }))
 
     expect(updateAnimationMovePath).toHaveBeenCalled()
     const pathArg = updateAnimationMovePath.mock.calls.at(-1)?.[1]

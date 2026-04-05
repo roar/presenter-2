@@ -57,7 +57,7 @@ describe('EasingBezierEditor', () => {
     expect(nextEasing.points[1].y).toBeGreaterThan(0.45)
   })
 
-  it('opens a point context menu and converts the point to bezier', async () => {
+  it('opens a point context menu and converts the point to symmetric', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
 
@@ -65,7 +65,7 @@ describe('EasingBezierEditor', () => {
 
     const points = screen.getAllByTestId('animation-path-point')
     await user.pointer([{ target: points[1], keys: '[MouseRight]' }])
-    await user.click(screen.getByRole('menuitem', { name: 'Make Bezier Point' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Make Symmetric Point' }))
 
     expect(onChange).toHaveBeenCalled()
     const nextEasing = onChange.mock.calls.at(-1)?.[0] as Extract<Easing, { kind: 'curve' }>

@@ -42,7 +42,7 @@ export function EasingBezierPointContextMenu({
         disabled={contextMenu.pointKind === 'balanced'}
         onClick={onConvertToBalanced}
       >
-        Make Bezier Point
+        Make Symmetric Point
       </ContextMenuItem>
       <ContextMenuItem disabled={contextMenu.isEndpoint} onClick={onDeletePoint}>
         Delete Point

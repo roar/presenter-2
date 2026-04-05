@@ -38,7 +38,7 @@ export function AnimationPathContextMenu({
         Make Smooth Point
       </ContextMenuItem>
       <ContextMenuItem disabled={contextMenu.pointType === 'bezier'} onClick={onConvertToBezier}>
-        Make Bezier Point
+        Make Free Bezier Point
       </ContextMenuItem>
       <ContextMenuItem disabled={contextMenu.isEndpoint} onClick={onDeletePoint}>
         Delete Point
