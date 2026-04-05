@@ -464,6 +464,13 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
     selectedAnimationGroup.selectedAnimation.effect.type === 'move'
       ? selectedAnimationGroup.selectedAnimation
       : null
+  const moveAnnotationSelectionId =
+    selectedAnimationGroup?.slideId === annotationSlideId
+      ? (selectedGroupMoveAnimation?.id ??
+        selectedAnimationGroup.moveSteps[selectedAnimationGroup.moveSteps.length - 1]
+          ?.animationId ??
+        null)
+      : null
 
   const selectedGroupOverlayAppearance =
     selectedAnimationGroup != null
@@ -561,8 +568,8 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const transformChainStates = buildTransformChainStates(transformChainSteps, transformPreview)
   const moveCanvasSelection =
     selectedAnimationGroup?.slideId === annotationSlideId
-      ? buildMoveCanvasSelection(moveChainSteps, selectedAnimationId, ghostPreview)
-      : { historySegments: [], activeSegment: null, activePoints: [] }
+      ? buildMoveCanvasSelection(moveChainSteps, moveAnnotationSelectionId, ghostPreview)
+      : { historySegments: [], activeSegment: null, downstreamSegments: [], activePoints: [] }
   const selectedGroupOverlayMetrics =
     selectedGroupOverlayAppearance && selectedGroupMaster
       ? getAnimationOverlayMetrics(selectedGroupMaster, selectedGroupOverlayAppearance)
@@ -618,13 +625,16 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
             selectedGroupMaster ? (
               <>
                 {selectedGroupOverlayMetrics ? (
-                  selectedGroupMoveAnimation ? (
+                  moveCanvasSelection.activeSegment != null ||
+                  moveCanvasSelection.historySegments.length > 0 ||
+                  moveCanvasSelection.downstreamSegments.length > 0 ? (
                     <AnimationPathOverlay
                       baseLeft={selectedGroupOverlayMetrics.baseLeft}
                       baseTop={selectedGroupOverlayMetrics.baseTop}
                       ghostWidth={selectedGroupOverlayMetrics.ghostWidth}
                       ghostHeight={selectedGroupOverlayMetrics.ghostHeight}
                       moveCanvasSelection={moveCanvasSelection}
+                      showEditorControls={selectedGroupMoveAnimation != null}
                       onSelect={handleAnimationSelect}
                       onContextMenu={handleAnimationContextMenuWithAppearance}
                       onPointMouseDown={handlePathPointMouseDown}

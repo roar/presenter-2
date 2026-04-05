@@ -209,6 +209,61 @@ describe('SlideCanvas', () => {
     expect(screen.getByRole('menuitem', { name: 'Rotate' })).not.toBeDisabled()
   })
 
+  it('keeps move annotations visible when a scale step is selected', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const moveAnimationId = 'move-1'
+    const scaleAnimationId = 'scale-1'
+
+    pres.slidesById[slideId].animationOrder = [moveAnimationId, scaleAnimationId]
+    pres.appearancesById[appearanceId].animationIds = [moveAnimationId, scaleAnimationId]
+    pres.animationsById[moveAnimationId] = {
+      id: moveAnimationId,
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 120, y: 40 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+            {
+              id: 'curve',
+              position: { x: 60, y: 20 },
+              type: 'smooth',
+              inHandle: { x: 35, y: 15 },
+              outHandle: { x: 85, y: 25 }
+            },
+            { id: 'end', position: { x: 120, y: 40 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById[scaleAnimationId] = {
+      id: scaleAnimationId,
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'scale', to: 1.5 },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], scaleAnimationId)
+
+    render(<SlideCanvas />)
+
+    expect(screen.getByTestId('animation-path-selected')).toBeInTheDocument()
+    expect(screen.queryByTestId('animation-path-point')).toBeNull()
+  })
+
   it('adds a move animation from the context menu', async () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]

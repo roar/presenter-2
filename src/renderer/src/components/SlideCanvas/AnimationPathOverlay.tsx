@@ -14,6 +14,7 @@ interface AnimationPathOverlayProps {
   ghostWidth: number
   ghostHeight: number
   moveCanvasSelection: MoveCanvasSelectionState
+  showEditorControls: boolean
   onSelect(animationId: string, event: React.MouseEvent): void
   onContextMenu(animationId: string, event: React.MouseEvent): void
   onPointMouseDown(pointId: string, event: React.MouseEvent): void
@@ -142,6 +143,7 @@ export function AnimationPathOverlay({
   ghostWidth,
   ghostHeight,
   moveCanvasSelection,
+  showEditorControls,
   onSelect,
   onContextMenu,
   onPointMouseDown,
@@ -271,37 +273,52 @@ export function AnimationPathOverlay({
             onContextMenu(moveCanvasSelection.activeSegment.animationId, event)
           }
         >
-          <BezierEditorOverlay
-            points={moveCanvasSelection.activePoints.map((point) => ({
-              id: point.id,
-              position: toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.position),
-              inHandle: point.inHandle
-                ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle)
-                : undefined,
-              outHandle: point.outHandle
-                ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle)
-                : undefined,
-              isEndpoint: point.isEndpoint
-            }))}
-            onPointMouseDown={onPointMouseDown}
-            onPointContextMenu={(pointId, event) => {
-              const point = moveCanvasSelection.activePoints.find(
-                (candidate) => candidate.id === pointId
-              )
-              if (point) onPointContextMenu(point, event)
-            }}
-            onHandleMouseDown={onHandleMouseDown}
-            onInsertPointMouseDown={(segmentIndex, position, event) =>
-              onInsertPointMouseDown(
-                segmentIndex,
-                {
-                  x: position.x - baseLeft - ghostWidth / 2,
-                  y: position.y - baseTop - ghostHeight / 2
-                },
-                event
-              )
-            }
+          <path
+            data-testid="animation-path-selected"
+            aria-label="Selected move animation path"
+            className={`${styles.animationPath} ${styles.animationPathSelected}`}
+            d={activePathData}
+            fill="none"
           />
+          {showEditorControls ? (
+            <BezierEditorOverlay
+              points={moveCanvasSelection.activePoints.map((point) => ({
+                id: point.id,
+                position: toAbsolutePoint(
+                  baseLeft,
+                  baseTop,
+                  ghostWidth,
+                  ghostHeight,
+                  point.position
+                ),
+                inHandle: point.inHandle
+                  ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.inHandle)
+                  : undefined,
+                outHandle: point.outHandle
+                  ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle)
+                  : undefined,
+                isEndpoint: point.isEndpoint
+              }))}
+              onPointMouseDown={onPointMouseDown}
+              onPointContextMenu={(pointId, event) => {
+                const point = moveCanvasSelection.activePoints.find(
+                  (candidate) => candidate.id === pointId
+                )
+                if (point) onPointContextMenu(point, event)
+              }}
+              onHandleMouseDown={onHandleMouseDown}
+              onInsertPointMouseDown={(segmentIndex, position, event) =>
+                onInsertPointMouseDown(
+                  segmentIndex,
+                  {
+                    x: position.x - baseLeft - ghostWidth / 2,
+                    y: position.y - baseTop - ghostHeight / 2
+                  },
+                  event
+                )
+              }
+            />
+          ) : null}
         </g>
       ) : null}
     </svg>
