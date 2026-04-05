@@ -26,7 +26,7 @@
 
 .animationPath {
   stroke: color-mix(in srgb, white 40%, var(--accent));
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-dasharray: 8 6;
   cursor: pointer;
   pointer-events: stroke;

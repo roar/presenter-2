@@ -104,6 +104,10 @@ function addPositions(a: Position, b: Position): Position {
   return { x: a.x + b.x, y: a.y + b.y }
 }
 
+function subtractPositions(a: Position, b: Position): Position {
+  return { x: a.x - b.x, y: a.y - b.y }
+}
+
 export function buildTransformChainStates(
   steps: TransformChainStepInput[],
   preview: TransformChainPreview | null
@@ -156,34 +160,26 @@ export function buildTransformChainStates(
   )
   if (previewIndex < 0) return baseStates
 
-  if (preview.type === 'move') {
-    return baseStates.map((step, index) => {
-      if (index !== previewIndex || step.type !== 'move') return step
+  let movePreviewCompensation: Position | null =
+    preview.type === 'move'
+      ? subtractPositions(preview.delta, baseStates[previewIndex]?.delta ?? { x: 0, y: 0 })
+      : null
 
-      return {
-        animationId: step.animationId,
-        type: 'move',
-        delta: preview.delta,
-        cumulativeDelta: {
-          x: step.cumulativeDelta.x + (preview.delta.x - (step.delta?.x ?? 0)),
-          y: step.cumulativeDelta.y + (preview.delta.y - (step.delta?.y ?? 0))
-        },
-        cumulativeScale: step.cumulativeScale,
-        cumulativeRotation: step.cumulativeRotation,
-        path: step.path
-      }
-    })
-  }
-
-  return steps.reduce<TransformChainStepState[]>((states, step, index) => {
+  const previewedStates = steps.reduce<TransformChainStepState[]>((states, step, index) => {
     const previous = states[states.length - 1]
     const previousDelta = previous?.cumulativeDelta ?? { x: 0, y: 0 }
     const previousScale = previous?.cumulativeScale ?? 1
     const previousRotation = previous?.cumulativeRotation ?? 0
     const stepPreview = index === previewIndex ? preview : null
+    const compensation =
+      preview.type === 'move' && index > previewIndex ? movePreviewCompensation : null
 
     if (step.type === 'move') {
-      const delta = stepPreview?.type === 'move' ? stepPreview.delta : step.delta
+      let delta = stepPreview?.type === 'move' ? stepPreview.delta : step.delta
+      if (compensation != null) {
+        delta = subtractPositions(delta, compensation)
+        movePreviewCompensation = null
+      }
       states.push({
         animationId: step.animationId,
         type: 'move',
@@ -220,6 +216,8 @@ export function buildTransformChainStates(
 
     return states
   }, [])
+
+  return previewedStates
 }
 
 export function buildMoveChainStates(

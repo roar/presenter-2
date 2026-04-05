@@ -152,6 +152,55 @@ describe('animationCanvasModel', () => {
         }
       ])
     })
+
+    it('moves downstream scale and rotate states with a move preview until the next move step', () => {
+      expect(
+        buildTransformChainStates(
+          [
+            { animationId: 'move-1', type: 'move', delta: { x: 10, y: 20 } },
+            { animationId: 'scale-1', type: 'scale', scale: 1.5 },
+            { animationId: 'rotate-1', type: 'rotate', rotation: 30 },
+            { animationId: 'move-2', type: 'move', delta: { x: -5, y: 15 } }
+          ],
+          { animationId: 'move-1', type: 'move', delta: { x: 30, y: 50 } }
+        )
+      ).toEqual([
+        {
+          animationId: 'move-1',
+          type: 'move',
+          delta: { x: 30, y: 50 },
+          cumulativeDelta: { x: 30, y: 50 },
+          cumulativeScale: 1,
+          cumulativeRotation: 0,
+          path: undefined
+        },
+        {
+          animationId: 'scale-1',
+          type: 'scale',
+          scale: 1.5,
+          cumulativeDelta: { x: 30, y: 50 },
+          cumulativeScale: 1.5,
+          cumulativeRotation: 0
+        },
+        {
+          animationId: 'rotate-1',
+          type: 'rotate',
+          rotation: 30,
+          cumulativeDelta: { x: 30, y: 50 },
+          cumulativeScale: 1.5,
+          cumulativeRotation: 30
+        },
+        {
+          animationId: 'move-2',
+          type: 'move',
+          delta: { x: -25, y: -15 },
+          cumulativeDelta: { x: 5, y: 35 },
+          cumulativeScale: 1.5,
+          cumulativeRotation: 30,
+          path: undefined
+        }
+      ])
+    })
   })
 
   describe('buildScaleChainStates', () => {
