@@ -215,6 +215,14 @@ export interface ShapeGeometry {
   // Used as the SVG viewBox so the path scales to fit transform.width × transform.height.
   baseWidth?: number
   baseHeight?: number
+  textRegion?: ShapeTextRegion
+}
+
+export interface ShapeTextRegion {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 // ─── Text system ─────────────────────────────────────────────────────────────

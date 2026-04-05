@@ -69,7 +69,7 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
   }
 
   const shapeTextLayout =
-    master.content.type === 'text' && (geometry?.type === 'rect' || geometry?.type === 'ellipse')
+    master.content.type === 'text'
       ? buildShapeTextRenderLayout({
           text: extractPlainText(master.content.value),
           geometry,
@@ -190,7 +190,7 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
             lineHeight: `${lineHeight}px`
           }}
         >
-          {shapeTextLayout ? (
+          {shapeTextLayout && shapeTextLayout.lines.length > 0 ? (
             <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
           ) : (
             <TextContentRenderer

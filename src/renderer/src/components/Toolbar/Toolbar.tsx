@@ -58,7 +58,8 @@ export function Toolbar(): React.JSX.Element {
       type: 'path',
       pathData: entry.template.path.d,
       baseWidth: entry.template.path.baseWidth,
-      baseHeight: entry.template.path.baseHeight
+      baseHeight: entry.template.path.baseHeight,
+      textRegion: entry.template.path.textRegion
     }
     insertElement(selectedSlideId, master)
   }

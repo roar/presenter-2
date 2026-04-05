@@ -98,6 +98,30 @@ describe('Toolbar', () => {
     )
   })
 
+  it('passes shape text regions from the library to inserted masters', async () => {
+    const user = userEvent.setup()
+    render(<Toolbar />)
+
+    await user.click(screen.getByRole('button', { name: 'Insert Shape' }))
+    await user.click(screen.getByRole('button', { name: 'Balloon' }))
+
+    expect(insertElementMock).toHaveBeenCalledWith(
+      'slide-1',
+      expect.objectContaining({
+        type: 'shape',
+        geometry: expect.objectContaining({
+          type: 'path',
+          textRegion: expect.objectContaining({
+            x: expect.any(Number),
+            y: expect.any(Number),
+            width: expect.any(Number),
+            height: expect.any(Number)
+          })
+        })
+      })
+    )
+  })
+
   it('inserts a text master with default content when Insert Text is clicked', async () => {
     const user = userEvent.setup()
     render(<Toolbar />)

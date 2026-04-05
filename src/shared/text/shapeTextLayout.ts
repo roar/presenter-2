@@ -45,5 +45,27 @@ export function resolveShapeTextLineSpan(
     }
   }
 
+  if (geometry.type === 'path' && geometry.textRegion) {
+    const baseWidth = geometry.baseWidth ?? frameWidth
+    const baseHeight = geometry.baseHeight ?? frameHeight
+    if (baseWidth <= 0 || baseHeight <= 0) {
+      return null
+    }
+
+    const scaleX = frameWidth / baseWidth
+    const scaleY = frameHeight / baseHeight
+    const regionTop = geometry.textRegion.y * scaleY
+    const regionBottom = regionTop + geometry.textRegion.height * scaleY
+
+    if (lineCenterY < regionTop || lineCenterY > regionBottom) {
+      return null
+    }
+
+    return {
+      x: geometry.textRegion.x * scaleX,
+      width: geometry.textRegion.width * scaleX
+    }
+  }
+
   return null
 }

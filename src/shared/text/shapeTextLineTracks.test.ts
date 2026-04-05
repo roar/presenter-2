@@ -57,6 +57,30 @@ describe('shapeTextLineTracks', () => {
     expect(tracks).toEqual([])
   })
 
+  it('builds tracks inside an explicit text region for path shapes', () => {
+    const geometry: ShapeGeometry = {
+      type: 'path',
+      pathData: 'M 0 0 L 100 0 L 100 100 Z',
+      baseWidth: 100,
+      baseHeight: 100,
+      textRegion: { x: 20, y: 10, width: 60, height: 50 }
+    }
+
+    const tracks = buildShapeTextLineTracks({
+      geometry,
+      frameWidth: 200,
+      frameHeight: 100,
+      fontSize: 20,
+      lineHeight: 20
+    })
+
+    expect(tracks).toEqual([
+      { x: 40, y: 0, width: 120, height: 20 },
+      { x: 40, y: 20, width: 120, height: 20 },
+      { x: 40, y: 40, width: 120, height: 20 }
+    ])
+  })
+
   it('returns no tracks for non-positive line heights', () => {
     const geometry: ShapeGeometry = { type: 'rect' }
 

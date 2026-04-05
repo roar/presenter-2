@@ -56,5 +56,18 @@ describe('shapeTextLayout', () => {
 
       expect(resolveShapeTextLineSpan(geometry, 200, 100, 50)).toBeNull()
     })
+
+    it('returns a scaled text region span for path shapes with an explicit text region', () => {
+      const geometry: ShapeGeometry = {
+        type: 'path',
+        pathData: 'M 0 0 L 100 0 L 100 100 Z',
+        baseWidth: 100,
+        baseHeight: 100,
+        textRegion: { x: 20, y: 10, width: 60, height: 50 }
+      }
+
+      expect(resolveShapeTextLineSpan(geometry, 200, 100, 20)).toEqual({ x: 40, width: 120 })
+      expect(resolveShapeTextLineSpan(geometry, 200, 100, 70)).toBeNull()
+    })
   })
 })

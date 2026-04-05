@@ -29,6 +29,12 @@ export interface ShapeLibraryEntry {
       baseWidth: number
       baseHeight: number
       d: string
+      textRegion?: {
+        x: number
+        y: number
+        width: number
+        height: number
+      }
     }
   }
 }

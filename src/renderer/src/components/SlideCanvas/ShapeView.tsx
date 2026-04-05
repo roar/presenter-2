@@ -105,9 +105,7 @@ export function ShapeView({
   }
 
   const shapeTextLayout =
-    !isEditing &&
-    master.content.type === 'text' &&
-    (geometry?.type === 'rect' || geometry?.type === 'ellipse')
+    !isEditing && master.content.type === 'text'
       ? buildShapeTextRenderLayout({
           text: extractPlainText(master.content.value),
           geometry,
@@ -118,16 +116,15 @@ export function ShapeView({
           measureTextWidth
         })
       : null
-  const editingTrackGuides =
-    isEditing && (geometry?.type === 'rect' || geometry?.type === 'ellipse')
-      ? buildShapeTextLineTracks({
-          geometry,
-          frameWidth: t.width,
-          frameHeight: t.height,
-          fontSize,
-          lineHeight
-        })
-      : []
+  const editingTrackGuides = isEditing
+    ? buildShapeTextLineTracks({
+        geometry,
+        frameWidth: t.width,
+        frameHeight: t.height,
+        fontSize,
+        lineHeight
+      })
+    : []
 
   return (
     <>
@@ -227,7 +224,7 @@ export function ShapeView({
             lineHeight: `${lineHeight}px`
           }}
         >
-          {shapeTextLayout ? (
+          {shapeTextLayout && shapeTextLayout.lines.length > 0 ? (
             <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
           ) : (
             <TextContentRenderer

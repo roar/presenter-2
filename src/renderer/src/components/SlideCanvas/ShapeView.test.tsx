@@ -222,6 +222,29 @@ describe('ShapeView', () => {
     expect(screen.getByText('Path shape text')).toBeInTheDocument()
   })
 
+  it('renders path shape text inside an explicit text region in normal mode', () => {
+    const master = makeMaster()
+    master.geometry = {
+      type: 'path',
+      pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z',
+      baseWidth: 100,
+      baseHeight: 100,
+      textRegion: { x: 20, y: 10, width: 60, height: 50 }
+    }
+    master.transform.width = 200
+    master.transform.height = 100
+    master.content = { type: 'text', value: createTextContent('HELLO WORLD AGAIN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
+
+    expect(screen.getByText('HELLO WORLD')).toHaveStyle({ left: '40px', top: '0px' })
+    expect(screen.getByText('AGAIN')).toHaveStyle({ left: '40px', top: '24px' })
+  })
+
   it('renders a textbox overlay in edit mode for shape text', async () => {
     const user = userEvent.setup()
     const master = makeMaster()
@@ -298,5 +321,29 @@ describe('ShapeView', () => {
     const guideLines = Array.from(container.querySelectorAll('div[aria-hidden="true"]'))
     expect(guideLines.length).toBeGreaterThan(0)
     expect((guideLines[0] as HTMLDivElement).style.left).not.toBe('0px')
+  })
+
+  it('renders geometry-aware editing guides for path text regions in edit mode', () => {
+    const master = makeMaster()
+    master.geometry = {
+      type: 'path',
+      pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z',
+      baseWidth: 100,
+      baseHeight: 100,
+      textRegion: { x: 20, y: 10, width: 60, height: 50 }
+    }
+    master.transform.width = 200
+    master.transform.height = 100
+    master.content = { type: 'text', value: createTextContent('Shape text') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} isEditing />)
+
+    const textboxes = screen.getAllByRole('textbox', { name: 'Edit text line' })
+    expect(textboxes).toHaveLength(3)
+    expect(textboxes[0]).toHaveStyle({ left: '40px', width: '120px' })
   })
 })

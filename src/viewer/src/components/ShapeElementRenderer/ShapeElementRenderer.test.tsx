@@ -229,4 +229,27 @@ describe('ShapeElementRenderer', () => {
 
     expect(getByText('Viewer path shape text')).toBeInTheDocument()
   })
+
+  it('renders path shape text inside an explicit text region', () => {
+    const master = makeMaster()
+    master.geometry = {
+      type: 'path',
+      pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z',
+      baseWidth: 100,
+      baseHeight: 100,
+      textRegion: { x: 20, y: 10, width: 60, height: 50 }
+    }
+    master.transform.width = 200
+    master.transform.height = 100
+    master.content = { type: 'text', value: createTextContent('HELLO WORLD AGAIN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+
+    expect(getByText('HELLO WORLD')).toHaveStyle({ left: '40px', top: '0px' })
+    expect(getByText('AGAIN')).toHaveStyle({ left: '40px', top: '24px' })
+  })
 })
