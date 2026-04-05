@@ -34,7 +34,11 @@ interface UseAnimationPathInteractionResult {
     handle: 'in' | 'out',
     event: React.MouseEvent
   ) => void
-  handleInsertPointMouseDown: (segmentIndex: number, event: React.MouseEvent) => void
+  handleInsertPointMouseDown: (
+    segmentIndex: number,
+    position: { x: number; y: number },
+    event: React.MouseEvent
+  ) => void
   convertPointToSharp: (pointId: string) => void
   convertPointToSmooth: (pointId: string) => void
   convertPointToBezier: (pointId: string) => void
@@ -199,17 +203,23 @@ export function useAnimationPathInteraction({
   )
 
   const handleInsertPointMouseDown = useCallback(
-    (segmentIndex: number, event: React.MouseEvent) => {
+    (segmentIndex: number, position: { x: number; y: number }, event: React.MouseEvent) => {
       if (isSpaceDownRef.current) return
       const group = selectedAnimationGroupRef.current
       if (!group || group.selectedAnimation.effect.type !== 'move') return
       const editablePath = buildEditablePath(group)
       if (!editablePath) return
+      const startDelta = group.moveCanvasSelection.activeSegment?.startDelta ?? { x: 0, y: 0 }
+      const localInsertPosition = {
+        x: position.x - startDelta.x,
+        y: position.y - startDelta.y
+      }
 
       const nextPath = insertBezierPointAtSegment(
         editablePath,
         segmentIndex,
-        `point-${Math.random().toString(36).slice(2, 10)}`
+        `point-${Math.random().toString(36).slice(2, 10)}`,
+        localInsertPosition
       )
       const insertedPoint = nextPath.points[segmentIndex + 1]
       if (!insertedPoint) return

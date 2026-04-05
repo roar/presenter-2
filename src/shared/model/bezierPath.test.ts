@@ -9,7 +9,7 @@ import {
 } from './bezierPath'
 
 describe('bezierPath', () => {
-  it('inserts a bezier point into a segment', () => {
+  it('inserts a smooth point into a segment', () => {
     const path = insertBezierPointAtSegment(
       {
         points: [
@@ -25,9 +25,29 @@ describe('bezierPath', () => {
     expect(path.points[1]).toEqual({
       id: 'mid',
       position: { x: 20, y: 40 },
-      type: 'bezier',
+      type: 'smooth',
       inHandle: { x: 10, y: 20 },
       outHandle: { x: 30, y: 60 }
+    })
+  })
+
+  it('inserts at the provided segment position instead of the linear midpoint', () => {
+    const path = insertBezierPointAtSegment(
+      {
+        points: [
+          { id: 'start', position: { x: 0, y: 0 }, type: 'sharp' },
+          { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+        ]
+      },
+      0,
+      'mid',
+      { x: 50, y: 40 }
+    )
+
+    expect(path.points[1]).toMatchObject({
+      id: 'mid',
+      position: { x: 50, y: 40 },
+      type: 'smooth'
     })
   })
 

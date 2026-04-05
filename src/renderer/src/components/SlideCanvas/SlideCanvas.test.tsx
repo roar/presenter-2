@@ -1401,7 +1401,7 @@ describe('SlideCanvas', () => {
     })
   })
 
-  it('shows the insert point on segment hover and inserts a draggable bezier point on mouse down', async () => {
+  it('shows the insert point on segment hover and inserts a draggable smooth point on mouse down', async () => {
     const pres = makePresentation()
     const slideId = pres.slideOrder[0]
     const appearanceId = pres.slidesById[slideId].appearanceIds[0]
@@ -1459,10 +1459,180 @@ describe('SlideCanvas', () => {
     expect(updateAnimationMovePath).toHaveBeenCalledTimes(1)
     const pathArg = updateAnimationMovePath.mock.calls[0][1]
     expect(pathArg.points).toHaveLength(3)
-    expect(pathArg.points[1].type).toBe('bezier')
+    expect(pathArg.points[1].type).toBe('smooth')
     expect(pathArg.points[1].position).toEqual({ x: 40, y: 50 })
     expect(pathArg.points[1].inHandle).toBeTruthy()
     expect(pathArg.points[1].outHandle).toBeTruthy()
+  })
+
+  it('inserts a new point at the curved insert indicator position', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp', outHandle: { x: 80, y: 0 } },
+            { id: 'end', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-1' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseEnter(screen.getByTestId('animation-path-insert-hit-area'))
+    const insertPoint = screen.getByTestId('animation-path-insert-point')
+    fireEvent.mouseDown(insertPoint, { clientX: 300, clientY: 240 })
+    fireEvent.mouseUp(window, { clientX: 300, clientY: 240 })
+
+    expect(updateAnimationMovePath).toHaveBeenCalledTimes(1)
+    const pathArg = updateAnimationMovePath.mock.calls[0][1]
+    expect(pathArg.points[1].position.x).toBeCloseTo(47.54, 1)
+    expect(pathArg.points[1].position.y).toBeCloseTo(24.52, 1)
+  })
+
+  it('inserts a new point at the indicator position for a later step in the move chain', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    const updateAnimationMovePath = vi.fn()
+    pres.slidesById[slideId].animationOrder = ['move-1', 'move-2']
+    pres.appearancesById[appearanceId].animationIds = ['move-1', 'move-2']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId }
+    }
+    pres.animationsById['move-2'] = {
+      id: 'move-2',
+      trigger: 'after-previous',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 20, y: 40 },
+        path: {
+          points: [
+            { id: 'start', position: { x: 0, y: 0 }, type: 'sharp', outHandle: { x: 40, y: 0 } },
+            { id: 'end', position: { x: 20, y: 40 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
+      return selector({
+        document: pres,
+        previewPatch: null,
+        ui: { selectedSlideId: slideId, selectedElementIds: [], selectedAnimationId: 'move-2' },
+        moveElement: vi.fn(),
+        selectElements: vi.fn(),
+        selectAnimation: vi.fn(),
+        setPreviewPatch: vi.fn(),
+        updateObjectFill: vi.fn(),
+        updateSlideBackgroundFill: vi.fn(),
+        updateMasterTransform: vi.fn(),
+        addMoveAnimation: vi.fn(),
+        updateAnimationMoveDelta: vi.fn(),
+        updateAnimationMovePath,
+        removeAnimation: vi.fn(),
+        convertToMultiSlideObject: vi.fn(),
+        convertToSingleAppearance: vi.fn()
+      })
+    })
+
+    render(<SlideCanvas />)
+
+    fireEvent.mouseEnter(screen.getByTestId('animation-path-insert-hit-area'))
+    const insertPoint = screen.getByTestId('animation-path-insert-point')
+    fireEvent.mouseDown(insertPoint, { clientX: 300, clientY: 240 })
+    fireEvent.mouseUp(window, { clientX: 300, clientY: 240 })
+
+    expect(updateAnimationMovePath).toHaveBeenCalledTimes(1)
+    const pathArg = updateAnimationMovePath.mock.calls[0][1]
+    expect(pathArg.points[1].position.x).toBeCloseTo(23.77, 1)
+    expect(pathArg.points[1].position.y).toBeCloseTo(12.26, 1)
+  })
+
+  it('renders the insert point above ghosts so overlap still targets path insertion', () => {
+    const pres = makePresentation()
+    const slideId = pres.slideOrder[0]
+    const appearanceId = pres.slidesById[slideId].appearanceIds[0]
+    pres.slidesById[slideId].animationOrder = ['move-1']
+    pres.appearancesById[appearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: {
+        kind: 'action',
+        type: 'move',
+        delta: { x: 40, y: 80 },
+        path: {
+          points: [
+            { id: 'p0', position: { x: 0, y: 0 }, type: 'sharp' },
+            { id: 'p1', position: { x: 40, y: 80 }, type: 'sharp' }
+          ]
+        }
+      },
+      target: { kind: 'appearance', appearanceId }
+    }
+
+    mockStore(slideId, pres, [], 'move-1')
+    render(<SlideCanvas />)
+
+    fireEvent.mouseEnter(screen.getByTestId('animation-path-insert-hit-area'))
+
+    expect(screen.getByLabelText('Move animation path overlay')).toHaveStyle({ zIndex: '6' })
+    expect(screen.getByTestId('animation-ghost')).toHaveStyle({ zIndex: '5' })
   })
 
   it('previews and commits a bezier handle drag through move path updates', () => {

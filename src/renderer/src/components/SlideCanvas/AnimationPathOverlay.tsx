@@ -18,7 +18,7 @@ interface AnimationPathOverlayProps {
   onPointMouseDown(pointId: string, event: React.MouseEvent): void
   onPointContextMenu(point: MoveCanvasPointState, event: React.MouseEvent): void
   onHandleMouseDown(pointId: string, handle: 'in' | 'out', event: React.MouseEvent): void
-  onInsertPointMouseDown(segmentIndex: number, event: React.MouseEvent): void
+  onInsertPointMouseDown(segmentIndex: number, position: Position, event: React.MouseEvent): void
 }
 
 function toAbsolutePoint(
@@ -144,6 +144,54 @@ function interpolateCubic(a: number, b: number, c: number, d: number, t: number)
   return mt * mt * mt * a + 3 * mt * mt * t * b + 3 * mt * t * t * c + t * t * t * d
 }
 
+function getCubicPoint(
+  start: Position,
+  control1: Position,
+  control2: Position,
+  end: Position,
+  t: number
+): Position {
+  return {
+    x: interpolateCubic(start.x, control1.x, control2.x, end.x, t),
+    y: interpolateCubic(start.y, control1.y, control2.y, end.y, t)
+  }
+}
+
+function getArcLengthMidpoint(
+  start: Position,
+  control1: Position,
+  control2: Position,
+  end: Position
+): Position {
+  const samples = 40
+  let previousPoint = getCubicPoint(start, control1, control2, end, 0)
+  const sampledPoints = [{ point: previousPoint, length: 0 }]
+  let totalLength = 0
+
+  for (let index = 1; index <= samples; index += 1) {
+    const point = getCubicPoint(start, control1, control2, end, index / samples)
+    totalLength += Math.hypot(point.x - previousPoint.x, point.y - previousPoint.y)
+    sampledPoints.push({ point, length: totalLength })
+    previousPoint = point
+  }
+
+  const halfLength = totalLength / 2
+  for (let index = 1; index < sampledPoints.length; index += 1) {
+    const previousSample = sampledPoints[index - 1]
+    const currentSample = sampledPoints[index]
+    if (currentSample.length < halfLength) continue
+
+    const segmentLength = currentSample.length - previousSample.length || 1
+    const ratio = (halfLength - previousSample.length) / segmentLength
+    return {
+      x: previousSample.point.x + (currentSample.point.x - previousSample.point.x) * ratio,
+      y: previousSample.point.y + (currentSample.point.y - previousSample.point.y) * ratio
+    }
+  }
+
+  return sampledPoints[sampledPoints.length - 1].point
+}
+
 function getSegmentInsertPoint(
   previous: Position & { outHandle?: Position },
   current: Position & { inHandle?: Position }
@@ -151,26 +199,10 @@ function getSegmentInsertPoint(
   if (previous.outHandle || current.inHandle) {
     const control1 = previous.outHandle ?? previous
     const control2 = current.inHandle ?? current
-    return {
-      x: interpolateCubic(previous.x, control1.x, control2.x, current.x, 0.5),
-      y: interpolateCubic(previous.y, control1.y, control2.y, current.y, 0.5)
-    }
+    return getArcLengthMidpoint(previous, control1, control2, current)
   }
 
   return getSegmentMidpoint(previous, current)
-}
-
-function buildSegmentPathData(
-  previous: Position & { outHandle?: Position },
-  current: Position & { inHandle?: Position }
-): string {
-  if (previous.outHandle || current.inHandle) {
-    const control1 = previous.outHandle ?? previous
-    const control2 = current.inHandle ?? current
-    return `M ${previous.x} ${previous.y} C ${control1.x} ${control1.y} ${control2.x} ${control2.y} ${current.x} ${current.y}`
-  }
-
-  return `M ${previous.x} ${previous.y} L ${current.x} ${current.y}`
 }
 
 export function AnimationPathOverlay({
@@ -209,7 +241,7 @@ export function AnimationPathOverlay({
     <svg
       aria-label="Move animation path overlay"
       className={styles.animationOverlay}
-      style={{ left: 0, top: 0, width: SLIDE_WIDTH, height: SLIDE_HEIGHT, zIndex: 4 }}
+      style={{ left: 0, top: 0, width: SLIDE_WIDTH, height: SLIDE_HEIGHT, zIndex: 6 }}
     >
       {moveCanvasSelection.historySegments.map((segment) => {
         const pathData = segment.path
@@ -335,37 +367,14 @@ export function AnimationPathOverlay({
           ghostHeight,
           midpoint
         )
-        const previousAbsolute = toAbsolutePoint(
-          baseLeft,
-          baseTop,
-          ghostWidth,
-          ghostHeight,
-          point.position
-        )
-        const currentAbsolute = toAbsolutePoint(
-          baseLeft,
-          baseTop,
-          ghostWidth,
-          ghostHeight,
-          nextPoint.position
-        )
-        const previousOutHandle = point.outHandle
-          ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, point.outHandle)
-          : undefined
-        const currentInHandle = nextPoint.inHandle
-          ? toAbsolutePoint(baseLeft, baseTop, ghostWidth, ghostHeight, nextPoint.inHandle)
-          : undefined
-
         return (
           <React.Fragment key={`insert-${point.id}-${nextPoint.id}`}>
-            <path
+            <circle
               data-testid="animation-path-insert-hit-area"
               className={styles.animationPathInsertHitArea}
-              d={buildSegmentPathData(
-                { ...previousAbsolute, outHandle: previousOutHandle },
-                { ...currentAbsolute, inHandle: currentInHandle }
-              )}
-              fill="none"
+              cx={absoluteMidpoint.x}
+              cy={absoluteMidpoint.y}
+              r={18}
               onMouseEnter={() => setHoveredSegmentIndex(index)}
               onMouseLeave={() =>
                 setHoveredSegmentIndex((current) => (current === index ? null : current))
@@ -378,7 +387,10 @@ export function AnimationPathOverlay({
                 cx={absoluteMidpoint.x}
                 cy={absoluteMidpoint.y}
                 r={10}
-                onMouseDown={(event) => onInsertPointMouseDown(index, event)}
+                onMouseDown={(event) => {
+                  event.stopPropagation()
+                  onInsertPointMouseDown(index, midpoint, event)
+                }}
               />
             ) : null}
           </React.Fragment>

@@ -81,9 +81,8 @@
 }
 
 .animationPathInsertHitArea {
-  stroke: transparent;
-  stroke-width: 18;
-  pointer-events: stroke;
+  fill: transparent;
+  pointer-events: auto;
 }
 
 .animationGhost {

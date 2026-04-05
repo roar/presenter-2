@@ -1,4 +1,4 @@
-import type { MovePath, MovePathPoint } from './types'
+import type { MovePath, MovePathPoint, Position } from './types'
 
 function clonePoint(point: MovePathPoint): MovePathPoint {
   return {
@@ -16,20 +16,21 @@ export function cloneMovePath(path: MovePath): MovePath {
 export function insertBezierPointAtSegment(
   path: MovePath,
   segmentIndex: number,
-  pointId: string
+  pointId: string,
+  insertedPosition?: Position
 ): MovePath {
   const start = path.points[segmentIndex]
   const end = path.points[segmentIndex + 1]
   if (!start || !end) return path
 
-  const midX = (start.position.x + end.position.x) / 2
-  const midY = (start.position.y + end.position.y) / 2
+  const midX = insertedPosition?.x ?? (start.position.x + end.position.x) / 2
+  const midY = insertedPosition?.y ?? (start.position.y + end.position.y) / 2
   const dx = end.position.x - start.position.x
   const dy = end.position.y - start.position.y
   const newPoint: MovePathPoint = {
     id: pointId,
     position: { x: midX, y: midY },
-    type: 'bezier',
+    type: 'smooth',
     inHandle: { x: midX - dx / 4, y: midY - dy / 4 },
     outHandle: { x: midX + dx / 4, y: midY + dy / 4 }
   }
