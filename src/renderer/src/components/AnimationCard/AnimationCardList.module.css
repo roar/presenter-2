@@ -1,0 +1,37 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.item {
+  position: relative;
+}
+
+.item + .item {
+  margin-top: 0;
+}
+
+.item.groupStart {
+  margin-top: var(--space-md);
+}
+
+.item::before {
+  content: '';
+  position: absolute;
+  left: var(--space-sm);
+  right: var(--space-sm);
+  top: calc(var(--space-xs) * -0.5);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.withPrevious::before {
+  opacity: 1;
+  border-top: 1px dashed color-mix(in srgb, var(--accent) 48%, var(--border));
+}
+
+.afterPrevious::before {
+  opacity: 1;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 62%, var(--border));
+}
