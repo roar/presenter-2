@@ -808,6 +808,58 @@ describe('documentStore', () => {
       })
     })
 
+    it('begins text edit from an existing shape that carries text content', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      master.content = { type: 'text', value: createTextContent('Hello shape') }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+
+      expect(useDocumentStore.getState().ui.editingText).toEqual({
+        masterId: master.id,
+        selection: null,
+        draftContent: master.content.value
+      })
+    })
+
+    it('begins text edit from an existing shape with no content by creating an empty draft', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+
+      expect(useDocumentStore.getState().ui.editingText).toEqual(
+        expect.objectContaining({
+          masterId: master.id,
+          selection: null,
+          draftContent: expect.objectContaining({
+            blocks: [
+              expect.objectContaining({
+                list: { kind: 'none' },
+                runs: [expect.objectContaining({ text: '', marks: [] })]
+              })
+            ]
+          })
+        })
+      )
+    })
+
     it('updates only the draft content while editing', () => {
       const slide = makeSlide('s-1')
       const master = createMsoMaster('text')
@@ -864,6 +916,55 @@ describe('documentStore', () => {
       })
       expect(useDocumentStore.getState().history.length).toBe(historyLengthBefore + 1)
       expect(useDocumentStore.getState().isDirty).toBe(true)
+    })
+
+    it('commits draft content back to a shape that carries text content', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+      master.content = { type: 'text', value: createTextContent('Hello') }
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+      const nextContent = createTextContent('Updated shape')
+
+      useDocumentStore.getState().updateEditingTextContent(nextContent)
+      useDocumentStore.getState().commitTextEdit()
+
+      expect(useDocumentStore.getState().document?.mastersById[master.id].content).toEqual({
+        type: 'text',
+        value: nextContent
+      })
+    })
+
+    it('commits draft content back to a shape that started with no text content', () => {
+      const slide = makeSlide('s-1')
+      const master = createMsoMaster('shape')
+
+      useDocumentStore.getState().setDocument(
+        makePresentation({
+          slideOrder: [slide.id],
+          slidesById: { [slide.id]: slide },
+          mastersById: { [master.id]: master }
+        })
+      )
+
+      useDocumentStore.getState().beginTextEdit(master.id)
+      const nextContent = createTextContent('Shape text')
+
+      useDocumentStore.getState().updateEditingTextContent(nextContent)
+      useDocumentStore.getState().commitTextEdit()
+
+      expect(useDocumentStore.getState().document?.mastersById[master.id].content).toEqual({
+        type: 'text',
+        value: nextContent
+      })
     })
 
     it('cancels editing without changing persisted content', () => {

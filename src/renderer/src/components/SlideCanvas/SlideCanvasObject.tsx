@@ -83,6 +83,7 @@ export function SlideCanvasObject({
   onGradientOverlayMouseDown
 }: SlideCanvasObjectProps): React.JSX.Element {
   const { appearance, master, visible, opacity, transform } = renderedAppearance
+  const canEditText = master.type === 'text' || master.type === 'shape'
   const { x, y, width, height } = master.transform
   const {
     translateX,
@@ -98,7 +99,15 @@ export function SlideCanvasObject({
   return (
     <>
       {master.type === 'shape' && (
-        <ShapeView master={master} appearance={appearance} rendered={renderedAppearance} />
+        <ShapeView
+          master={master}
+          appearance={appearance}
+          rendered={renderedAppearance}
+          isEditing={isEditingText}
+          contentOverride={isEditingText ? editingTextDraftContent : null}
+          onEditContentChange={onEditTextContentChange}
+          onCommitEdit={onCommitTextEdit}
+        />
       )}
       {master.type === 'text' && (
         <TextView
@@ -131,6 +140,7 @@ export function SlideCanvasObject({
         />
       ) : null}
       {isSelected &&
+      !isEditingText &&
       master.type === 'shape' &&
       isGradientFill(master.objectStyle.defaultState.fill) &&
       master.objectStyle.defaultState.fill.kind === 'linear-gradient'
@@ -209,7 +219,7 @@ export function SlideCanvasObject({
           onMouseDown={(event) => onElementMouseDown(master.id, event)}
           onClick={(event) => event.stopPropagation()}
           onDoubleClick={() => {
-            if (master.type === 'text') {
+            if (canEditText) {
               onElementDoubleClick(master.id)
             }
           }}

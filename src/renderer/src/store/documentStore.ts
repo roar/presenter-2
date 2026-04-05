@@ -25,6 +25,7 @@ import type { AuthContext } from '../../../shared/auth/types'
 import { nullAuthContext } from '../../../shared/auth/types'
 import type { DocumentRepository } from '../repository/DocumentRepository'
 import { createAppearance, createPresentation, createSlide } from '../../../shared/model/factories'
+import { createTextContent } from '../../../shared/model/factories'
 import {
   createOrReuseColorConstant,
   deleteColorConstant,
@@ -156,6 +157,13 @@ function cloneEasing(easing: Easing): Easing {
 
 function defaultAnimationEasing(): Easing {
   return { kind: 'cubic-bezier', x1: 0.645, y1: 0.045, x2: 0.355, y2: 1 }
+}
+
+function getInitialEditTextContent(master: MsoMaster | undefined): TextContent | null {
+  if (!master) return null
+  if (master.content.type === 'text') return master.content.value
+  if (master.type === 'shape') return createTextContent('')
+  return null
 }
 
 function resolveInheritedAnimationEasing(
@@ -614,12 +622,13 @@ export const useDocumentStore = create<DocumentState>()(
       set((state) => {
         if (!state.document) return
         const master = state.document.mastersById[masterId]
-        if (!master || master.type !== 'text' || master.content.type !== 'text') return
+        const textContent = getInitialEditTextContent(master)
+        if (!master || !textContent) return
 
         state.ui.editingText = {
           masterId,
           selection: null,
-          draftContent: JSON.parse(JSON.stringify(master.content.value)) as TextContent
+          draftContent: JSON.parse(JSON.stringify(textContent)) as TextContent
         }
         state.ui.selectedElementIds = [masterId]
         state.ui.selectedAnimationId = null
@@ -640,7 +649,7 @@ export const useDocumentStore = create<DocumentState>()(
         if (!state.document || !masterId || !draftContent) return
 
         const master = state.document.mastersById[masterId]
-        if (!master || master.type !== 'text' || master.content.type !== 'text') return
+        if (!master) return
 
         master.content = {
           type: 'text',
@@ -702,7 +711,7 @@ export const useDocumentStore = create<DocumentState>()(
         state.ui.selectedElementIds = [master.id]
         state.ui.selectedAnimationId = null
         state.ui.editingText =
-          master.type === 'text' && master.content.type === 'text'
+          master.content.type === 'text'
             ? {
                 masterId: master.id,
                 selection: null,

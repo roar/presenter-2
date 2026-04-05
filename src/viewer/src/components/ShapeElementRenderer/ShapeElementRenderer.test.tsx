@@ -3,7 +3,7 @@ import { render } from '@testing-library/react'
 import { ShapeElementRenderer } from './ShapeElementRenderer'
 import type { RenderedAppearance } from '@shared/animation/types'
 import type { MsoMaster } from '@shared/model/types'
-import { createAppearance, createMsoMaster } from '@shared/model/factories'
+import { createAppearance, createMsoMaster, createTextContent } from '@shared/model/factories'
 
 function makeMaster(): MsoMaster {
   const m = createMsoMaster('shape')
@@ -44,13 +44,15 @@ describe('ShapeElementRenderer', () => {
 
   it('sets the path d attribute', () => {
     const { container } = render(<ShapeElementRenderer rendered={makeRendered()} />)
-    const path = container.querySelector('path')!
+    const path = container.querySelector('path')
+    expect(path).not.toBeNull()
     expect(path.getAttribute('d')).toBe('M 0 0 L 200 0 L 200 100 L 0 100 Z')
   })
 
   it('uses the geometry base size as the SVG viewBox', () => {
     const { container } = render(<ShapeElementRenderer rendered={makeRendered()} />)
-    const svg = container.querySelector('svg')!
+    const svg = container.querySelector('svg')
+    expect(svg).not.toBeNull()
     expect(svg.getAttribute('viewBox')).toBe('0 0 200 100')
   })
 
@@ -87,7 +89,8 @@ describe('ShapeElementRenderer', () => {
     const { container } = render(
       <ShapeElementRenderer rendered={makeRendered({ strokeDashoffset: 0.4 })} />
     )
-    const path = container.querySelector('path')!
+    const path = container.querySelector('path')
+    expect(path).not.toBeNull()
     expect(path.getAttribute('stroke-dasharray')).toBe('1')
     expect(path.getAttribute('stroke-dashoffset')).toBe('0.4')
     expect(path.getAttribute('pathLength')).toBe('1')
@@ -97,7 +100,8 @@ describe('ShapeElementRenderer', () => {
     const { container } = render(
       <ShapeElementRenderer rendered={makeRendered({ strokeDashoffset: null })} />
     )
-    const path = container.querySelector('path')!
+    const path = container.querySelector('path')
+    expect(path).not.toBeNull()
     expect(path.getAttribute('stroke-dasharray')).toBeNull()
   })
 
@@ -169,5 +173,14 @@ describe('ShapeElementRenderer', () => {
     expect(gradient?.getAttribute('cx')).toBe('50%')
     expect(gradient?.getAttribute('cy')).toBe('50%')
     expect(gradient?.getAttribute('r')).toBe('50%')
+  })
+
+  it('renders text content inside the shape when the shape carries text content', () => {
+    const master = makeMaster()
+    master.content = { type: 'text', value: createTextContent('Viewer shape text') }
+
+    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+
+    expect(getByText('Viewer shape text')).toBeInTheDocument()
   })
 })

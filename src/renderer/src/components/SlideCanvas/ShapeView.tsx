@@ -7,15 +7,28 @@ import {
   resolveLinearGradientEndpoints
 } from '@shared/model/fill'
 import { getGrainBaseFrequency, resolveGrainEffect } from '@shared/model/grain'
-import type { Appearance, MsoMaster } from '@shared/model/types'
+import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
+import { TextView } from './TextView'
 
 interface ShapeViewProps {
   master: MsoMaster
   appearance: Appearance
   rendered?: RenderedAppearance
+  isEditing?: boolean
+  contentOverride?: TextContent | null
+  onEditContentChange?: (content: TextContent) => void
+  onCommitEdit?: () => void
 }
 
-export function ShapeView({ master, appearance, rendered }: ShapeViewProps): React.JSX.Element {
+export function ShapeView({
+  master,
+  appearance,
+  rendered,
+  isEditing = false,
+  contentOverride = null,
+  onEditContentChange,
+  onCommitEdit
+}: ShapeViewProps): React.JSX.Element {
   const grainFilterId = React.useId()
   const gradientId = React.useId()
   const { transform: t, objectStyle, geometry } = master
@@ -81,72 +94,85 @@ export function ShapeView({ master, appearance, rendered }: ShapeViewProps): Rea
   }
 
   return (
-    <svg style={svgStyle} viewBox={viewBox}>
-      {showGrain || isGradientFill(style.fill) ? (
-        <defs>
-          {isGradientFill(style.fill) ? (
-            style.fill.kind === 'linear-gradient' ? (
-              <linearGradient
-                id={gradientId}
-                gradientUnits="objectBoundingBox"
-                x1={`${resolveLinearGradientEndpoints(style.fill).x1}`}
-                y1={`${resolveLinearGradientEndpoints(style.fill).y1}`}
-                x2={`${resolveLinearGradientEndpoints(style.fill).x2}`}
-                y2={`${resolveLinearGradientEndpoints(style.fill).y2}`}
-              >
-                {gradientStops.map((stop, index) => (
-                  <stop
-                    key={`${stop.offset}-${index}`}
-                    offset={`${stop.offset * 100}%`}
-                    stopColor={stop.color}
-                  />
-                ))}
-              </linearGradient>
-            ) : (
-              <radialGradient
-                id={gradientId}
-                gradientUnits="objectBoundingBox"
-                cx={`${style.fill.centerX}%`}
-                cy={`${style.fill.centerY}%`}
-                r={`${style.fill.radius}%`}
-              >
-                {gradientStops.map((stop, index) => (
-                  <stop
-                    key={`${stop.offset}-${index}`}
-                    offset={`${stop.offset * 100}%`}
-                    stopColor={stop.color}
-                  />
-                ))}
-              </radialGradient>
-            )
-          ) : null}
-          <filter id={grainFilterId}>
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency={getGrainBaseFrequency(grain.scale)}
-              numOctaves={2}
-              seed={grain.seed}
-              result="noise"
-            />
-            <feColorMatrix in="noise" type="saturate" values="0" result="monoNoise" />
-            <feComponentTransfer in="monoNoise" result="grainNoise">
-              <feFuncA type="linear" slope={grain.intensity} />
-            </feComponentTransfer>
-            <feComposite in="grainNoise" in2="SourceAlpha" operator="in" />
-          </filter>
-        </defs>
+    <>
+      <svg style={svgStyle} viewBox={viewBox}>
+        {showGrain || isGradientFill(style.fill) ? (
+          <defs>
+            {isGradientFill(style.fill) ? (
+              style.fill.kind === 'linear-gradient' ? (
+                <linearGradient
+                  id={gradientId}
+                  gradientUnits="objectBoundingBox"
+                  x1={`${resolveLinearGradientEndpoints(style.fill).x1}`}
+                  y1={`${resolveLinearGradientEndpoints(style.fill).y1}`}
+                  x2={`${resolveLinearGradientEndpoints(style.fill).x2}`}
+                  y2={`${resolveLinearGradientEndpoints(style.fill).y2}`}
+                >
+                  {gradientStops.map((stop, index) => (
+                    <stop
+                      key={`${stop.offset}-${index}`}
+                      offset={`${stop.offset * 100}%`}
+                      stopColor={stop.color}
+                    />
+                  ))}
+                </linearGradient>
+              ) : (
+                <radialGradient
+                  id={gradientId}
+                  gradientUnits="objectBoundingBox"
+                  cx={`${style.fill.centerX}%`}
+                  cy={`${style.fill.centerY}%`}
+                  r={`${style.fill.radius}%`}
+                >
+                  {gradientStops.map((stop, index) => (
+                    <stop
+                      key={`${stop.offset}-${index}`}
+                      offset={`${stop.offset * 100}%`}
+                      stopColor={stop.color}
+                    />
+                  ))}
+                </radialGradient>
+              )
+            ) : null}
+            <filter id={grainFilterId}>
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency={getGrainBaseFrequency(grain.scale)}
+                numOctaves={2}
+                seed={grain.seed}
+                result="noise"
+              />
+              <feColorMatrix in="noise" type="saturate" values="0" result="monoNoise" />
+              <feComponentTransfer in="monoNoise" result="grainNoise">
+                <feFuncA type="linear" slope={grain.intensity} />
+              </feComponentTransfer>
+              <feComposite in="grainNoise" in2="SourceAlpha" operator="in" />
+            </filter>
+          </defs>
+        ) : null}
+        {renderShapeNode(shapeProps)}
+        {showGrain
+          ? renderShapeNode({
+              'data-testid': 'shape-grain-overlay',
+              fill: '#ffffff',
+              stroke: 'none',
+              filter: `url(#${grainFilterId})`,
+              opacity: grain.intensity,
+              style: { mixBlendMode: grain.blendMode }
+            })
+          : null}
+      </svg>
+      {master.content.type === 'text' || isEditing ? (
+        <TextView
+          master={master}
+          appearance={appearance}
+          rendered={rendered}
+          isEditing={isEditing}
+          contentOverride={contentOverride}
+          onEditContentChange={onEditContentChange}
+          onCommitEdit={onCommitEdit}
+        />
       ) : null}
-      {renderShapeNode(shapeProps)}
-      {showGrain
-        ? renderShapeNode({
-            'data-testid': 'shape-grain-overlay',
-            fill: '#ffffff',
-            stroke: 'none',
-            filter: `url(#${grainFilterId})`,
-            opacity: grain.intensity,
-            style: { mixBlendMode: grain.blendMode }
-          })
-        : null}
-    </svg>
+    </>
   )
 }

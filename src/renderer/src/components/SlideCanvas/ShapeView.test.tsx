@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
-import { createAppearance, createMsoMaster } from '@shared/model/factories'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { createAppearance, createMsoMaster, createTextContent } from '@shared/model/factories'
 import type { Appearance, MsoMaster } from '@shared/model/types'
 import { ShapeView } from './ShapeView'
 
@@ -35,7 +36,7 @@ describe('ShapeView', () => {
     )
     const path = container.querySelector('path')
     expect(path).not.toBeNull()
-    expect(path!.getAttribute('d')).toBe('M 0 0 L 200 0 L 200 100 L 0 100 Z')
+    expect((path as SVGPathElement).getAttribute('d')).toBe('M 0 0 L 200 0 L 200 100 L 0 100 Z')
   })
 
   it('renders a rect for rect geometry', () => {
@@ -61,7 +62,8 @@ describe('ShapeView', () => {
     const { container } = render(
       <ShapeView master={master} appearance={makeAppearance(master.id)} />
     )
-    const path = container.querySelector('path')!
+    const path = container.querySelector('path')
+    expect(path).not.toBeNull()
     expect(path.getAttribute('fill')).toBe('#ff0000')
     expect(path.getAttribute('stroke')).toBe('#000000')
   })
@@ -163,5 +165,37 @@ describe('ShapeView', () => {
     expect(gradient?.getAttribute('cx')).toBe('50%')
     expect(gradient?.getAttribute('cy')).toBe('50%')
     expect(gradient?.getAttribute('r')).toBe('50%')
+  })
+
+  it('renders text content inside a shape when the shape carries text content', () => {
+    const master = makeMaster()
+    master.content = { type: 'text', value: createTextContent('Shape text') }
+
+    render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
+
+    expect(screen.getByText('Shape text')).toBeInTheDocument()
+  })
+
+  it('renders a textbox overlay in edit mode for shape text', async () => {
+    const user = userEvent.setup()
+    const master = makeMaster()
+    master.content = { type: 'text', value: createTextContent('Shape text') }
+    const onEditContentChange = vi.fn()
+
+    render(
+      <ShapeView
+        master={master}
+        appearance={makeAppearance(master.id)}
+        isEditing
+        contentOverride={createTextContent('Draft shape')}
+        onEditContentChange={onEditContentChange}
+      />
+    )
+
+    const textbox = screen.getByRole('textbox', { name: 'Edit text' })
+    await user.clear(textbox)
+    await user.type(textbox, 'Ny shape tekst')
+
+    expect(onEditContentChange).toHaveBeenCalled()
   })
 })

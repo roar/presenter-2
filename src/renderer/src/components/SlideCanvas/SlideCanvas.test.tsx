@@ -238,6 +238,51 @@ describe('SlideCanvas', () => {
     expect(beginTextEditMock).toHaveBeenCalledWith(master.id)
   })
 
+  it('begins text edit when double-clicking a shape object with text content', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Shape text') }
+    master.geometry = { type: 'rect' }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres)
+    render(<SlideCanvas />)
+
+    fireEvent.doubleClick(screen.getByTestId('element-hitbox'))
+
+    expect(beginTextEditMock).toHaveBeenCalledWith(master.id)
+  })
+
+  it('begins text edit when double-clicking a shape object without existing text content', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.geometry = { type: 'rect' }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres)
+    render(<SlideCanvas />)
+
+    fireEvent.doubleClick(screen.getByTestId('element-hitbox'))
+
+    expect(beginTextEditMock).toHaveBeenCalledWith(master.id)
+  })
+
   it('cancels text edit when pressing Escape while editing a text object', () => {
     const pres = createPresentation()
     const slide = createSlide()
@@ -301,6 +346,59 @@ describe('SlideCanvas', () => {
     expect(screen.getByRole('textbox', { name: 'Edit text' })).toBeInTheDocument()
     expect(screen.queryByTestId('selection-indicator')).not.toBeInTheDocument()
     expect(screen.queryByTestId('element-hitbox')).not.toBeInTheDocument()
+  })
+
+  it('renders a textbox overlay when a shape without persisted text content is being edited', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.geometry = { type: 'rect' }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [master.id], null, master.id, createTextContent(''))
+    render(<SlideCanvas />)
+
+    expect(screen.getByRole('textbox', { name: 'Edit text' })).toBeInTheDocument()
+  })
+
+  it('does not render the gradient overlay while a gradient shape is being edited as text', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('shape')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Persisted text') }
+    master.geometry = { type: 'rect' }
+    master.objectStyle.defaultState.fill = {
+      kind: 'linear-gradient',
+      rotation: 90,
+      x1: 0.5,
+      y1: 0,
+      x2: 0.5,
+      y2: 1,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#eeeeee' }
+      ]
+    }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [master.id], null, master.id, createTextContent('Draft text'))
+    render(<SlideCanvas />)
+
+    expect(screen.queryByLabelText('Gradient angle overlay')).not.toBeInTheDocument()
   })
 
   it('updates draft text content from the canvas editing overlay', async () => {
