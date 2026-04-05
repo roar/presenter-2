@@ -216,4 +216,24 @@ describe('AnimationCard', () => {
 
     expect(onEasingChange).toHaveBeenCalledWith('ease-out')
   })
+
+  it('renders the custom easing editor for curve easing', () => {
+    render(
+      <AnimationCard
+        animation={makeAnimation({
+          easing: {
+            kind: 'curve',
+            points: [
+              { x: 0, y: 0, kind: 'corner' },
+              { x: 1, y: 1, kind: 'corner' }
+            ]
+          }
+        })}
+        objectName="Airplane"
+        isSelected={false}
+      />
+    )
+
+    expect(screen.getByLabelText('Custom easing curve')).toBeInTheDocument()
+  })
 })

@@ -49,6 +49,10 @@
   gap: var(--space-xs);
 }
 
+.wideControl {
+  grid-column: 1 / -1;
+}
+
 .controlLabel {
   font-size: var(--text-xs);
   color: var(--text-dim);

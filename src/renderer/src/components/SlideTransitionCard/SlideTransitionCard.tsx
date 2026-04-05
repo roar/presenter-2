@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Easing, SlideTransition } from '@shared/model/types'
 import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
+import { EasingBezierEditor } from '../EasingBezierEditor/EasingBezierEditor'
 import { InfoCard } from '../InfoCard/InfoCard'
 import { NumberInput } from '../NumberInput/NumberInput'
 import styles from './SlideTransitionCard.module.css'
@@ -99,6 +100,16 @@ export function SlideTransitionCard({
             }
           />
         </div>
+        {typeof effectiveTransition.easing !== 'string' &&
+        effectiveTransition.easing.kind === 'curve' ? (
+          <div className={`${styles.detail} ${styles.editorDetail}`}>
+            <span className={styles.label}>Curve</span>
+            <EasingBezierEditor
+              easing={effectiveTransition.easing}
+              onChange={(easing) => onEasingChange?.(easing)}
+            />
+          </div>
+        ) : null}
         <div className={styles.detail}>
           <span className={styles.label}>Kind</span>
           <DropdownMenu

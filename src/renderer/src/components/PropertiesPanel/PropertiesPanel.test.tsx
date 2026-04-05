@@ -11,6 +11,11 @@ import { ensurePresentationColorConstants } from '@shared/model/colors'
 import type { Presentation, TargetedAnimation } from '@shared/model/types'
 import { PropertiesPanel } from './PropertiesPanel'
 
+vi.mock('@shared/model/grainCanvas', () => ({
+  buildGrainBackgroundImage: () => '',
+  getGrainBackgroundSize: () => '100% 100%'
+}))
+
 function makeDocument(): {
   document: Presentation
   slideId: string
@@ -259,6 +264,66 @@ describe('PropertiesPanel', () => {
     expect(screen.getByText('Timing')).toBeInTheDocument()
     expect(screen.getByText('Effect')).toBeInTheDocument()
     expect(screen.getByText('Move: Airplane')).toBeInTheDocument()
+  })
+
+  it('renders the custom easing editor for selected slide transitions', () => {
+    const { document, slideId } = makeDocument()
+    document.slidesById[slideId].transition = {
+      kind: 'dissolve',
+      duration: 0.75,
+      easing: {
+        kind: 'curve',
+        points: [
+          { x: 0, y: 0, kind: 'corner' },
+          { x: 1, y: 1, kind: 'corner' }
+        ]
+      }
+    }
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={null}
+        selectedAnimation={null}
+        selectedAnimationObjectName="Object"
+      />
+    )
+
+    expect(screen.getByLabelText('Custom easing curve')).toBeInTheDocument()
+  })
+
+  it('renders the custom easing editor for selected animations', () => {
+    const { document, slideId, animation } = makeDocument()
+
+    render(
+      <PropertiesPanel
+        document={document}
+        selectedSlide={document.slidesById[slideId]}
+        selectedSlideIndex={0}
+        selectedMaster={null}
+        selectedAnimation={{
+          ...animation,
+          easing: {
+            kind: 'curve',
+            points: [
+              { x: 0, y: 0, kind: 'corner' },
+              { x: 1, y: 1, kind: 'corner' }
+            ]
+          }
+        }}
+        selectedAnimationObjectName="Airplane"
+        onAnimationTriggerChange={vi.fn()}
+        onAnimationOffsetChange={vi.fn()}
+        onAnimationDurationChange={vi.fn()}
+        onAnimationEasingChange={vi.fn()}
+        onAnimationNumericToChange={vi.fn()}
+        onAnimationMoveDeltaChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByLabelText('Custom easing curve')).toBeInTheDocument()
   })
 
   it('shows text styles in the text tab', async () => {

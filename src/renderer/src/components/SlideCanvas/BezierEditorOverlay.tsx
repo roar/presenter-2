@@ -17,6 +17,10 @@ interface BezierEditorOverlayProps {
   onPointContextMenu(pointId: string, event: React.MouseEvent): void
   onHandleMouseDown(pointId: string, handle: 'in' | 'out', event: React.MouseEvent): void
   onInsertPointMouseDown(segmentIndex: number, position: Position, event: React.MouseEvent): void
+  width?: number
+  height?: number
+  zIndex?: number
+  ariaLabel?: string
 }
 
 function interpolateCubic(a: number, b: number, c: number, d: number, t: number): number {
@@ -116,7 +120,11 @@ export function BezierEditorOverlay({
   onPointMouseDown,
   onPointContextMenu,
   onHandleMouseDown,
-  onInsertPointMouseDown
+  onInsertPointMouseDown,
+  width = SLIDE_WIDTH,
+  height = SLIDE_HEIGHT,
+  zIndex = 6,
+  ariaLabel = 'Bezier editor overlay'
 }: BezierEditorOverlayProps): React.JSX.Element | null {
   const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState<number | null>(null)
 
@@ -126,9 +134,9 @@ export function BezierEditorOverlay({
 
   return (
     <svg
-      aria-label="Bezier editor overlay"
+      aria-label={ariaLabel}
       className={styles.animationOverlay}
-      style={{ left: 0, top: 0, width: SLIDE_WIDTH, height: SLIDE_HEIGHT, zIndex: 6 }}
+      style={{ left: 0, top: 0, width, height, zIndex }}
     >
       {activePathData ? (
         <path

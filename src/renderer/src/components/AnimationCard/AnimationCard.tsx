@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Easing, Position, TargetedAnimation } from '@shared/model/types'
 import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
+import { EasingBezierEditor } from '../EasingBezierEditor/EasingBezierEditor'
 import { InfoCard } from '../InfoCard/InfoCard'
 import { NumberInput } from '../NumberInput/NumberInput'
 import styles from './AnimationCard.module.css'
@@ -166,6 +167,15 @@ export function AnimationCard({
             onChange={(value) => onEasingChange?.(mapEasingOptionValue(value, animation.easing))}
           />
         </div>
+        {typeof animation.easing !== 'string' && animation.easing.kind === 'curve' ? (
+          <div className={`${styles.detail} ${styles.editorDetail}`}>
+            <span className={styles.label}>Curve</span>
+            <EasingBezierEditor
+              easing={animation.easing}
+              onChange={(easing) => onEasingChange?.(easing)}
+            />
+          </div>
+        ) : null}
         <div className={styles.detail}>
           <span className={styles.label}>To</span>
           {toField}

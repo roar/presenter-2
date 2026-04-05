@@ -93,4 +93,24 @@ describe('SlideTransitionCard', () => {
     expect(onKindChange).toHaveBeenCalledWith('dissolve')
     expect(onEasingChange).toHaveBeenCalledWith('ease-out')
   })
+
+  it('renders the custom easing editor for curve easing', () => {
+    render(
+      <SlideTransitionCard
+        trigger="on-click"
+        transition={{
+          ...makeTransition(),
+          easing: {
+            kind: 'curve',
+            points: [
+              { x: 0, y: 0, kind: 'corner' },
+              { x: 1, y: 1, kind: 'corner' }
+            ]
+          }
+        }}
+      />
+    )
+
+    expect(screen.getByLabelText('Custom easing curve')).toBeInTheDocument()
+  })
 })

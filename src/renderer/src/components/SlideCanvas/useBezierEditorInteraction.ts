@@ -3,6 +3,7 @@ import type { Position } from '@shared/model/types'
 import type { BezierEditorPath } from '@shared/model/bezierEditor'
 import {
   cloneBezierEditorPath,
+  convertBezierEditorPointToBalanced,
   convertBezierEditorPointToCorner,
   convertBezierEditorPointToFree,
   convertBezierEditorPointToSmooth,
@@ -25,7 +26,9 @@ interface UseBezierEditorInteractionParams {
   editorId: string | null
   getEditablePath: () => BezierEditorPath | null
   onCommitPath: (editorId: string, path: BezierEditorPath) => void
+  toLocalDelta?: (delta: Position) => Position
   toLocalInsertPosition?: (position: Position) => Position
+  constrainPath?: (path: BezierEditorPath) => BezierEditorPath
 }
 
 interface UseBezierEditorInteractionResult {
@@ -39,6 +42,7 @@ interface UseBezierEditorInteractionResult {
   ) => void
   convertPointToCorner: (pointId: string) => void
   convertPointToSmooth: (pointId: string) => void
+  convertPointToBalanced: (pointId: string) => void
   convertPointToFree: (pointId: string) => void
   deletePoint: (pointId: string) => void
   updateDragPreview: (event: MouseEvent) => boolean
@@ -118,7 +122,9 @@ export function useBezierEditorInteraction({
   editorId,
   getEditablePath,
   onCommitPath,
-  toLocalInsertPosition
+  toLocalDelta,
+  toLocalInsertPosition,
+  constrainPath
 }: UseBezierEditorInteractionParams): UseBezierEditorInteractionResult {
   const [pathPreview, setPathPreview] = useState<{
     editorId: string
@@ -128,7 +134,9 @@ export function useBezierEditorInteraction({
   const editorIdRef = useRef(editorId)
   const getEditablePathRef = useRef(getEditablePath)
   const onCommitPathRef = useRef(onCommitPath)
+  const toLocalDeltaRef = useRef(toLocalDelta)
   const toLocalInsertPositionRef = useRef(toLocalInsertPosition)
+  const constrainPathRef = useRef(constrainPath)
 
   useEffect(() => {
     editorIdRef.current = editorId
@@ -143,8 +151,21 @@ export function useBezierEditorInteraction({
   }, [onCommitPath])
 
   useEffect(() => {
+    toLocalDeltaRef.current = toLocalDelta
+  }, [toLocalDelta])
+
+  useEffect(() => {
     toLocalInsertPositionRef.current = toLocalInsertPosition
   }, [toLocalInsertPosition])
+
+  useEffect(() => {
+    constrainPathRef.current = constrainPath
+  }, [constrainPath])
+
+  const applyConstraints = useCallback((path: BezierEditorPath): BezierEditorPath => {
+    const constrain = constrainPathRef.current
+    return constrain ? constrain(path) : path
+  }, [])
 
   const beginDrag = useCallback(
     (pointId: string, handle: 'in' | 'out' | undefined, event: React.MouseEvent) => {
@@ -163,9 +184,9 @@ export function useBezierEditorInteraction({
         startClientY: event.clientY,
         originalPath: editablePath
       }
-      setPathPreview({ editorId: nextEditorId, path: editablePath })
+      setPathPreview({ editorId: nextEditorId, path: applyConstraints(editablePath) })
     },
-    [isSpaceDownRef]
+    [applyConstraints, isSpaceDownRef]
   )
 
   const updateDragPreview = useCallback(
@@ -173,23 +194,35 @@ export function useBezierEditorInteraction({
       const drag = dragRef.current
       if (!drag) return false
 
-      const dx = (event.clientX - drag.startClientX) / scaleRef.current
-      const dy = (event.clientY - drag.startClientY) / scaleRef.current
+      const delta = toLocalDeltaRef.current?.({
+        x: (event.clientX - drag.startClientX) / scaleRef.current,
+        y: (event.clientY - drag.startClientY) / scaleRef.current
+      }) ?? {
+        x: (event.clientX - drag.startClientX) / scaleRef.current,
+        y: (event.clientY - drag.startClientY) / scaleRef.current
+      }
       setPathPreview({
         editorId: drag.editorId,
-        path: drag.handle
-          ? translateHandle(
-              cloneBezierEditorPath(drag.originalPath),
-              drag.pointId,
-              drag.handle,
-              dx,
-              dy
-            )
-          : translatePoint(cloneBezierEditorPath(drag.originalPath), drag.pointId, dx, dy)
+        path: applyConstraints(
+          drag.handle
+            ? translateHandle(
+                cloneBezierEditorPath(drag.originalPath),
+                drag.pointId,
+                drag.handle,
+                delta.x,
+                delta.y
+              )
+            : translatePoint(
+                cloneBezierEditorPath(drag.originalPath),
+                drag.pointId,
+                delta.x,
+                delta.y
+              )
+        )
       })
       return true
     },
-    [scaleRef]
+    [applyConstraints, scaleRef]
   )
 
   const commitDrag = useCallback(
@@ -197,24 +230,31 @@ export function useBezierEditorInteraction({
       const drag = dragRef.current
       if (!drag) return false
 
-      const dx = (event.clientX - drag.startClientX) / scaleRef.current
-      const dy = (event.clientY - drag.startClientY) / scaleRef.current
-      const nextPath = drag.handle
-        ? translateHandle(
-            cloneBezierEditorPath(drag.originalPath),
-            drag.pointId,
-            drag.handle,
-            dx,
-            dy
-          )
-        : translatePoint(cloneBezierEditorPath(drag.originalPath), drag.pointId, dx, dy)
+      const delta = toLocalDeltaRef.current?.({
+        x: (event.clientX - drag.startClientX) / scaleRef.current,
+        y: (event.clientY - drag.startClientY) / scaleRef.current
+      }) ?? {
+        x: (event.clientX - drag.startClientX) / scaleRef.current,
+        y: (event.clientY - drag.startClientY) / scaleRef.current
+      }
+      const nextPath = applyConstraints(
+        drag.handle
+          ? translateHandle(
+              cloneBezierEditorPath(drag.originalPath),
+              drag.pointId,
+              drag.handle,
+              delta.x,
+              delta.y
+            )
+          : translatePoint(cloneBezierEditorPath(drag.originalPath), drag.pointId, delta.x, delta.y)
+      )
 
       onCommitPathRef.current(drag.editorId, nextPath)
       dragRef.current = null
       setPathPreview(null)
       return true
     },
-    [scaleRef]
+    [applyConstraints, scaleRef]
   )
 
   const applyPathOperation = useCallback(
@@ -222,9 +262,9 @@ export function useBezierEditorInteraction({
       const nextEditorId = editorIdRef.current
       const editablePath = getEditablePathRef.current()
       if (!nextEditorId || !editablePath) return
-      onCommitPathRef.current(nextEditorId, operation(editablePath))
+      onCommitPathRef.current(nextEditorId, applyConstraints(operation(editablePath)))
     },
-    []
+    [applyConstraints]
   )
 
   return {
@@ -238,12 +278,14 @@ export function useBezierEditorInteraction({
       if (!nextEditorId || !editablePath) return
 
       const localPosition = toLocalInsertPositionRef.current?.(position) ?? position
-      const nextPath = insertBezierEditorPointAtSegment(editablePath, segmentIndex, {
-        id: `point-${Math.random().toString(36).slice(2, 10)}`,
-        x: localPosition.x,
-        y: localPosition.y,
-        kind: 'smooth'
-      })
+      const nextPath = applyConstraints(
+        insertBezierEditorPointAtSegment(editablePath, segmentIndex, {
+          id: `point-${Math.random().toString(36).slice(2, 10)}`,
+          x: localPosition.x,
+          y: localPosition.y,
+          kind: 'smooth'
+        })
+      )
       const insertedPoint = nextPath.points[segmentIndex + 1]
       if (!insertedPoint) return
 
@@ -262,6 +304,8 @@ export function useBezierEditorInteraction({
       applyPathOperation((path) => convertBezierEditorPointToCorner(path, pointId)),
     convertPointToSmooth: (pointId) =>
       applyPathOperation((path) => convertBezierEditorPointToSmooth(path, pointId)),
+    convertPointToBalanced: (pointId) =>
+      applyPathOperation((path) => convertBezierEditorPointToBalanced(path, pointId)),
     convertPointToFree: (pointId) =>
       applyPathOperation((path) => convertBezierEditorPointToFree(path, pointId)),
     deletePoint: (pointId) => applyPathOperation((path) => deleteBezierEditorPoint(path, pointId)),

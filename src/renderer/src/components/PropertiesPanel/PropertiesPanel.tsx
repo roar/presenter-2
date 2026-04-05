@@ -39,6 +39,7 @@ import { Button } from '../Button/Button'
 import { Checkbox } from '../Checkbox/Checkbox'
 import { ColorField } from '../ColorField/ColorField'
 import { DropdownMenu } from '../DropdownMenu/DropdownMenu'
+import { EasingBezierEditor } from '../EasingBezierEditor/EasingBezierEditor'
 import {
   GradientEditor,
   type GradientValue as GradientEditorValue
@@ -749,6 +750,15 @@ function buildSlideSection(
                 onChange={(value) => onKindChange?.(slide.id, value)}
               />
             </div>
+            {typeof transition.easing !== 'string' && transition.easing.kind === 'curve' ? (
+              <div className={`${styles.control} ${styles.wideControl}`}>
+                <span className={styles.controlLabel}>Curve</span>
+                <EasingBezierEditor
+                  easing={transition.easing}
+                  onChange={(easing) => onEasingChange?.(slide.id, easing)}
+                />
+              </div>
+            ) : null}
           </div>
         </PropertyCard>
       </>
@@ -827,6 +837,15 @@ function buildAnimationSection(
                 }
               />
             </div>
+            {typeof animation.easing !== 'string' && animation.easing.kind === 'curve' ? (
+              <div className={`${styles.control} ${styles.wideControl}`}>
+                <span className={styles.controlLabel}>Curve</span>
+                <EasingBezierEditor
+                  easing={animation.easing}
+                  onChange={(easing) => onEasingChange?.(animation.id, easing)}
+                />
+              </div>
+            ) : null}
           </div>
         </PropertyCard>
         <PropertyCard title="Effect">
