@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { ShapeElementRenderer } from './ShapeElementRenderer'
 import type { RenderedAppearance } from '@shared/animation/types'
 import type { MsoMaster } from '@shared/model/types'
@@ -177,11 +177,14 @@ describe('ShapeElementRenderer', () => {
 
   it('renders text content inside the shape when the shape carries text content', () => {
     const master = makeMaster()
+    master.geometry = { type: 'rect' }
     master.content = { type: 'text', value: createTextContent('Viewer shape text') }
 
-    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+    render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    expect(getByText('Viewer shape text')).toBeInTheDocument()
+    expect(screen.getByText('Viewer')).toBeInTheDocument()
+    expect(screen.getByText('shape')).toBeInTheDocument()
+    expect(screen.getByText('text')).toBeInTheDocument()
   })
 
   it('renders rect shape text with geometry-aware line placement', () => {
@@ -195,11 +198,11 @@ describe('ShapeElementRenderer', () => {
       namedStates: {}
     }
 
-    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+    render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    expect(getByText('HELLO')).toHaveStyle({ left: '0px', top: '0px' })
-    expect(getByText('WORLD')).toHaveStyle({ left: '0px', top: '24px' })
-    expect(getByText('AGAIN')).toHaveStyle({ left: '0px', top: '48px' })
+    expect(screen.getByText('HELLO').parentElement).toHaveStyle({ left: '0px', top: '0px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '0px', top: '24px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '0px', top: '48px' })
   })
 
   it('renders ellipse shape text with inset upper line placement', () => {
@@ -211,23 +214,22 @@ describe('ShapeElementRenderer', () => {
       namedStates: {}
     }
 
-    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+    render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    expect(getByText('ONE TWO')).toHaveStyle({ top: '0px' })
-    expect(getByText('THREE FOUR FIVE SIX')).toHaveStyle({ top: '24px' })
+    expect(screen.getByText('TWO').parentElement).toHaveStyle({ top: '0px' })
+    expect(screen.getByText('SIX').parentElement).toHaveStyle({ top: '24px' })
   })
 
-  it('renders path shape text in normal mode via the non-geometry fallback', () => {
+  it('does not render unsupported path shape text without an explicit text region', () => {
     const master = makeMaster()
     master.content = { type: 'text', value: createTextContent('Viewer path shape text') }
     master.textStyle = {
       defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
       namedStates: {}
     }
+    render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
-
-    expect(getByText('Viewer path shape text')).toBeInTheDocument()
+    expect(screen.queryByText('Viewer path shape text')).not.toBeInTheDocument()
   })
 
   it('renders path shape text inside an explicit text region', () => {
@@ -247,9 +249,61 @@ describe('ShapeElementRenderer', () => {
       namedStates: {}
     }
 
-    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+    render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
 
-    expect(getByText('HELLO WORLD')).toHaveStyle({ left: '40px', top: '0px' })
-    expect(getByText('AGAIN')).toHaveStyle({ left: '40px', top: '24px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '40px', top: '0px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '40px', top: '24px' })
+  })
+
+  it('renders list prefixes and persisted decorations in supported shape text regions', () => {
+    const master = makeMaster()
+    master.geometry = {
+      type: 'path',
+      pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z',
+      baseWidth: 100,
+      baseHeight: 100,
+      textRegion: { x: 10, y: 10, width: 80, height: 50 }
+    }
+    master.content = {
+      type: 'text',
+      value: {
+        blocks: [
+          {
+            id: 'b1',
+            list: { kind: 'bulleted' },
+            runs: [
+              { id: 'r1', text: 'Hello ', marks: [{ type: 'bold' }] },
+              { id: 'r2', text: 'world', marks: [] }
+            ]
+          }
+        ]
+      }
+    }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { container } = render(
+      <ShapeElementRenderer
+        rendered={makeRendered({
+          master,
+          textDecorations: [
+            {
+              id: 'd1',
+              kind: 'highlight',
+              range: {
+                start: { blockId: 'b1', runId: 'r2', offset: 0 },
+                end: { blockId: 'b1', runId: 'r2', offset: 5 }
+              }
+            }
+          ]
+        })}
+      />
+    )
+
+    expect(container.textContent).toContain('• Hello world')
+    expect(screen.getByText(/Hello/).style.fontWeight).toBe('700')
+    expect(screen.getByText('world').style.backgroundColor).toBe('rgba(255, 230, 0, 0.45)')
   })
 })

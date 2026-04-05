@@ -241,4 +241,30 @@ describe('TextView', () => {
     expect((guideLines[0] as HTMLDivElement).style.width).toBe('100px')
     expect((guideLines[1] as HTMLDivElement).style.top).toBe('24px')
   })
+
+  it('positions the editing surface inside the provided text frame', () => {
+    const master = makeTextMaster('Guided text')
+    const appearance = createAppearance(master.id, 'slide-1')
+
+    render(
+      <TextView
+        master={master}
+        appearance={appearance}
+        isEditing
+        textFrame={{ x: 30, y: 20, width: 120, height: 60 }}
+        editingTrackGuides={[{ x: 30, y: 20, width: 100, height: 24 }]}
+      />
+    )
+
+    expect(screen.getByTestId('text-view')).toHaveStyle({
+      left: '150px',
+      top: '160px',
+      width: '120px',
+      height: '60px'
+    })
+    expect(screen.getByRole('textbox', { name: 'Edit text line' })).toHaveStyle({
+      left: '0px',
+      top: '0px'
+    })
+  })
 })

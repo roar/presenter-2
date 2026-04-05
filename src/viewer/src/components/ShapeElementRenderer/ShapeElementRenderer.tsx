@@ -7,9 +7,12 @@ import {
   resolveLinearGradientEndpoints
 } from '@shared/model/fill'
 import { getGrainBaseFrequency, resolveGrainEffect } from '@shared/model/grain'
-import { extractPlainText } from '@shared/text/textContentUtils'
-import { buildShapeTextRenderLayout } from '@shared/text/shapeTextRenderLayout'
-import { ShapeTextFlowRenderer } from '@shared/text/ShapeTextFlowRenderer'
+import { resolveShapeTextFrame } from '@shared/text/shapeTextFrame'
+import { ShapeTextLayoutRenderer } from '@shared/text/ShapeTextLayoutRenderer'
+import {
+  buildShapeTextRenderLayout,
+  supportsShapeTextLayout
+} from '@shared/text/shapeTextRenderLayout'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 
 interface ShapeElementRendererProps {
@@ -39,6 +42,7 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
     : []
   const fontSize = master.textStyle?.defaultState.fontSize ?? 20
   const lineHeight = Math.round(fontSize * 1.2)
+  const textFrame = resolveShapeTextFrame(geometry, t.width, t.height)
 
   function renderShapeNode(extraProps: Record<string, unknown> = {}): React.JSX.Element | null {
     if (geometry?.type === 'path') {
@@ -69,9 +73,10 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
   }
 
   const shapeTextLayout =
-    master.content.type === 'text'
+    master.content.type === 'text' && supportsShapeTextLayout(geometry)
       ? buildShapeTextRenderLayout({
-          text: extractPlainText(master.content.value),
+          content: master.content.value,
+          decorations: rendered.textDecorations,
           geometry,
           frameWidth: t.width,
           frameHeight: t.height,
@@ -191,12 +196,26 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
           }}
         >
           {shapeTextLayout && shapeTextLayout.lines.length > 0 ? (
-            <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
-          ) : (
-            <TextContentRenderer
-              content={master.content.value}
+            <ShapeTextLayoutRenderer
+              lines={shapeTextLayout.lines}
               colorConstantsById={colorConstantsById}
             />
+          ) : geometry?.type === 'path' && !geometry.textRegion ? null : (
+            <div
+              style={{
+                position: 'absolute',
+                left: textFrame.x,
+                top: textFrame.y,
+                width: textFrame.width,
+                height: textFrame.height
+              }}
+            >
+              <TextContentRenderer
+                content={master.content.value}
+                colorConstantsById={colorConstantsById}
+                decorations={rendered.textDecorations}
+              />
+            </div>
           )}
         </div>
       ) : null}

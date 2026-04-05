@@ -86,6 +86,8 @@ This means:
 - a rectangle may use ordinary rectangular line layout
 - an ellipse must calculate available line width as a function of vertical position
 - arbitrary paths must not silently fall back to a plain rectangular text frame if the product requirement is "exact"
+- path-bounded text means text constrained by an explicit shape interior representation, not text flowing along the stroke or curve itself
+- text-on-path is a separate future feature and is not part of this spec
 
 If a shape kind cannot yet provide exact text layout, that shape kind should be considered unsupported for final-quality shape text until an exact layout strategy is defined.
 
@@ -481,6 +483,7 @@ To keep the system exact rather than heuristic, shape support should be explicit
 - `rect`: fully supported with exact rectangular layout
 - `ellipse`: supported with exact line clipping against the ellipse interior
 - freeform/path shapes: require an explicit text region or another exact interior representation before they are considered complete
+- `path` shapes with explicit `textRegion` are considered supported because the region is an exact interior representation for layout purposes
 
 For arbitrary SVG path data, "just use the bounding box" is not acceptable if the product requirement is exact shape-aware text.
 

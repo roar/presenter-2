@@ -7,10 +7,13 @@ import {
   resolveLinearGradientEndpoints
 } from '@shared/model/fill'
 import { getGrainBaseFrequency, resolveGrainEffect } from '@shared/model/grain'
+import { resolveShapeTextFrame } from '@shared/text/shapeTextFrame'
 import { buildShapeTextLineTracks } from '@shared/text/shapeTextLineTracks'
-import { extractPlainText } from '@shared/text/textContentUtils'
-import { buildShapeTextRenderLayout } from '@shared/text/shapeTextRenderLayout'
-import { ShapeTextFlowRenderer } from '@shared/text/ShapeTextFlowRenderer'
+import { ShapeTextLayoutRenderer } from '@shared/text/ShapeTextLayoutRenderer'
+import {
+  buildShapeTextRenderLayout,
+  supportsShapeTextLayout
+} from '@shared/text/shapeTextRenderLayout'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextView } from './TextView'
@@ -70,6 +73,8 @@ export function ShapeView({
     : []
   const fontSize = master.textStyle?.defaultState.fontSize ?? 20
   const lineHeight = Math.round(fontSize * 1.2)
+  const editableContent =
+    contentOverride ?? (master.content.type === 'text' ? master.content.value : null)
 
   const viewBox =
     geometry?.type === 'path' && geometry.baseWidth && geometry.baseHeight
@@ -105,9 +110,10 @@ export function ShapeView({
   }
 
   const shapeTextLayout =
-    !isEditing && master.content.type === 'text'
+    editableContent && supportsShapeTextLayout(geometry)
       ? buildShapeTextRenderLayout({
-          text: extractPlainText(master.content.value),
+          content: editableContent,
+          decorations: rendered?.textDecorations,
           geometry,
           frameWidth: t.width,
           frameHeight: t.height,
@@ -125,6 +131,7 @@ export function ShapeView({
         lineHeight
       })
     : []
+  const textFrame = resolveShapeTextFrame(geometry, t.width, t.height, editingTrackGuides)
 
   return (
     <>
@@ -205,6 +212,8 @@ export function ShapeView({
           onEditContentChange={onEditContentChange}
           onCommitEdit={onCommitEdit}
           editingTrackGuides={editingTrackGuides}
+          editingTrackLines={shapeTextLayout?.lines}
+          textFrame={textFrame}
         />
       ) : master.content.type === 'text' ? (
         <div
@@ -225,12 +234,26 @@ export function ShapeView({
           }}
         >
           {shapeTextLayout && shapeTextLayout.lines.length > 0 ? (
-            <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
-          ) : (
-            <TextContentRenderer
-              content={master.content.value}
+            <ShapeTextLayoutRenderer
+              lines={shapeTextLayout.lines}
               colorConstantsById={colorConstantsById}
             />
+          ) : geometry?.type === 'path' && !geometry.textRegion ? null : (
+            <div
+              style={{
+                position: 'absolute',
+                left: textFrame.x,
+                top: textFrame.y,
+                width: textFrame.width,
+                height: textFrame.height
+              }}
+            >
+              <TextContentRenderer
+                content={master.content.value}
+                colorConstantsById={colorConstantsById}
+                decorations={rendered?.textDecorations}
+              />
+            </div>
           )}
         </div>
       ) : null}

@@ -1,4 +1,5 @@
 import type { ShapeGeometry } from '../model/types'
+import { resolvePathScanlineSpan } from './pathScanlineLayout'
 
 export interface ShapeTextLineSpan {
   x: number
@@ -45,7 +46,7 @@ export function resolveShapeTextLineSpan(
     }
   }
 
-  if (geometry.type === 'path' && geometry.textRegion) {
+  if (geometry.type === 'path' && geometry.pathData) {
     const baseWidth = geometry.baseWidth ?? frameWidth
     const baseHeight = geometry.baseHeight ?? frameHeight
     if (baseWidth <= 0 || baseHeight <= 0) {
@@ -54,16 +55,35 @@ export function resolveShapeTextLineSpan(
 
     const scaleX = frameWidth / baseWidth
     const scaleY = frameHeight / baseHeight
-    const regionTop = geometry.textRegion.y * scaleY
-    const regionBottom = regionTop + geometry.textRegion.height * scaleY
+    if (geometry.textRegion) {
+      const regionTop = geometry.textRegion.y * scaleY
+      const regionBottom = regionTop + geometry.textRegion.height * scaleY
 
-    if (lineCenterY < regionTop || lineCenterY > regionBottom) {
-      return null
+      if (lineCenterY < regionTop || lineCenterY > regionBottom) {
+        return null
+      }
     }
 
-    return {
-      x: geometry.textRegion.x * scaleX,
-      width: geometry.textRegion.width * scaleX
+    const scanlineSpan = resolvePathScanlineSpan({
+      pathData: geometry.pathData,
+      baseWidth,
+      baseHeight,
+      frameWidth,
+      frameHeight,
+      lineY: lineCenterY,
+      lineHeight: 0
+    })
+    if (scanlineSpan) {
+      return scanlineSpan
+    }
+
+    if (geometry.textRegion) {
+      const minX = geometry.textRegion.x * scaleX
+      const maxX = minX + geometry.textRegion.width * scaleX
+      return {
+        x: minX,
+        width: maxX - minX
+      }
     }
   }
 

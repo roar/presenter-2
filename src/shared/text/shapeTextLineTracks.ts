@@ -20,6 +20,7 @@ export function buildShapeTextLineTracks({
   geometry,
   frameWidth,
   frameHeight,
+  fontSize,
   lineHeight
 }: BuildShapeTextLineTracksOptions): ShapeTextLineTrack[] {
   if (frameWidth <= 0 || frameHeight <= 0 || lineHeight <= 0) {
@@ -28,6 +29,7 @@ export function buildShapeTextLineTracks({
 
   const tracks: ShapeTextLineTrack[] = []
   const lineCount = Math.floor(frameHeight / lineHeight)
+  const horizontalInset = Math.max(8, fontSize * 0.5)
 
   for (let index = 0; index < lineCount; index += 1) {
     const y = index * lineHeight
@@ -37,10 +39,15 @@ export function buildShapeTextLineTracks({
       continue
     }
 
+    const insetWidth = span.width - horizontalInset * 2
+    if (insetWidth <= 0) {
+      continue
+    }
+
     tracks.push({
-      x: span.x,
+      x: span.x + horizontalInset,
       y,
-      width: span.width,
+      width: insetWidth,
       height: lineHeight
     })
   }

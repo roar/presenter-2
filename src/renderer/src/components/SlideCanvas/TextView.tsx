@@ -3,10 +3,13 @@ import type { RenderedAppearance } from '@shared/animation/types'
 import { resolveColorValue } from '@shared/model/colors'
 import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
+import type { ShapeTextFrame } from '@shared/text/shapeTextFrame'
 import { extractPlainText, plainTextToTextContent } from '@shared/text/textContentUtils'
 import type { ShapeTextLineTrack } from '@shared/text/shapeTextLineTracks'
+import type { ShapeTextRenderLine } from '@shared/text/shapeTextRenderLayout'
 
 const EMPTY_TRACK_GUIDES: ShapeTextLineTrack[] = []
+const EMPTY_TRACK_LINES: ShapeTextRenderLine[] = []
 
 interface TextViewProps {
   master: MsoMaster
@@ -17,6 +20,8 @@ interface TextViewProps {
   onEditContentChange?: (content: TextContent) => void
   onCommitEdit?: () => void
   editingTrackGuides?: ShapeTextLineTrack[]
+  editingTrackLines?: ShapeTextRenderLine[]
+  textFrame?: ShapeTextFrame | null
 }
 
 export function TextView({
@@ -27,7 +32,9 @@ export function TextView({
   contentOverride = null,
   onEditContentChange,
   onCommitEdit,
-  editingTrackGuides = EMPTY_TRACK_GUIDES
+  editingTrackGuides = EMPTY_TRACK_GUIDES,
+  editingTrackLines = EMPTY_TRACK_LINES,
+  textFrame = null
 }: TextViewProps): React.JSX.Element {
   const { transform: t } = master
   const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
@@ -35,9 +42,26 @@ export function TextView({
   const content = contentOverride ?? (master.content.type === 'text' ? master.content.value : null)
   const plainText = content ? extractPlainText(content) : ''
   const fontSize = textStyle.fontSize ?? 16
-  const useTrackEditors = isEditing && editingTrackGuides.length > 0
+  const frameX = textFrame?.x ?? 0
+  const frameY = textFrame?.y ?? 0
+  const frameWidth = textFrame?.width ?? t.width
+  const frameHeight = textFrame?.height ?? t.height
+  const useTrackEditors =
+    isEditing && (editingTrackGuides.length > 0 || editingTrackLines.length > 0)
   const trackEditorLines = useTrackEditors
-    ? layoutTrackEditorLines(plainText, editingTrackGuides, fontSize)
+    ? editingTrackLines.length > 0
+      ? editingTrackLines.map((line) => ({
+          text: line.text,
+          x: line.x - frameX,
+          y: line.y - frameY,
+          width: line.trackWidth,
+          height: line.height
+        }))
+      : layoutTrackEditorLines(plainText, editingTrackGuides, fontSize).map((line) => ({
+          ...line,
+          x: line.x - frameX,
+          y: line.y - frameY
+        }))
     : []
   const [trackDraftLines, setTrackDraftLines] = React.useState<string[]>([])
   const trackEditorRefs = React.useRef<Array<HTMLTextAreaElement | null>>([])
@@ -64,10 +88,10 @@ export function TextView({
       data-text-editing={isEditing ? 'true' : 'false'}
       style={{
         position: 'absolute',
-        left: t.x,
-        top: t.y,
-        width: t.width,
-        height: t.height,
+        left: t.x + frameX,
+        top: t.y + frameY,
+        width: frameWidth,
+        height: frameHeight,
         transform: rendered?.transform || undefined,
         opacity: rendered?.opacity ?? 1,
         visibility: visible ? 'visible' : 'hidden',
@@ -88,8 +112,8 @@ export function TextView({
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                left: track.x,
-                top: track.y,
+                left: track.x - frameX,
+                top: track.y - frameY,
                 width: track.width,
                 height: track.height,
                 border: '1px dashed rgba(10, 132, 255, 0.35)',

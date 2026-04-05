@@ -169,11 +169,13 @@ describe('ShapeView', () => {
 
   it('renders text content inside a shape when the shape carries text content', () => {
     const master = makeMaster()
+    master.geometry = { type: 'rect' }
     master.content = { type: 'text', value: createTextContent('Shape text') }
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('Shape text')).toBeInTheDocument()
+    expect(screen.getByText('Shape')).toBeInTheDocument()
+    expect(screen.getByText('text')).toBeInTheDocument()
   })
 
   it('renders rect shape text with geometry-aware line placement when not editing', () => {
@@ -189,9 +191,9 @@ describe('ShapeView', () => {
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('HELLO')).toHaveStyle({ left: '0px', top: '0px' })
-    expect(screen.getByText('WORLD')).toHaveStyle({ left: '0px', top: '24px' })
-    expect(screen.getByText('AGAIN')).toHaveStyle({ left: '0px', top: '48px' })
+    expect(screen.getByText('HELLO').parentElement).toHaveStyle({ left: '0px', top: '0px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '0px', top: '24px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '0px', top: '48px' })
   })
 
   it('renders ellipse shape text with inset upper line placement when not editing', () => {
@@ -205,11 +207,11 @@ describe('ShapeView', () => {
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('ONE TWO')).toHaveStyle({ top: '0px' })
-    expect(screen.getByText('THREE FOUR FIVE SIX')).toHaveStyle({ top: '24px' })
+    expect(screen.getByText('TWO').parentElement).toHaveStyle({ top: '0px' })
+    expect(screen.getByText('SIX').parentElement).toHaveStyle({ top: '24px' })
   })
 
-  it('renders path shape text in normal mode via the non-geometry fallback', () => {
+  it('does not render unsupported path shape text without an explicit text region', () => {
     const master = makeMaster()
     master.content = { type: 'text', value: createTextContent('Path shape text') }
     master.textStyle = {
@@ -219,7 +221,7 @@ describe('ShapeView', () => {
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('Path shape text')).toBeInTheDocument()
+    expect(screen.queryByText('Path shape text')).not.toBeInTheDocument()
   })
 
   it('renders path shape text inside an explicit text region in normal mode', () => {
@@ -241,8 +243,69 @@ describe('ShapeView', () => {
 
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} />)
 
-    expect(screen.getByText('HELLO WORLD')).toHaveStyle({ left: '40px', top: '0px' })
-    expect(screen.getByText('AGAIN')).toHaveStyle({ left: '40px', top: '24px' })
+    expect(screen.getByText('WORLD').parentElement).toHaveStyle({ left: '40px', top: '0px' })
+    expect(screen.getByText('AGAIN').parentElement).toHaveStyle({ left: '40px', top: '24px' })
+  })
+
+  it('renders list prefixes and decorations inside supported path text regions', () => {
+    const master = makeMaster()
+    master.geometry = {
+      type: 'path',
+      pathData: 'M 0 0 L 100 0 L 100 100 L 0 100 Z',
+      baseWidth: 100,
+      baseHeight: 100,
+      textRegion: { x: 20, y: 10, width: 60, height: 50 }
+    }
+    master.transform.width = 200
+    master.transform.height = 100
+    master.content = {
+      type: 'text',
+      value: {
+        blocks: [
+          {
+            id: 'b1',
+            list: { kind: 'bulleted' },
+            runs: [
+              { id: 'r1', text: 'Hello ', marks: [{ type: 'bold' }] },
+              { id: 'r2', text: 'world', marks: [] }
+            ]
+          }
+        ]
+      }
+    }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    render(
+      <ShapeView
+        master={master}
+        appearance={makeAppearance(master.id)}
+        rendered={{
+          master,
+          appearance: makeAppearance(master.id),
+          visible: true,
+          opacity: 1,
+          transform: 'translate(0px, 0px)',
+          textShadow: null,
+          strokeDashoffset: null,
+          textDecorations: [
+            {
+              id: 'd1',
+              kind: 'highlight',
+              range: {
+                start: { blockId: 'b1', runId: 'r2', offset: 0 },
+                end: { blockId: 'b1', runId: 'r2', offset: 5 }
+              }
+            }
+          ]
+        }}
+      />
+    )
+
+    expect(screen.getByText(/Hello/).style.fontWeight).toBe('700')
+    expect(screen.getByText('world').style.backgroundColor).toBe('rgba(255, 230, 0, 0.45)')
   })
 
   it('renders a textbox overlay in edit mode for shape text', async () => {
@@ -343,7 +406,7 @@ describe('ShapeView', () => {
     render(<ShapeView master={master} appearance={makeAppearance(master.id)} isEditing />)
 
     const textboxes = screen.getAllByRole('textbox', { name: 'Edit text line' })
-    expect(textboxes).toHaveLength(3)
-    expect(textboxes[0]).toHaveStyle({ left: '40px', width: '120px' })
+    expect(textboxes).toHaveLength(1)
+    expect(textboxes[0]).toHaveStyle({ left: '0px', width: '120px' })
   })
 })
