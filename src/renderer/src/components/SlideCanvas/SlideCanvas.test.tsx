@@ -281,6 +281,28 @@ describe('SlideCanvas', () => {
     expect(screen.queryByText('Persisted text')).not.toBeInTheDocument()
   })
 
+  it('does not render selection chrome or hitbox while a text object is being edited', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Persisted text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [master.id], null, master.id, createTextContent('Draft text'))
+    render(<SlideCanvas />)
+
+    expect(screen.getByRole('textbox', { name: 'Edit text' })).toBeInTheDocument()
+    expect(screen.queryByTestId('selection-indicator')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('element-hitbox')).not.toBeInTheDocument()
+  })
+
   it('updates draft text content from the canvas editing overlay', async () => {
     const user = userEvent.setup()
     const pres = createPresentation()

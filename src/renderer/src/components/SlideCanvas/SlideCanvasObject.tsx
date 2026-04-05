@@ -114,7 +114,7 @@ export function SlideCanvasObject({
       {master.type === 'image' && (
         <ImageView master={master} appearance={appearance} rendered={renderedAppearance} />
       )}
-      {isSelected ? (
+      {isSelected && !isEditingText ? (
         <SelectionOverlay
           rotation={master.transform.rotation + renderedRotation}
           cx={x + width / 2 + translateX}
@@ -194,26 +194,28 @@ export function SlideCanvasObject({
             )
           })()
         : null}
-      <div
-        data-testid="element-hitbox"
-        style={{
-          position: 'absolute',
-          left,
-          top,
-          width: scaledWidth,
-          height: scaledHeight,
-          zIndex: 1,
-          cursor: isDragging ? 'grabbing' : 'grab'
-        }}
-        onMouseDown={(event) => onElementMouseDown(master.id, event)}
-        onClick={(event) => event.stopPropagation()}
-        onDoubleClick={() => {
-          if (master.type === 'text') {
-            onElementDoubleClick(master.id)
-          }
-        }}
-        onContextMenu={(event) => onElementContextMenu(master.id, appearance.id, event)}
-      />
+      {!isEditingText ? (
+        <div
+          data-testid="element-hitbox"
+          style={{
+            position: 'absolute',
+            left,
+            top,
+            width: scaledWidth,
+            height: scaledHeight,
+            zIndex: 1,
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+          onMouseDown={(event) => onElementMouseDown(master.id, event)}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={() => {
+            if (master.type === 'text') {
+              onElementDoubleClick(master.id)
+            }
+          }}
+          onContextMenu={(event) => onElementContextMenu(master.id, appearance.id, event)}
+        />
+      ) : null}
     </>
   )
 }
