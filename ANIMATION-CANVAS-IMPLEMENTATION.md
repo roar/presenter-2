@@ -17,7 +17,7 @@ This document is an implementation and rollout plan. It is intentionally separat
 ## Current Status
 
 - Product target: full ordered ghost-chain behavior for move, scale, and rotate sequences.
-- Current implementation status: partial.
+- Current implementation status: mostly implemented for transform animations.
 - Implemented so far:
   - create and select a move animation from the canvas
   - derive and render multi-step move ghost chains
@@ -26,13 +26,19 @@ This document is an implementation and rollout plan. It is intentionally separat
   - highlight the selected ghost and its incoming segment
   - move the base object while move ghosts are visible
   - render move ghosts using the original object's form
+  - path-backed move editing with point insert, drag, type change, and delete
+  - sharp, smooth, and free-bezier move path points
+  - scale step chains with selected-step resize editing
+  - rotate step chains with selected-step rotate editing
+  - mixed cumulative move + scale + rotate chains
+  - add-animation insertion after the currently selected step
+  - newly inserted transform steps inheriting easing from the previous step in the chain
   - delete the selected move step from the canvas context menu
 - Not yet implemented:
   - trigger-aware chain presentation
-  - scale step chains
-  - rotate step chains
-  - mixed-type cumulative chains
-  - path-based move editing within the chain model
+  - deeper UX polish and manual validation for mixed transform chains
+  - optional rotate-angle snapping and related editor affordances
+  - non-transform animation canvas editing beyond move, scale, and rotate
 
 ## Phase 1: Move Step Chains
 
@@ -117,6 +123,10 @@ The user must verify all of the following before Phase 3 begins:
 
 Add scale steps to the same cumulative chain model.
 
+### Status
+
+Implemented.
+
 ### Implementation scope
 
 - Add canvas creation flow for scale steps if needed.
@@ -148,6 +158,10 @@ The user must verify all of the following before Phase 4 begins:
 ### Goal
 
 Add rotate steps to the same cumulative chain model.
+
+### Status
+
+Implemented.
 
 ### Implementation scope
 
@@ -181,6 +195,19 @@ The user must verify all of the following before Phase 5 begins:
 ### Goal
 
 Make selection, deletion, and visual emphasis consistent across all supported step types.
+
+### Status
+
+Partially implemented.
+
+- Implemented:
+  - one selected step at a time across move, scale, and rotate
+  - side-panel and canvas selection synchronization
+  - context-menu insertion after the current step
+  - consistent cumulative chain rendering across mixed transform types
+- Remaining:
+  - more manual validation and polish for complex mixed chains
+  - any additional keyboard-delete parity checks the user wants to enforce
 
 ### Implementation scope
 
@@ -219,6 +246,10 @@ The user must verify all of the following before Phase 6 begins:
 
 Add Keynote-style move-path editing without breaking the step-chain model.
 
+### Status
+
+Implemented for the current move-path scope.
+
 ### Implementation scope
 
 - Extend move-step data to support path-backed motion in a backward-compatible way.
@@ -229,7 +260,7 @@ Add Keynote-style move-path editing without breaking the step-chain model.
 - Render the selected move step's segment as a solid active path.
 - Show path points and control points only for the selected move step.
 - Support point drag, insert, type change, and delete for the selected move step.
-- Support point-type conversion at minimum for sharp and bezier.
+- Support point-type conversion for sharp, smooth, and free bezier.
 - Treat the path as an ordered anchor-point list with optional bezier control handles per point.
 - Keep endpoint anchors as the source of the move step's start and end positions.
 - Allow interior point insertion on the active segment under the pointer.
@@ -258,6 +289,9 @@ The user must verify all of the following before declaring the sequence model co
 2. Confirm only the selected move step exposes editable path points.
 3. Confirm earlier move segments remain visible as dashed history when a later move step is selected.
 4. Confirm the selected move step's segment is solid.
+5. Insert a point on a curved segment and confirm it appears at the insert indicator position.
+6. Convert points between sharp, smooth, and free bezier and confirm handles update correctly.
+7. Scrub or play the timeline and confirm move annotations stay visible while the selected animation remains selected.
 5. Drag a path point and confirm downstream ghosts update.
 6. Insert and delete path points and confirm only the selected step changes.
 7. Convert a selected point between sharp and bezier from the context menu.

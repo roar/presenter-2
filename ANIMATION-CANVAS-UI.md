@@ -69,9 +69,10 @@ This document is a product/UI specification. It describes expected behavior and 
 - The selected move step's incoming segment is solid and visually stronger than history segments.
 - The selected move ghost uses the same rendered form as the original object, shown as a semi-transparent ghost image.
 - A path is edited as an ordered list of anchor points.
-- Each anchor point may be `sharp` or `bezier`.
+- Each anchor point may be `sharp`, `smooth`, or free `bezier`.
 - A `sharp` point has no visible control handles.
-- A `bezier` point exposes control handles that define the incoming and outgoing curve.
+- A `smooth` point keeps the incoming and outgoing handles on one tangent line while allowing different lengths.
+- A free `bezier` point exposes independent control handles that define the incoming and outgoing curve.
 - The first and last anchor points are the step endpoints and define the move step's start and end positions.
 
 ### Scale
@@ -138,12 +139,14 @@ This document is a product/UI specification. It describes expected behavior and 
 - The selected move step may be edited through its ghost, movement line, or path controls.
 - While a move path is active, only the selected move step exposes editable path points.
 - A new path point may be inserted on the selected move segment.
-- A selected path point may be converted between sharp and bezier.
+- A selected path point may be converted between sharp, smooth, and free bezier.
 - Inserting a point targets the active segment under the pointer and inserts the new anchor into that segment.
+- The insert indicator appears only when the pointer is relatively close to the equal-distance midpoint area of the active segment.
+- The inserted point appears at the insert indicator position and begins drag in the same pointer gesture.
 - Dragging an anchor point moves only that anchor point.
-- Dragging a bezier control handle changes only that handle's curve contribution for the selected point.
-- Converting a point from `sharp` to `bezier` creates visible control handles for that point.
-- Converting a point from `bezier` to `sharp` removes its control handles and keeps the anchor position.
+- Dragging a bezier control handle changes only that handle's curve contribution for the selected point, except for `smooth` points where the opposite handle stays aligned on the same tangent.
+- Converting a point from `sharp` to `smooth` or free `bezier` creates visible control handles for that point.
+- Converting a point from `smooth` or free `bezier` to `sharp` removes its control handles and keeps the anchor position.
 - Endpoints may be repositioned, but deleting an endpoint is not allowed while the path still needs a valid start and end.
 - The selected scale step may be edited through resize handles on that step's ghost.
 - The selected rotate step may be edited through a rotate handle on that step's ghost.
@@ -190,7 +193,8 @@ This document is a product/UI specification. It describes expected behavior and 
 
 - A selected interior path point shows a context menu with:
   - `Make Sharp Point` when the point is currently bezier
-  - `Make Bézier Point` when the point is currently sharp
+  - `Make Smooth Point` when the point is not currently smooth
+  - `Make Free Bezier Point` when the point is not currently free bezier
   - `Delete`
 - If a point is already in the requested type, that conversion action is disabled.
 - Endpoint context menus do not offer `Delete`.
@@ -246,11 +250,13 @@ Current implementation status is partial:
   - selected-step emphasis for the ghost and its incoming segment
   - moving the base object while ghosts are visible
   - rendering ghost images with the original object's form
+  - move path point editing, insertion, conversion, and deletion
+  - sharp, smooth, and free-bezier move points
+  - scale ghost chains with selected-step resize editing
+  - rotate ghost chains with selected-step rotate editing
+  - mixed cumulative move, scale, and rotate chains
 - Not yet implemented:
-  - path point editing and point-type conversion
-  - scale step chains
-  - rotate step chains
-  - mixed-type cumulative chains
-  - full Keynote-style path editing UI
+  - trigger-aware chain presentation polish
+  - remaining UX polish for complex mixed transform chains
 
 The rollout status is subordinate to the specification above. The specification defines the intended final behavior.
