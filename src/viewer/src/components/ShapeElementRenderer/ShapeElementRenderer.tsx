@@ -7,6 +7,9 @@ import {
   resolveLinearGradientEndpoints
 } from '@shared/model/fill'
 import { getGrainBaseFrequency, resolveGrainEffect } from '@shared/model/grain'
+import { extractPlainText } from '@shared/text/textContentUtils'
+import { buildShapeTextRenderLayout } from '@shared/text/shapeTextRenderLayout'
+import { ShapeTextFlowRenderer } from '@shared/text/ShapeTextFlowRenderer'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 
 interface ShapeElementRendererProps {
@@ -34,6 +37,8 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
   const gradientStops = isGradientFill(style.fill)
     ? resolveGradientStops(style.fill.stops, colorConstantsById)
     : []
+  const fontSize = master.textStyle?.defaultState.fontSize ?? 20
+  const lineHeight = Math.round(fontSize * 1.2)
 
   function renderShapeNode(extraProps: Record<string, unknown> = {}): React.JSX.Element | null {
     if (geometry?.type === 'path') {
@@ -58,6 +63,23 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
 
     return null
   }
+
+  function measureTextWidth(text: string, currentFontSize: number): number {
+    return text.length * currentFontSize * 0.5
+  }
+
+  const shapeTextLayout =
+    master.content.type === 'text' && (geometry?.type === 'rect' || geometry?.type === 'ellipse')
+      ? buildShapeTextRenderLayout({
+          text: extractPlainText(master.content.value),
+          geometry,
+          frameWidth: t.width,
+          frameHeight: t.height,
+          fontSize,
+          lineHeight,
+          measureTextWidth
+        })
+      : null
 
   return (
     <>
@@ -162,15 +184,20 @@ export function ShapeElementRenderer({ rendered }: ShapeElementRendererProps): R
             opacity,
             visibility: visible ? 'visible' : 'hidden',
             color: resolveColorValue(master.textStyle?.defaultState.color, colorConstantsById),
-            fontSize: master.textStyle?.defaultState.fontSize,
+            fontSize,
             fontWeight: master.textStyle?.defaultState.fontWeight,
-            fontFamily: master.textStyle?.defaultState.fontFamily
+            fontFamily: master.textStyle?.defaultState.fontFamily,
+            lineHeight: `${lineHeight}px`
           }}
         >
-          <TextContentRenderer
-            content={master.content.value}
-            colorConstantsById={colorConstantsById}
-          />
+          {shapeTextLayout ? (
+            <ShapeTextFlowRenderer lines={shapeTextLayout.lines} />
+          ) : (
+            <TextContentRenderer
+              content={master.content.value}
+              colorConstantsById={colorConstantsById}
+            />
+          )}
         </div>
       ) : null}
     </>

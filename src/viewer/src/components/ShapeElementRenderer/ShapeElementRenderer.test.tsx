@@ -183,4 +183,37 @@ describe('ShapeElementRenderer', () => {
 
     expect(getByText('Viewer shape text')).toBeInTheDocument()
   })
+
+  it('renders rect shape text with geometry-aware line placement', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'rect' }
+    master.transform.width = 100
+    master.transform.height = 72
+    master.content = { type: 'text', value: createTextContent('HELLO WORLD AGAIN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+
+    expect(getByText('HELLO')).toHaveStyle({ left: '0px', top: '0px' })
+    expect(getByText('WORLD')).toHaveStyle({ left: '0px', top: '24px' })
+    expect(getByText('AGAIN')).toHaveStyle({ left: '0px', top: '48px' })
+  })
+
+  it('renders ellipse shape text with inset upper line placement', () => {
+    const master = makeMaster()
+    master.geometry = { type: 'ellipse' }
+    master.content = { type: 'text', value: createTextContent('ONE TWO THREE FOUR FIVE SIX SEVEN') }
+    master.textStyle = {
+      defaultState: { fontSize: 20, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+
+    const { getByText } = render(<ShapeElementRenderer rendered={makeRendered({ master })} />)
+
+    expect(getByText('ONE TWO')).toHaveStyle({ top: '0px' })
+    expect(getByText('THREE FOUR FIVE SIX')).toHaveStyle({ top: '24px' })
+  })
 })
