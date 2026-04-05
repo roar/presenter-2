@@ -507,6 +507,148 @@ describe('SlideCanvas', () => {
     expect(screen.getByTestId('animation-ghost')).toHaveStyle({ left: '140px', top: '180px' })
   })
 
+  it('keeps move annotations visible when scrub preview shows a different slide', () => {
+    const pres = makePresentation()
+    const slide1Id = pres.slideOrder[0]
+    const slide1AppearanceId = pres.slidesById[slide1Id].appearanceIds[0]
+    const slide2 = createSlide()
+    slide2.id = 'slide-2'
+    const slide2Master = createMsoMaster('shape')
+    slide2Master.transform = { x: 320, y: 120, width: 160, height: 100, rotation: 0 }
+    slide2Master.objectStyle = {
+      defaultState: { fill: '#ff0000', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    slide2Master.geometry = { type: 'path', pathData: 'M 0 0 L 160 0 L 160 100 L 0 100 Z' }
+    const slide2Appearance = createAppearance(slide2Master.id, slide2.id)
+    slide2.appearanceIds = [slide2Appearance.id]
+
+    pres.slideOrder = [slide1Id, slide2.id]
+    pres.slidesById[slide2.id] = slide2
+    pres.mastersById[slide2Master.id] = slide2Master
+    pres.appearancesById[slide2Appearance.id] = slide2Appearance
+
+    pres.slidesById[slide1Id].animationOrder = ['move-1']
+    pres.appearancesById[slide1AppearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId: slide1AppearanceId }
+    }
+
+    const previewFrame: FrameState = {
+      front: {
+        slide: slide2,
+        appearances: [
+          {
+            appearance: slide2Appearance,
+            master: slide2Master,
+            visible: true,
+            opacity: 1,
+            transform: 'none',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      behind: null,
+      transition: null,
+      msoAppearances: []
+    }
+
+    mockStore(slide1Id, pres, [], 'move-1')
+    render(<SlideCanvas previewFrame={previewFrame} />)
+
+    expect(screen.getByTestId('animation-ghost')).toBeInTheDocument()
+    expect(screen.getByTestId('animation-path')).toBeInTheDocument()
+  })
+
+  it('keeps move annotations visible while preview is over a slide transition', () => {
+    const pres = makePresentation()
+    const slide1Id = pres.slideOrder[0]
+    const slide1 = pres.slidesById[slide1Id]
+    const slide1AppearanceId = slide1.appearanceIds[0]
+    const slide2 = createSlide()
+    slide2.id = 'slide-2'
+    const slide2Master = createMsoMaster('shape')
+    slide2Master.transform = { x: 320, y: 120, width: 160, height: 100, rotation: 0 }
+    slide2Master.objectStyle = {
+      defaultState: { fill: '#ff0000', stroke: 'none', strokeWidth: 0 },
+      namedStates: {}
+    }
+    slide2Master.geometry = { type: 'path', pathData: 'M 0 0 L 160 0 L 160 100 L 0 100 Z' }
+    const slide2Appearance = createAppearance(slide2Master.id, slide2.id)
+    slide2.appearanceIds = [slide2Appearance.id]
+
+    pres.slideOrder = [slide1Id, slide2.id]
+    pres.slidesById[slide2.id] = slide2
+    pres.mastersById[slide2Master.id] = slide2Master
+    pres.appearancesById[slide2Appearance.id] = slide2Appearance
+
+    pres.slidesById[slide1Id].animationOrder = ['move-1']
+    pres.appearancesById[slide1AppearanceId].animationIds = ['move-1']
+    pres.animationsById['move-1'] = {
+      id: 'move-1',
+      trigger: 'on-click',
+      offset: 0,
+      duration: 1,
+      easing: 'linear',
+      loop: { kind: 'none' },
+      effect: { kind: 'action', type: 'move', delta: { x: 40, y: 80 } },
+      target: { kind: 'appearance', appearanceId: slide1AppearanceId }
+    }
+
+    const previewFrame: FrameState = {
+      behind: {
+        slide: slide1,
+        appearances: [
+          {
+            appearance: pres.appearancesById[slide1AppearanceId],
+            master: pres.mastersById[pres.appearancesById[slide1AppearanceId].masterId],
+            visible: true,
+            opacity: 1,
+            transform: 'none',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      front: {
+        slide: slide2,
+        appearances: [
+          {
+            appearance: slide2Appearance,
+            master: slide2Master,
+            visible: true,
+            opacity: 1,
+            transform: 'none',
+            textShadow: null,
+            strokeDashoffset: null
+          }
+        ],
+        colorConstantsById: pres.colorConstantsById,
+        defaultBackground: pres.defaultBackground
+      },
+      transition: { kind: 'dissolve', progress: 0.5 },
+      msoAppearances: []
+    }
+
+    mockStore(slide1Id, pres, [], 'move-1')
+    render(<SlideCanvas previewFrame={previewFrame} />)
+
+    expect(screen.getByTestId('animation-ghost')).toBeInTheDocument()
+    expect(screen.getByTestId('animation-path')).toBeInTheDocument()
+  })
+
   it('renders transition previews with behind, front, and mso content through the preview layer', () => {
     const pres = createPresentation()
     const slide1 = createSlide()
