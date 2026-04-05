@@ -28,6 +28,7 @@ The following decisions are locked for implementation unless a later document ex
 - Future text-range animations that switch text style state are a compatibility requirement now.
 - Double-click defaults to text editing, not future shape-geometry editing.
 - Shapes are expected to support text content, and when they do they should follow the same text-edit interaction model as text boxes.
+- Shape-aware text layout must be geometrically accurate, not approximated by a rectangular inset box.
 
 ## Current Repo State
 
@@ -41,7 +42,9 @@ The repo already has a partial text foundation:
 - Editor-side text insertion now exists from the toolbar and creates/selects a text object.
 - The editor store now has explicit `begin`, `update`, `commit`, and `cancel` actions for text editing state.
 - The editor canvas now has a minimal DOM-backed text editing overlay for direct typing, blur commit, `Escape` cancel, and `Ctrl/Cmd+Enter` commit.
-- The editor still does not have full rich-text DOM selection, inline formatting UI, or shape-text authoring.
+- Shapes can now carry text content and enter the same edit lifecycle as text boxes.
+- The current shape text layout is still box-based and therefore not acceptable as the final shape-text solution.
+- The editor still does not have full rich-text DOM selection, inline formatting UI, or accurate geometry-aware shape text layout.
 
 ## Authoring UX
 
@@ -73,6 +76,18 @@ The project should converge on one text-authoring rule across object kinds:
 - future shape-geometry editing must use a separate explicit entry point such as toolbar, context menu, or shortcut
 
 This avoids reserving double-click for a future shape mode at the cost of today's primary text-authoring flow.
+
+### Shape-aware layout rule
+
+For shapes, text layout must ultimately be constrained by the actual shape geometry, not by the shape's bounding rectangle.
+
+This means:
+
+- a rectangle may use ordinary rectangular line layout
+- an ellipse must calculate available line width as a function of vertical position
+- arbitrary paths must not silently fall back to a plain rectangular text frame if the product requirement is "exact"
+
+If a shape kind cannot yet provide exact text layout, that shape kind should be considered unsupported for final-quality shape text until an exact layout strategy is defined.
 
 ## Model and Styling Architecture
 
@@ -411,12 +426,63 @@ The draft content should exist only while editing and should be committed back t
 - Make the floating text toolbar selection-aware so it can later apply either direct marks or style references.
 - When editing is active, the editor overlay must receive focus and pointer input instead of the object hitbox / resize chrome.
 - The first implementation may support plain-text paragraph editing before full rich-text DOM range editing is added.
+- For shape text, editor and viewer must converge on the same geometry-aware layout rules rather than separate ad hoc approximations.
 
 Implementation constraint:
 
 - browser DOM may be used for editing interaction and layout measurement
 - persisted data must remain framework-agnostic TypeScript model data
 - no raw HTML or browser-specific selection objects may be stored in the document model
+- if accurate shape-aware layout is required, the project needs a shared layout model that can drive both viewer rendering and editor caret/selection behavior
+
+### Shape text layout architecture
+
+Accurate shape-aware text requires a shared layout pipeline, not just a DOM overlay inside the shape bounds.
+
+Recommended direction:
+
+```ts
+interface TextLayoutRequest {
+  content: TextContent
+  frame: Transform
+  geometry: ShapeGeometry | null
+  textStyle: TextStyleProperties
+}
+
+interface TextLineFragment {
+  blockId: BlockId
+  runId: RunId
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+  startOffset: number
+  endOffset: number
+}
+
+interface TextLayoutResult {
+  fragments: TextLineFragment[]
+  lineBoxes: Array<{ x: number; y: number; width: number; height: number }>
+  caretPositions: Array<{ blockId: BlockId; runId: RunId; offset: number; x: number; y: number }>
+}
+```
+
+The important rule is not the exact interface shape, but that:
+
+- viewer rendering consumes shared layout output
+- editor caret placement consumes the same shared layout output
+- selection and hit-testing are defined against the same geometry-aware result
+
+### Shape geometry support policy
+
+To keep the system exact rather than heuristic, shape support should be explicit:
+
+- `rect`: fully supported with exact rectangular layout
+- `ellipse`: supported with exact line clipping against the ellipse interior
+- freeform/path shapes: require an explicit text region or another exact interior representation before they are considered complete
+
+For arbitrary SVG path data, "just use the bounding box" is not acceptable if the product requirement is exact shape-aware text.
 
 ## Acceptance Criteria
 
@@ -432,6 +498,8 @@ The first implementation is complete when all of the following are true:
 - Decorations can be persisted on ranges and render consistently after nearby text edits.
 - Undo and redo work across text edits and inline formatting.
 - The persisted model contains stable enough anchors to support future text-style bindings and text-range animation targets.
+- For supported shape kinds, rendered text is constrained by the actual shape interior rather than the shape selection box.
+- Editor and viewer agree on line breaks and visible text placement for supported shape kinds.
 
 ## Test Plan
 
@@ -441,6 +509,7 @@ The first implementation is complete when all of the following are true:
 - splitting and merging runs normalize correctly
 - list metadata round-trips through persistence
 - anchor repair keeps decorations and style bindings attached after insertions and deletions
+- geometry-aware line width calculations are deterministic for supported shape kinds
 
 ### Store tests
 
@@ -456,6 +525,7 @@ The first implementation is complete when all of the following are true:
 - double-click enters edit mode
 - editing mode disables selection chrome and hitbox interception for that object
 - typing updates rendered content
+- supported shapes render text inside the true shape interior, not the selection rectangle
 - selecting text and using the floating toolbar applies inline formatting
 - list actions create visible bullets and numbers
 - decorations render and remain attached after nearby edits
@@ -467,6 +537,7 @@ The first implementation is complete when all of the following are true:
 - persisted decorations render from anchors
 - effective style resolution combines box defaults, range style bindings, active states, and local marks deterministically
 - future style-state switching works at the resolver level before animation authoring UI exists
+- supported shape-text layout matches editor line breaking and placement
 
 ## Assumptions
 
@@ -557,6 +628,23 @@ Exit criteria:
 - a shape with text support can enter text editing
 - shape text editing follows the same commit/cancel rules as text boxes
 - future shape-geometry editing remains a separate explicit mode
+
+### Phase 4c: Exact Shape-Aware Layout
+
+Goal:
+- make shape text layout geometrically correct in both editor and viewer
+
+Changes:
+- introduce a shared shape-text layout model
+- compute line boxes and caret positions against actual supported shape interiors
+- replace box-based shape text layout with geometry-aware placement
+- ensure editor hit-testing, caret movement, and viewer rendering use the same layout output
+
+Exit criteria:
+- `rect` and `ellipse` have exact shape-aware text layout
+- supported shapes no longer rely on bounding-box text flow
+- editor and viewer agree on line breaks for supported shape kinds
+- unsupported path shapes are explicitly gated behind a defined exact text-region strategy
 
 ### Phase 5: Formatting, Lists, and Decorations
 
