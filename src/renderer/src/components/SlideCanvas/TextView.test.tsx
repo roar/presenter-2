@@ -111,6 +111,51 @@ describe('TextView', () => {
     )
   })
 
+  it('renders one textbox per editing track and updates multiline draft content', async () => {
+    const user = userEvent.setup()
+    const master = makeTextMaster('Alpha Beta Gamma Delta')
+    master.textStyle = {
+      defaultState: { fontSize: 16, fontWeight: 400, color: '#ffffff' },
+      namedStates: {}
+    }
+    const appearance = createAppearance(master.id, 'slide-1')
+    const onEditContentChange = vi.fn()
+
+    render(
+      <TextView
+        master={master}
+        appearance={appearance}
+        isEditing
+        onEditContentChange={onEditContentChange}
+        editingTrackGuides={[
+          { x: 10, y: 0, width: 100, height: 24 },
+          { x: 20, y: 24, width: 100, height: 24 }
+        ]}
+      />
+    )
+
+    const textboxes = screen.getAllByRole('textbox', { name: 'Edit text line' })
+    expect(textboxes).toHaveLength(2)
+    expect(textboxes[0]).toHaveValue('Alpha Beta')
+    expect(textboxes[1]).toHaveValue('Gamma Delta')
+
+    await user.clear(textboxes[1] as HTMLTextAreaElement)
+    await user.type(textboxes[1] as HTMLTextAreaElement, 'Ny linje')
+
+    expect(onEditContentChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        blocks: [
+          expect.objectContaining({
+            runs: [expect.objectContaining({ text: 'Alpha Beta' })]
+          }),
+          expect.objectContaining({
+            runs: [expect.objectContaining({ text: 'Ny linje' })]
+          })
+        ]
+      })
+    )
+  })
+
   it('commits editing on blur', async () => {
     const user = userEvent.setup()
     const master = makeTextMaster('Persisted text')
