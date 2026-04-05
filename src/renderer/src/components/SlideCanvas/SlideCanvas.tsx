@@ -46,7 +46,9 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   const selectedElementIds = useDocumentStore((s) => s.ui.selectedElementIds)
   const selectedAnimationId = useDocumentStore((s) => s.ui.selectedAnimationId)
   const editingTextMasterId = useDocumentStore((s) => s.ui.editingText?.masterId ?? null)
+  const editingTextDraftContent = useDocumentStore((s) => s.ui.editingText?.draftContent ?? null)
   const beginTextEdit = useDocumentStore((s) => s.beginTextEdit)
+  const cancelTextEdit = useDocumentStore((s) => s.cancelTextEdit)
   const selectElements = useDocumentStore((s) => s.selectElements)
   const selectAnimation = useDocumentStore((s) => s.selectAnimation)
   const setPreviewPatch = useDocumentStore((s) => s.setPreviewPatch)
@@ -208,6 +210,11 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
   // Keyboard: Cmd+0 resets view, Space enables pan mode
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape' && editingTextMasterId != null) {
+        e.preventDefault()
+        cancelTextEdit()
+        return
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === '0') {
         e.preventDefault()
         setUserZoom(1)
@@ -236,7 +243,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [])
+  }, [cancelTextEdit, editingTextMasterId])
 
   const {
     elementContextMenu,
@@ -611,6 +618,7 @@ export function SlideCanvas({ previewFrame = null }: SlideCanvasProps): React.JS
               defaultBackground={patchedPresentation.defaultBackground}
               draggingMasterId={draggingMasterId}
               editingTextMasterId={editingTextMasterId}
+              editingTextDraftContent={editingTextDraftContent}
               previewFrame={previewFrame}
               renderedAppearances={renderedAppearances}
               scale={scale}

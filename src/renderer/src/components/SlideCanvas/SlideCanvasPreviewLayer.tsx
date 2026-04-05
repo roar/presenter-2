@@ -1,6 +1,6 @@
 import React from 'react'
 import type { FrameState, RenderedAppearance } from '@shared/animation/types'
-import type { Background, LinearGradientFill, Slide } from '@shared/model/types'
+import type { Background, LinearGradientFill, Slide, TextContent } from '@shared/model/types'
 import { SlideCanvasStaticPreviewLayer } from './SlideCanvasStaticPreviewLayer'
 import { SlideCanvasTransitionLayer } from './SlideCanvasTransitionLayer'
 
@@ -10,6 +10,7 @@ interface SlideCanvasPreviewLayerProps {
   defaultBackground?: Background
   draggingMasterId: string | null
   editingTextMasterId: string | null
+  editingTextDraftContent: TextContent | null
   previewFrame?: FrameState | null
   renderedAppearances: RenderedAppearance[]
   scale: number
@@ -41,6 +42,7 @@ export function SlideCanvasPreviewLayer({
   defaultBackground,
   draggingMasterId,
   editingTextMasterId,
+  editingTextDraftContent,
   previewFrame = null,
   renderedAppearances,
   scale,
@@ -62,6 +64,7 @@ export function SlideCanvasPreviewLayer({
       defaultBackground={defaultBackground}
       draggingMasterId={draggingMasterId}
       editingTextMasterId={editingTextMasterId}
+      editingTextDraftContent={editingTextDraftContent}
       renderedAppearances={renderedAppearances}
       scale={scale}
       selectedElementIds={selectedElementIds}

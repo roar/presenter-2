@@ -4,7 +4,7 @@ import { isGradientFill, resolveLinearGradientEndpoints } from '@shared/model/fi
 import { resolveBackgroundGrain, resolveSlideBackground } from '@shared/model/background'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import type { RenderedAppearance } from '@shared/animation/types'
-import type { Background, LinearGradientFill, Slide } from '@shared/model/types'
+import type { Background, LinearGradientFill, Slide, TextContent } from '@shared/model/types'
 import { ObjectAnnotationLayer } from './ObjectAnnotationLayer'
 import { SlideCanvasObject } from './SlideCanvasObject'
 import styles from './SlideCanvas.module.css'
@@ -15,6 +15,7 @@ interface SlideCanvasStaticPreviewLayerProps {
   defaultBackground?: Background
   draggingMasterId: string | null
   editingTextMasterId: string | null
+  editingTextDraftContent: TextContent | null
   renderedAppearances: RenderedAppearance[]
   scale: number
   selectedElementIds: string[]
@@ -65,6 +66,7 @@ export function SlideCanvasStaticPreviewLayer({
   defaultBackground,
   draggingMasterId,
   editingTextMasterId,
+  editingTextDraftContent,
   renderedAppearances,
   scale,
   selectedElementIds,
@@ -133,6 +135,7 @@ export function SlideCanvasStaticPreviewLayer({
           isSelected={selectedElementIds.includes(renderedAppearance.master.id)}
           isDragging={draggingMasterId === renderedAppearance.master.id}
           isEditingText={editingTextMasterId === renderedAppearance.master.id}
+          editingTextDraftContent={editingTextDraftContent}
           onElementDoubleClick={onElementDoubleClick}
           onElementMouseDown={onElementMouseDown}
           onElementContextMenu={onElementContextMenu}

@@ -59,4 +59,20 @@ describe('TextView', () => {
       outlineOffset: '4px'
     })
   })
+
+  it('renders override content when present', () => {
+    const master = makeTextMaster('Persisted text')
+    const appearance = createAppearance(master.id, 'slide-1')
+
+    render(
+      <TextView
+        master={master}
+        appearance={appearance}
+        contentOverride={createTextContent('Draft text')}
+      />
+    )
+
+    expect(screen.getByText('Draft text')).toBeInTheDocument()
+    expect(screen.queryByText('Persisted text')).not.toBeInTheDocument()
+  })
 })

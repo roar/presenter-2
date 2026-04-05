@@ -1,7 +1,7 @@
 import React from 'react'
 import { isGradientFill, resolveLinearGradientEndpoints } from '@shared/model/fill'
 import type { RenderedAppearance } from '@shared/animation/types'
-import type { LinearGradientFill } from '@shared/model/types'
+import type { LinearGradientFill, TextContent } from '@shared/model/types'
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@shared/model/types'
 import { ImageView } from './ImageView'
 import { SelectionOverlay } from './SelectionOverlay'
@@ -17,6 +17,7 @@ interface SlideCanvasObjectProps {
   isSelected: boolean
   isDragging: boolean
   isEditingText: boolean
+  editingTextDraftContent: TextContent | null
   onElementDoubleClick: (masterId: string) => void
   onElementMouseDown: (masterId: string, event: React.MouseEvent) => void
   onElementContextMenu: (masterId: string, appearanceId: string, event: React.MouseEvent) => void
@@ -70,6 +71,7 @@ export function SlideCanvasObject({
   isSelected,
   isDragging,
   isEditingText,
+  editingTextDraftContent,
   onElementDoubleClick,
   onElementMouseDown,
   onElementContextMenu,
@@ -100,6 +102,7 @@ export function SlideCanvasObject({
           appearance={appearance}
           rendered={renderedAppearance}
           isEditing={isEditingText}
+          contentOverride={isEditingText ? editingTextDraftContent : null}
         />
       )}
       {master.type === 'image' && (

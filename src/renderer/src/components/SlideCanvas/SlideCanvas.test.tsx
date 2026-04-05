@@ -19,6 +19,7 @@ vi.mock('../../store/documentStore', async () => {
 })
 
 const beginTextEditMock = vi.fn()
+const cancelTextEditMock = vi.fn()
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -57,7 +58,8 @@ function mockStore(
   document: Presentation | null,
   selectedElementIds: string[] = [],
   selectedAnimationId: string | null = null,
-  editingTextMasterId: string | null = null
+  editingTextMasterId: string | null = null,
+  editingTextDraftContent = null
 ): void {
   vi.mocked(useDocumentStore).mockImplementation((selector: (s: unknown) => unknown) => {
     return selector({
@@ -67,10 +69,15 @@ function mockStore(
         selectedSlideId,
         selectedElementIds,
         selectedAnimationId,
-        editingText: { masterId: editingTextMasterId, selection: null, draftContent: null }
+        editingText: {
+          masterId: editingTextMasterId,
+          selection: null,
+          draftContent: editingTextDraftContent
+        }
       },
       moveElement: vi.fn(),
       beginTextEdit: beginTextEditMock,
+      cancelTextEdit: cancelTextEditMock,
       selectElements: vi.fn(),
       selectAnimation: vi.fn(),
       setPreviewPatch: vi.fn(),
@@ -93,6 +100,7 @@ function mockStore(
 describe('SlideCanvas', () => {
   beforeEach(() => {
     beginTextEditMock.mockReset()
+    cancelTextEditMock.mockReset()
     mockStore(null, null)
   })
 
@@ -222,6 +230,49 @@ describe('SlideCanvas', () => {
     fireEvent.doubleClick(screen.getByTestId('element-hitbox'))
 
     expect(beginTextEditMock).toHaveBeenCalledWith(master.id)
+  })
+
+  it('cancels text edit when pressing Escape while editing a text object', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Hello text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [], null, master.id)
+    render(<SlideCanvas />)
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(cancelTextEditMock).toHaveBeenCalled()
+  })
+
+  it('renders draft text content while a text object is being edited', () => {
+    const pres = createPresentation()
+    const slide = createSlide()
+    const master = createMsoMaster('text')
+    master.transform = { x: 100, y: 100, width: 300, height: 120, rotation: 0 }
+    master.content = { type: 'text', value: createTextContent('Persisted text') }
+    const appearance = createAppearance(master.id, slide.id)
+
+    slide.appearanceIds = [appearance.id]
+    pres.slideOrder = [slide.id]
+    pres.slidesById[slide.id] = slide
+    pres.mastersById[master.id] = master
+    pres.appearancesById[appearance.id] = appearance
+
+    mockStore(slide.id, pres, [], null, master.id, createTextContent('Draft text'))
+    render(<SlideCanvas />)
+
+    expect(screen.getByText('Draft text')).toBeInTheDocument()
+    expect(screen.queryByText('Persisted text')).not.toBeInTheDocument()
   })
 
   it('shows context menu when right-clicking an element', async () => {

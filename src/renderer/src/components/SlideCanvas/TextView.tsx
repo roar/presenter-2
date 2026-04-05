@@ -1,6 +1,6 @@
 import type { RenderedAppearance } from '@shared/animation/types'
 import { resolveColorValue } from '@shared/model/colors'
-import type { Appearance, MsoMaster } from '@shared/model/types'
+import type { Appearance, MsoMaster, TextContent } from '@shared/model/types'
 import { TextContentRenderer } from '@shared/text/TextContentRenderer'
 
 interface TextViewProps {
@@ -8,18 +8,20 @@ interface TextViewProps {
   appearance: Appearance
   rendered?: RenderedAppearance
   isEditing?: boolean
+  contentOverride?: TextContent | null
 }
 
 export function TextView({
   master,
   appearance,
   rendered,
-  isEditing = false
+  isEditing = false,
+  contentOverride = null
 }: TextViewProps): React.JSX.Element {
   const { transform: t } = master
   const visible = rendered?.visible ?? appearance.initialVisibility === 'visible'
   const textStyle = master.textStyle?.defaultState ?? {}
-  const content = master.content.type === 'text' ? master.content.value : null
+  const content = contentOverride ?? (master.content.type === 'text' ? master.content.value : null)
 
   return (
     <div
