@@ -39,7 +39,9 @@ export function TextView({
         fontFamily: textStyle.fontFamily,
         color: resolveColorValue(textStyle.color),
         whiteSpace: 'normal',
-        overflowWrap: 'anywhere'
+        overflowWrap: 'anywhere',
+        outline: isEditing ? '2px solid #0a84ff' : undefined,
+        outlineOffset: isEditing ? '4px' : undefined
       }}
     >
       {content ? <TextContentRenderer content={content} /> : null}

@@ -52,6 +52,11 @@ describe('TextView', () => {
 
     render(<TextView master={master} appearance={appearance} isEditing />)
 
-    expect(screen.getByTestId('text-view')).toHaveAttribute('data-text-editing', 'true')
+    const textView = screen.getByTestId('text-view')
+    expect(textView).toHaveAttribute('data-text-editing', 'true')
+    expect(textView).toHaveStyle({
+      outline: '2px solid #0a84ff',
+      outlineOffset: '4px'
+    })
   })
 })
